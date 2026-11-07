@@ -123,7 +123,7 @@ One-time setup on GitHub:
 2. **Settings → Secrets and variables → Actions → Variables tab → New repository variable.** Add each of these with the values from §2:
    `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_VAPID_KEY`.
    Optional: `VITE_BASE` = `/` if you use a custom domain.
-3. Merge to `main`, or run the workflow by hand from the **Actions** tab. The site will be at **`https://<owner>.github.io/<repo>/`** (here: `https://du-library.github.io/mamulaat/`).
+3. Merge to `main`, or run the workflow by hand from the **Actions** tab. The site will be at **`https://<owner>.github.io/<repo>/`** (here: `https://du-library.github.io/Mamulaat/`).
 4. Add `<owner>.github.io` to Firebase **Authentication → Settings → Authorized domains** (§1, step 2).
 
 To build the Pages version locally: `VITE_BASE=/mamulaat/ npm run build:pages`.
