@@ -44,7 +44,7 @@ export async function confirmDelete(u: UserProfile, actor: Actor) {
 }
 
 function UserRow({ u, classes, actor }: { u: UserProfile; classes: ClassDoc[]; actor: Actor }) {
-  const [cls, setCls] = useState(u.classId ?? '');
+  const [cls, setCls] = useState(u.classId ?? u.requestedClassId ?? '');
   const [err, setErr] = useState<string | null>(null);
   const run = (p: Promise<unknown>) => p.catch((e) => setErr((e as Error).message));
   return (
@@ -62,6 +62,11 @@ function UserRow({ u, classes, actor }: { u: UserProfile; classes: ClassDoc[]; a
             </div>
           )}
           <div className="truncate text-sm text-slate-500">{u.email}</div>
+          {u.status === 'pending' && (
+            <div className="text-sm text-slate-600" dir="auto">
+              {u.signupComplete ? `Requested: ${classes.find((c) => c.id === u.requestedClassId)?.name ?? 'a class that no longer exists'}` : 'Has not entered their name/class yet'}
+            </div>
+          )}
         </div>
       </div>
       {u.status === 'pending' && (

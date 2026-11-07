@@ -1,5 +1,6 @@
 import { useSession } from '../hooks/useSession';
 import { FullScreen } from '../components/ui';
+import { useClasses } from '../hooks/useAdminData';
 import type { UserProfile } from '../types';
 
 const copy: Record<string, { icon: string; title: string; body: string }> = {
@@ -22,6 +23,8 @@ const copy: Record<string, { icon: string; title: string; body: string }> = {
 
 export function Waiting({ profile }: { profile: UserProfile }) {
   const { signOut } = useSession();
+  const classes = useClasses();
+  const requested = classes.data.find((x) => x.id === profile.requestedClassId);
   const c = profile.handedOverTo
     ? {
         icon: '🤝',
@@ -41,6 +44,7 @@ export function Waiting({ profile }: { profile: UserProfile }) {
         <div className="text-left">
           <div className="font-semibold">{profile.name}</div>
           <div className="text-sm text-slate-500">{profile.email}</div>
+          {profile.status === 'pending' && requested && <div className="text-sm text-slate-600">Requested class: {requested.name}</div>}
         </div>
       </div>
       <button className="btn-ghost mt-6" onClick={() => signOut()}>

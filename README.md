@@ -225,6 +225,8 @@ There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists
 
 **Progress.** Each mamool counts as 100% when done, a proportional share when partly done, and 0% when missed. A day keeps the streak alive at ≥50% completion. If today isn't logged yet, the streak counts back from yesterday. Removing a mamool is a soft delete, so past percentages stay correct.
 
+**Sign-up.** A new student signs in with Google, then types their **name** (this becomes their name everywhere in the app; it is never overwritten from Google) and picks their **class** from the classes the admin created. That is only a *request*: the student stays pending until the admin approves, and the admin sees the requested class pre-selected (and can change it). Because the class list must be readable before approval, **class names are readable by any signed-in user**; classes contain nothing but a name. Students can later rename themselves under **Me**, and add, edit, reorder or remove their own mamoolaat at any time (**Add a mamool** on the Today screen, or **Me → My mamoolaat**); additions apply from the day they're added and don't change past days.
+
 **Deleting a student** (Admin → student → Delete) removes their mamoolaat, logs, comments, changes and tokens, then the profile. The `cleanupDeletedUser` function also deletes any leftovers and their Firebase Auth account.
 
 **Privacy.** Only what Google sign-in provides (name, email, photo) plus the student's mamoolaat data is stored. A "Who can see what" note is shown on sign-in, onboarding and the profile page.

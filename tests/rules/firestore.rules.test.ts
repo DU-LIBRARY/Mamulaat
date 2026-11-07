@@ -148,11 +148,14 @@ describe('student isolation', () => {
     await assertFails(updateDoc(doc(f, `users/${B}/mamoolaat/m1`), { name: 'hacked' }));
   });
 
-  it('student cannot read another class or the audit log', async () => {
-    const f = db(A);
-    await assertSucceeds(getDoc(doc(f, 'classes/class-1')));
-    await assertFails(getDoc(doc(f, 'classes/class-2')));
-    await assertFails(getDocs(collection(f, 'auditLog')));
+  it('student cannot read the audit log', async () => {
+    await assertFails(getDocs(collection(db(A), 'auditLog')));
+  });
+
+  it('signed-in users can read class names (so new students can pick one); anonymous users cannot', async () => {
+    await assertSucceeds(getDocs(collection(db(A), 'classes')));
+    await assertSucceeds(getDocs(collection(db(PENDING), 'classes')));
+    await assertFails(getDocs(collection(db(null), 'classes')));
   });
 
   it('unauthenticated users can read nothing', async () => {
@@ -231,6 +234,55 @@ describe('privilege escalation', () => {
   });
 });
 
+describe('sign-up: name and requested class', () => {
+  it('a pending user can set their name and request an existing class', async () => {
+    const f = db(PENDING);
+    await assertSucceeds(
+      updateDoc(doc(f, `users/${PENDING}`), { name: 'Aisha Rahman', requestedClassId: 'class-2', signupComplete: true }),
+    );
+  });
+
+  it('requesting a class that does not exist is rejected', async () => {
+    await assertFails(updateDoc(doc(db(PENDING), `users/${PENDING}`), { requestedClassId: 'made-up', signupComplete: true }));
+  });
+
+  it('a blank name is rejected', async () => {
+    await assertFails(updateDoc(doc(db(PENDING), `users/${PENDING}`), { name: '   ' }));
+  });
+
+  it('requesting a class does not put the student in it', async () => {
+    const f = db(PENDING);
+    await assertSucceeds(updateDoc(doc(f, `users/${PENDING}`), { requestedClassId: 'class-1', signupComplete: true }));
+    await assertFails(updateDoc(doc(f, `users/${PENDING}`), { classId: 'class-1' }));
+    await assertFails(updateDoc(doc(f, `users/${PENDING}`), { status: 'active', classId: 'class-1' }));
+    await assertFails(getDocs(collection(f, `users/${PENDING}/mamoolaat`)));
+  });
+
+  it('an active student can rename themselves but cannot change the request fields', async () => {
+    const f = db(A);
+    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { name: 'New Name' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { requestedClassId: 'class-2' }));
+  });
+
+  it('a new profile cannot arrive already signed-up or with a requested class', async () => {
+    const f = db('newbie2', 'newbie2@example.com');
+    const base = {
+      name: 'N', email: 'newbie2@example.com', photoURL: null, classId: null, role: 'student', status: 'pending',
+      reminderEnabled: false, reminderTime: null, onboarded: false, createdAt: serverTimestamp(),
+    };
+    await assertFails(setDoc(doc(f, 'users/newbie2'), { ...base, requestedClassId: 'class-1' }));
+    await assertFails(setDoc(doc(f, 'users/newbie2'), { ...base, signupComplete: true }));
+    await assertSucceeds(setDoc(doc(f, 'users/newbie2'), { ...base, requestedClassId: null, signupComplete: false }));
+  });
+
+  it('the admin can approve using the requested class', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `users/${PENDING}`), { requestedClassId: 'class-2', signupComplete: true });
+    });
+    await assertSucceeds(updateDoc(doc(db(ADMIN), `users/${PENDING}`), { status: 'active', classId: 'class-2' }));
+  });
+});
+
 describe('pending and inactive users', () => {
   for (const uid of [PENDING, INACTIVE]) {
     it(`${uid} can read only their own basic profile`, async () => {
@@ -239,7 +291,6 @@ describe('pending and inactive users', () => {
       await assertFails(getDoc(doc(f, 'settings/app')));
       await assertFails(getDocs(collection(f, `users/${uid}/mamoolaat`)));
       await assertFails(getDocs(collection(f, `users/${uid}/logs`)));
-      await assertFails(getDoc(doc(f, 'classes/class-1')));
       await assertFails(getDoc(doc(f, `users/${A}`)));
     });
 

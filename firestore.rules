@@ -59,7 +59,8 @@ service cloud.firestore {
     function validNewProfile(uid) {
       let d = request.resource.data;
       return d.keys().hasOnly(['name', 'email', 'photoURL', 'role', 'status', 'classId',
-                                'reminderEnabled', 'reminderTime', 'onboarded', 'createdAt'])
+                                'reminderEnabled', 'reminderTime', 'onboarded', 'createdAt',
+                                'requestedClassId', 'signupComplete'])
         && d.role == 'student'
         && d.status == 'pending'
         && d.get('classId', null) == null
@@ -68,19 +69,33 @@ service cloud.firestore {
         && optString(d.get('photoURL', null), 2000)
         && d.get('reminderEnabled', false) == false
         && d.get('onboarded', false) == false
+        && d.get('requestedClassId', null) == null
+        && d.get('signupComplete', false) == false
         && d.createdAt == request.time;
+    }
+
+    // The class a new student asks to join. Only a request: the admin decides classId.
+    function validRequestedClass(v) {
+      return v == null
+        || (v is string && v.size() > 0 && v.size() <= 100
+            && exists(/databases/$(database)/documents/classes/$(v)));
     }
 
     // What a non-admin may change on their own profile. Never role/status/classId.
     function selfUpdateOk() {
       let d = request.resource.data;
       let basic = ['name', 'photoURL', 'lastSeenAt'];
+      let pendingOnly = ['requestedClassId', 'signupComplete'];
       let activeOnly = ['reminderEnabled', 'reminderTime', 'onboarded'];
-      return optString(d.get('name', null), 200)
+      return optString(d.get('name', null), 100)
+        && (d.get('name', null) == null || d.name.trim().size() > 0)
+        && validRequestedClass(d.get('requestedClassId', null))
+        && d.get('signupComplete', false) is bool
         && optString(d.get('photoURL', null), 2000)
         && validTime(d.get('reminderTime', null))
         && d.get('reminderEnabled', false) is bool
         && (changed().hasOnly(basic)
+            || (resource.data.status == 'pending' && changed().hasOnly(basic.concat(pendingOnly)))
             || (resource.data.status == 'active' && changed().hasOnly(basic.concat(activeOnly))));
     }
 
@@ -205,7 +220,9 @@ service cloud.firestore {
 
     // ---------- classes ----------
     match /classes/{classId} {
-      allow read: if isAdmin() || (isActive() && me().get('classId', null) == classId);
+      // Class names (nothing else is stored here) are readable by any signed-in user,
+      // so a new student can pick the class they belong to when signing up.
+      allow read: if signedIn();
       allow create, update: if isAdmin()
                             && request.resource.data.name is string
                             && request.resource.data.name.size() > 0

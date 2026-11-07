@@ -76,9 +76,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         const p = { id: snap.id, ...snap.data() } as UserProfile;
         setProfile(p);
-        // keep name/photo in sync with Google (only fields Google sign-in provides)
-        if (!snap.metadata.fromCache && (p.name !== user.displayName || p.photoURL !== user.photoURL) && user.displayName) {
-          updateOwnProfile(user.uid, { name: user.displayName, photoURL: user.photoURL ?? null });
+        // Keep the photo in sync with Google. The NAME is whatever the student typed at
+        // sign-up (or later on their profile), so it is never overwritten from Google.
+        if (!snap.metadata.fromCache && user.photoURL && p.photoURL !== user.photoURL) {
+          updateOwnProfile(user.uid, { photoURL: user.photoURL });
         }
       },
       (e) => setProfileError(e),

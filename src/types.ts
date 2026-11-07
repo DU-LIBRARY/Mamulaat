@@ -12,6 +12,10 @@ export interface UserProfile {
   role: Role;
   status: UserStatus;
   classId: string | null;
+  /** Class the student asked to join at sign-up (the admin decides the real classId). */
+  requestedClassId?: string | null;
+  /** True once the student has entered their name and chosen a class. */
+  signupComplete?: boolean;
   reminderEnabled: boolean;
   reminderTime: string | null; // "HH:MM" in the project timezone
   onboarded: boolean;

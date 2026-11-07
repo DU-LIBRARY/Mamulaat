@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
 import { DateLine } from '../../components/DateLine';
@@ -8,11 +8,13 @@ import { ReminderBanner } from '../../components/ReminderBanner';
 import { ProgressRing, StatCard, Spinner, Badge, cellClass, EmptyState } from '../../components/ui';
 import { currentStreak, bestStreak, dayStats, scheduledFor, periodCompletion, pct } from '../../lib/scoring';
 import { shortDay, weekDays, weekStartOf } from '../../lib/dates';
-import { markCommentRead } from '../../lib/db';
+import { addMamool, markCommentRead } from '../../lib/db';
+import { MamoolForm } from '../../components/MamoolEditor';
 
 export function Home() {
-  const { profile, today, settings } = useActiveSession();
+  const { profile, today, settings, actor } = useActiveSession();
   const data = useMyData();
+  const [adding, setAdding] = useState(false);
   const { logs, all } = data;
 
   const stats = useMemo(() => {
@@ -120,9 +122,27 @@ export function Home() {
         {todays.length ? (
           <Checklist uid={profile.id} day={today} mamoolaat={todays} log={logs.get(today)} editable />
         ) : (
-          <EmptyState>
-            No mamoolaat for today. <Link className="font-semibold text-brand-700 underline" to="/mamoolaat">Add some</Link>.
-          </EmptyState>
+          <EmptyState>No mamoolaat yet. Add your first one below.</EmptyState>
+        )}
+
+        {adding ? (
+          <div className="card mt-3">
+            <div className="section-title">Add a mamool</div>
+            <MamoolForm
+              submitLabel="+ Add to my list"
+              onCancel={() => setAdding(false)}
+              onSubmit={(v) => {
+                const next = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
+                addMamool(profile.id, v, next, today, actor);
+                setAdding(false);
+              }}
+            />
+            <p className="mt-2 text-xs text-slate-500">It appears on today's checklist straight away. Past days are not changed.</p>
+          </div>
+        ) : (
+          <button className="btn-secondary mt-3 w-full" onClick={() => setAdding(true)}>
+            ＋ Add a mamool
+          </button>
         )}
       </section>
     </div>

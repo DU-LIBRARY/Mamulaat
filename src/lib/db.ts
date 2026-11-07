@@ -70,10 +70,23 @@ export function createPendingProfile(u: { uid: string; email: string; displayNam
       role: 'student',
       status: 'pending',
       classId: null,
+      requestedClassId: null,
+      signupComplete: false,
       reminderEnabled: false,
       reminderTime: null,
       onboarded: false,
       createdAt: serverTimestamp(),
+    }),
+  );
+}
+
+/** New student: save the name they typed and the class they picked (still pending approval). */
+export function completeSignup(uid: string, name: string, requestedClassId: string) {
+  return track(
+    updateDoc(userRef(uid), {
+      name: name.trim().replace(/\s+/g, ' ').slice(0, 100),
+      requestedClassId,
+      signupComplete: true,
     }),
   );
 }

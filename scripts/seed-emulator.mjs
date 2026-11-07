@@ -100,6 +100,8 @@ for (const p of people) {
     role: p.role,
     status: p.status,
     classId: p.classId,
+    requestedClassId: p.status === 'pending' ? 'demo-class-b' : p.classId,
+    signupComplete: true,
     reminderEnabled: false,
     reminderTime: null,
     onboarded: p.status === 'active',

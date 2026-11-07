@@ -9,6 +9,7 @@ import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
 import { SignIn } from './pages/SignIn';
 import { ConfigMissing, Waiting } from './pages/Waiting';
+import { Signup } from './pages/Signup';
 import { Onboarding } from './pages/student/Onboarding';
 import { Home } from './pages/student/Home';
 import { LogDay } from './pages/student/LogDay';
@@ -118,6 +119,7 @@ function Gate() {
     );
   }
   if (!profile) return <Spinner />;
+  if (profile.status === 'pending' && !profile.signupComplete) return <Signup profile={profile} />;
   if (profile.status !== 'active') return <Waiting profile={profile} />;
   if (isAdmin) return <AdminRoutes />;
   return (

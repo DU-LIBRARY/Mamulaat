@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useDocData } from '../../hooks/useFirestore';
 import { classesCol, updateOwnProfile } from '../../lib/db';
@@ -14,11 +15,22 @@ export function Me() {
   const [support, setSupport] = useState<PushSupport | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [name, setName] = useState(profile.name ?? '');
+  const [nameSaved, setNameSaved] = useState(false);
   const time = profile.reminderTime ?? settings.defaultReminderTime;
 
   useEffect(() => {
     pushSupport().then(setSupport);
   }, []);
+
+  const saveName = (e: FormEvent) => {
+    e.preventDefault();
+    const n = name.trim().replace(/\s+/g, ' ');
+    if (!n || n === profile.name) return;
+    updateOwnProfile(profile.id, { name: n.slice(0, 100) });
+    setNameSaved(true);
+    setTimeout(() => setNameSaved(false), 2000);
+  };
 
   const toggle = async () => {
     setMsg(null);
@@ -53,6 +65,24 @@ export function Me() {
           {cls.data && <div className="text-sm text-slate-600" dir="auto">Class: {cls.data.name}</div>}
         </div>
       </div>
+
+      <section className="card">
+        <div className="section-title">My name</div>
+        <form onSubmit={saveName} className="flex gap-2">
+          <input className="input" dir="auto" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} aria-label="Your name" />
+          <button className="btn-secondary" type="submit" disabled={!name.trim() || name.trim() === profile.name}>
+            {nameSaved ? 'Saved ✓' : 'Save'}
+          </button>
+        </form>
+      </section>
+
+      <Link to="/mamoolaat" className="card flex items-center justify-between">
+        <span>
+          <span className="block font-semibold">My mamoolaat</span>
+          <span className="text-sm text-slate-500">Add, edit, reorder or remove</span>
+        </span>
+        <span aria-hidden>›</span>
+      </Link>
 
       <section className="card">
         <div className="section-title">Daily reminder</div>
