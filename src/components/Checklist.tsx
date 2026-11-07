@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { saveEntry } from '../lib/db';
+import { adminSaveEntry, saveEntry, type Actor } from '../lib/db';
 import type { DayLog, EntryStatus, LogEntry, Mamool } from '../types';
 import { entryFraction } from '../lib/scoring';
 
@@ -119,12 +119,15 @@ export function Checklist({
   mamoolaat,
   log,
   editable,
+  asAdmin,
 }: {
   uid: string;
   day: string;
   mamoolaat: Mamool[];
   log: DayLog | undefined;
   editable: boolean;
+  /** When the admin edits a student's day: the edit is stamped and audited. */
+  asAdmin?: Actor;
 }) {
   return (
     <ul className="flex flex-col gap-3">
@@ -134,7 +137,7 @@ export function Checklist({
           m={m}
           entry={log?.entries?.[m.id]}
           editable={editable}
-          onChange={(e) => saveEntry(uid, day, m.id, e)}
+          onChange={(e) => (asAdmin ? adminSaveEntry(uid, day, m, e, asAdmin) : saveEntry(uid, day, m.id, e))}
         />
       ))}
     </ul>

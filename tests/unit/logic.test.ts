@@ -44,6 +44,18 @@ describe('scoring', () => {
     expect(scheduledFor('2026-11-02', ms).map((x) => x.id)).toEqual(['a', 'c']);
     expect(scheduledFor('2026-11-06', ms).map((x) => x.id)).toEqual(['a', 'b']);
   });
+  it('does not count the days a restored mamool was removed (gap)', () => {
+    const g = m('g', '2026-11-01', { gaps: [{ from: '2026-11-03', to: '2026-11-05' }] });
+    expect(scheduledFor('2026-11-02', [g]).length).toBe(1);
+    expect(scheduledFor('2026-11-03', [g]).length).toBe(0);
+    expect(scheduledFor('2026-11-04', [g]).length).toBe(0);
+    expect(scheduledFor('2026-11-05', [g]).length).toBe(1); // restored on the 5th
+  });
+  it('a day with nothing scheduled has no completion and breaks no streak maths', () => {
+    const s = dayStats('2026-10-01', undefined, ms);
+    expect(s.scheduled).toBe(0);
+    expect(s.hasLog).toBe(false);
+  });
   it('computes completion', () => {
     const s = dayStats('2026-11-06', log('2026-11-06', {
       a: { status: 'done', amount: 10, target: 10 },

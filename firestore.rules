@@ -107,6 +107,14 @@ service cloud.firestore {
       let promoting = d.role == 'admin' && resource.data.role != 'admin';
       return validRole(d.role) && validStatus(d.status)
         && resource.data.role != 'admin'
+        // The admin may rename, change class/status and reset sign-up state, nothing else
+        // (never email, createdAt, reminder settings...). `role` is only for handover.
+        && changed().hasOnly(['name', 'status', 'classId', 'requestedClassId', 'signupComplete', 'role',
+                              'onboarded'])
+        && (!('name' in changed()) || (d.name is string && d.name.trim().size() > 0 && d.name.size() <= 100))
+        && (d.get('classId', null) == null
+            || (d.classId is string && exists(/databases/$(database)/documents/classes/$(d.classId))))
+        && (d.get('requestedClassId', null) == null || d.requestedClassId is string)
         && (!promoting || (d.status == 'active'
                            && getAfter(userPath(request.auth.uid)).data.role != 'admin'));
     }
@@ -138,7 +146,8 @@ service cloud.firestore {
       // ----- a student's own list of mamoolaat -----
       function validMamool(d) {
         return d.keys().hasOnly(['name', 'target', 'unit', 'active', 'order', 'createdBy', 'createdAt',
-                                  'createdDate', 'removedDate', 'updatedBy', 'updatedAt'])
+                                  'createdDate', 'removedDate', 'gaps', 'updatedBy', 'updatedAt'])
+          && (d.get('gaps', []) is list && d.get('gaps', []).size() <= 50)
           && d.name is string && d.name.size() > 0 && d.name.size() <= 120
           && (d.target is int || d.target is float) && d.target > 0 && d.target <= 1000000
           && d.unit is string && d.unit.size() <= 40
@@ -163,18 +172,32 @@ service cloud.firestore {
 
       // ----- daily logs, id = YYYY-MM-DD in the project timezone -----
       function validLog(d, day) {
-        return d.keys().hasOnly(['date', 'entries', 'updatedAt'])
+        return d.keys().hasOnly(['date', 'entries', 'updatedAt', 'editedBy', 'editedByName'])
           && d.date == day
           && d.entries is map
           && d.entries.size() <= 100
           && d.updatedAt == request.time;
       }
 
+      // The admin may write any day (even locked or old ones) but the log is then
+      // stamped with who edited it. Students can never set or keep that stamp.
+      function validAdminLog(d, day) {
+        return validLog(d, day)
+          && d.get('editedBy', null) == request.auth.uid
+          && d.get('editedByName', '') is string
+          && d.get('editedByName', '').size() <= 200;
+      }
+      function validStudentLog(d, day) {
+        return validLog(d, day) && !('editedBy' in d) && !('editedByName' in d);
+      }
+
       match /logs/{day} {
         allow read: if isActiveSelf(uid) || isAdmin();
-        // Only the student writes their own logs, and only inside the backfill window.
-        allow create, update: if isActiveSelf(uid) && validDayId(day) && dayEditable(day)
-                              && validLog(request.resource.data, day);
+        // A student writes their own logs, only inside the backfill window. The admin can write any day.
+        allow create, update: if (isActiveSelf(uid) && !isAdmin() && validDayId(day) && dayEditable(day)
+                                  && validStudentLog(request.resource.data, day))
+                              || (isAdmin() && validDayId(day) && exists(userPath(uid))
+                                  && validAdminLog(request.resource.data, day));
         allow delete: if (isActiveSelf(uid) && validDayId(day) && dayEditable(day)) || isAdmin();
       }
 
@@ -244,6 +267,11 @@ service cloud.firestore {
                    && request.resource.data.timezone is string
                    && request.resource.data.utcOffsetMinutes is int
                    && request.resource.data.attentionThreshold is number
+                   && request.resource.data.attentionThreshold >= 0
+                   && request.resource.data.attentionThreshold <= 100
+                   && request.resource.data.attentionNoLogDays is int
+                   && request.resource.data.attentionNoLogDays >= 1
+                   && request.resource.data.attentionNoLogDays <= 60
                    && validTime(request.resource.data.defaultReminderTime);
     }
 

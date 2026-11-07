@@ -1,6 +1,20 @@
 import { registerSW } from 'virtual:pwa-register';
 
 let registration: ServiceWorkerRegistration | undefined;
+let updateReady = false;
+let updateSW: ((reload?: boolean) => Promise<void>) | undefined;
+const updateListeners = new Set<() => void>();
+
+/** Subscribe to "a new version is downloaded and waiting" (for the update prompt). */
+export function subscribeUpdate(l: () => void) {
+  updateListeners.add(l);
+  return () => updateListeners.delete(l);
+}
+export const getUpdateReady = () => updateReady;
+/** Activate the waiting service worker and reload into the new version. */
+export function applyUpdate() {
+  return updateSW?.(true) ?? Promise.resolve(window.location.reload());
+}
 const waiters: Array<(r: ServiceWorkerRegistration | undefined) => void> = [];
 
 /** Register the single app service worker (PWA shell + FCM). */
@@ -9,10 +23,21 @@ export function initPwa() {
     waiters.splice(0).forEach((w) => w(undefined));
     return;
   }
-  registerSW({
+  updateSW = registerSW({
     immediate: true,
+    onNeedRefresh() {
+      updateReady = true;
+      updateListeners.forEach((l) => l());
+    },
     onRegisteredSW(_url, r) {
       registration = r;
+      // Look for a new version when the app is reopened and every hour, so installed
+      // PWAs notice a deploy without needing a manual reload.
+      if (r) {
+        const check = () => navigator.onLine && r.update().catch(() => undefined);
+        setInterval(check, 60 * 60 * 1000);
+        document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check());
+      }
       waiters.splice(0).forEach((w) => w(r));
     },
     onRegisterError(e) {

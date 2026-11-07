@@ -48,6 +48,10 @@ export function LogDay() {
         <div className="rounded-xl bg-brand-50 p-3 text-sm text-brand-800">You're filling in a past day. It locks after {settings.backfillDays} day{settings.backfillDays === 1 ? '' : 's'}.</div>
       )}
 
+      {logs.get(day)?.editedBy && (
+        <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">✎ Your teacher{logs.get(day)?.editedByName ? ` (${logs.get(day)?.editedByName})` : ''} edited this day. Your next change here removes this note.</div>
+      )}
+
       {mams.length ? (
         <Checklist uid={profile.id} day={day} mamoolaat={mams} log={logs.get(day)} editable={editable} />
       ) : (

@@ -96,6 +96,9 @@ export function updateOwnProfile(uid: string, data: Partial<Pick<UserProfile, 'n
 }
 
 // ---------- logs ----------
+/** Student writes clear any "edited by the teacher" stamp (the rules require it). */
+const CLEAR_STAMP = { editedBy: deleteField(), editedByName: deleteField() };
+
 export function saveEntry(uid: string, day: string, mamoolId: string, entry: LogEntry | null) {
   fire(
     setDoc(
@@ -104,6 +107,7 @@ export function saveEntry(uid: string, day: string, mamoolId: string, entry: Log
         date: day,
         entries: { [mamoolId]: entry ?? deleteField() },
         updatedAt: serverTimestamp(),
+        ...CLEAR_STAMP,
       },
       { merge: true },
     ),
@@ -111,7 +115,33 @@ export function saveEntry(uid: string, day: string, mamoolId: string, entry: Log
 }
 
 export function saveEntries(uid: string, day: string, entries: Record<string, LogEntry>) {
-  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp() }, { merge: true }));
+  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true }));
+}
+
+/** Admin edits one entry of any student's log for ANY day. The log is stamped with who edited it, and audited. */
+export function adminSaveEntry(uid: string, day: string, mamool: Pick<Mamool, 'id' | 'name'>, entry: LogEntry | null, actor: Actor) {
+  const batch = writeBatch(db);
+  batch.set(
+    logRef(uid, day),
+    {
+      date: day,
+      entries: { [mamool.id]: entry ?? deleteField() },
+      updatedAt: serverTimestamp(),
+      editedBy: actor.uid,
+      editedByName: actor.name.slice(0, 200),
+    },
+    { merge: true },
+  );
+  addAudit(batch, actor, 'log.edit', { studentId: uid, day, mamoolId: mamool.id, mamoolName: mamool.name, entry });
+  fire(batch.commit());
+}
+
+/** Admin deletes a student's whole log for one day. */
+export function adminDeleteLog(uid: string, day: string, actor: Actor) {
+  const batch = writeBatch(db);
+  batch.delete(logRef(uid, day));
+  addAudit(batch, actor, 'log.delete', { studentId: uid, day });
+  fire(batch.commit());
 }
 
 // ---------- mamoolaat ----------
@@ -171,11 +201,23 @@ export function removeMamool(uid: string, m: Mamool, today: string, actor: Actor
   fire(batch.commit());
 }
 
-export function restoreMamool(uid: string, m: Mamool, actor: Actor) {
+/** Permanently delete a mamool (the soft-remove above keeps history; this does not). */
+export function deleteMamoolForever(uid: string, m: Mamool, actor: Actor) {
   const batch = writeBatch(db);
+  batch.delete(doc(mamoolaatCol(uid), m.id));
+  if (actor.uid !== uid) addAudit(batch, actor, 'mamool.delete', { studentId: uid, mamoolId: m.id, mamoolName: m.name });
+  fire(batch.commit());
+}
+
+export function restoreMamool(uid: string, m: Mamool, today: string, actor: Actor) {
+  const batch = writeBatch(db);
+  // The days it spent removed must not count as missed, so remember them as a gap.
+  const gaps = [...(m.gaps ?? [])];
+  if (m.removedDate && m.removedDate < today) gaps.push({ from: m.removedDate, to: today });
   batch.update(doc(mamoolaatCol(uid), m.id), {
     active: true,
     removedDate: null,
+    gaps: gaps.slice(-50),
     updatedBy: actor.uid,
     updatedAt: serverTimestamp(),
   });
@@ -245,6 +287,13 @@ export function deleteComment(uid: string, commentId: string, actor: Actor) {
   fire(batch.commit());
 }
 
+export function deleteChange(uid: string, changeId: string, actor: Actor) {
+  const batch = writeBatch(db);
+  batch.delete(doc(changesCol(uid), changeId));
+  addAudit(batch, actor, 'change.delete', { studentId: uid, changeId });
+  fire(batch.commit());
+}
+
 // ---------- classes ----------
 export function createClass(name: string, actor: Actor) {
   const batch = writeBatch(db);
@@ -262,11 +311,34 @@ export function renameClass(classId: string, name: string, actor: Actor) {
   fire(batch.commit());
 }
 
-export function deleteClass(classId: string, actor: Actor) {
+/**
+ * Delete a class. Everyone still in it is first moved to `moveTo` (or left without a class
+ * when null), and pending sign-ups that asked for it are sent back to pick another class.
+ * The class itself is deleted last, so a failure part-way never loses students.
+ */
+export async function deleteClass(classId: string, actor: Actor, members: UserProfile[] = [], moveTo: string | null = null) {
+  const affected = members.filter((u) => u.classId === classId || u.requestedClassId === classId);
+  const ops = affected.map((u) => {
+    const patch: Record<string, unknown> = {};
+    if (u.classId === classId) patch.classId = moveTo;
+    if (u.requestedClassId === classId) {
+      patch.requestedClassId = null;
+      if (u.status === 'pending') patch.signupComplete = false;
+    }
+    return { u, patch };
+  });
+  for (let i = 0; i < ops.length; i += 200) {
+    const batch = writeBatch(db);
+    ops.slice(i, i + 200).forEach(({ u, patch }) => {
+      batch.update(userRef(u.id), patch);
+      addAudit(batch, actor, 'user.move', { userId: u.id, classId: moveTo, reason: 'class deleted' });
+    });
+    await track(batch.commit());
+  }
   const batch = writeBatch(db);
   batch.delete(doc(classesCol(), classId));
-  addAudit(batch, actor, 'class.delete', { classId });
-  fire(batch.commit());
+  addAudit(batch, actor, 'class.delete', { classId, movedTo: moveTo, studentsMoved: ops.length });
+  await track(batch.commit());
 }
 
 // ---------- user management (admin) ----------
@@ -283,6 +355,33 @@ export const rejectUser = (uid: string, actor: Actor) => adminUserUpdate(uid, { 
 export const deactivateUser = (uid: string, actor: Actor) => adminUserUpdate(uid, { status: 'inactive' }, actor, 'user.deactivate');
 export const reactivateUser = (uid: string, actor: Actor) => adminUserUpdate(uid, { status: 'active' }, actor, 'user.reactivate');
 export const moveUser = (uid: string, classId: string, actor: Actor) => adminUserUpdate(uid, { classId }, actor, 'user.move', { classId });
+export const renameUser = (uid: string, name: string, actor: Actor) =>
+  adminUserUpdate(uid, { name: name.trim().replace(/\s+/g, ' ').slice(0, 100) }, actor, 'user.rename', { name });
+/** Put someone back to waiting-for-approval (they keep their data; classId is cleared). */
+export const setPending = (uid: string, actor: Actor) => adminUserUpdate(uid, { status: 'pending', classId: null }, actor, 'user.pending');
+
+export type BulkAction =
+  | { kind: 'approve'; classId: string }
+  | { kind: 'move'; classId: string }
+  | { kind: 'deactivate' }
+  | { kind: 'reactivate' };
+
+/** Apply one action to several users, chunked into batches (each user = 1 update + 1 audit entry). */
+export async function bulkUpdateUsers(uids: string[], action: BulkAction, actor: Actor) {
+  const patch: Record<string, unknown> =
+    action.kind === 'approve' ? { status: 'active', classId: action.classId }
+    : action.kind === 'move' ? { classId: action.classId }
+    : action.kind === 'deactivate' ? { status: 'inactive' }
+    : { status: 'active' };
+  for (let i = 0; i < uids.length; i += 200) {
+    const batch = writeBatch(db);
+    uids.slice(i, i + 200).forEach((uid) => {
+      batch.update(userRef(uid), patch);
+      addAudit(batch, actor, `user.${action.kind}`, { userId: uid, bulk: true, ...('classId' in action ? { classId: action.classId } : {}) });
+    });
+    await track(batch.commit());
+  }
+}
 
 /** Delete a student and ALL their data (mamoolaat, logs, comments, changes, tokens). Must be online. */
 export async function deleteStudent(uid: string, actor: Actor, email: string) {

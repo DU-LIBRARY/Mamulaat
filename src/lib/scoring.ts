@@ -7,7 +7,12 @@ export const STREAK_MIN_COMPLETION = 0.5;
 /** Mamoolaat that count for a given day (added on/before it and not yet removed). */
 export function scheduledFor(day: string, mamoolaat: Mamool[]): Mamool[] {
   return mamoolaat.filter(
-    (m) => m.createdDate <= day && (m.removedDate == null || m.removedDate > day) && (m.active || m.removedDate != null),
+    (m) =>
+      m.createdDate <= day &&
+      (m.removedDate == null || m.removedDate > day) &&
+      (m.active || m.removedDate != null) &&
+      // days it was removed and later restored do not count against the student
+      !(m.gaps ?? []).some((g) => g.from <= day && day < g.to),
   );
 }
 

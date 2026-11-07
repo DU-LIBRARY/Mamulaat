@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useClasses } from '../hooks/useAdminData';
 import { completeSignup } from '../lib/db';
@@ -11,20 +11,30 @@ export function Signup({ profile }: { profile: UserProfile }) {
   const { signOut } = useSession();
   const classes = useClasses();
   const [name, setName] = useState(profile.name ?? '');
-  const [classId, setClassId] = useState(profile.requestedClassId ?? '');
+  const [pickedClass, setClassId] = useState(profile.requestedClassId ?? '');
+  // Ignore a remembered class that has since been deleted
+  const classId = classes.data.some((c) => c.id === pickedClass) ? pickedClass : '';
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false); // guards double-taps before React re-renders
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !classId) return;
+    if (submitting.current || !name.trim() || !classId) return;
+    if (!navigator.onLine) {
+      // A queued write would sit "Saving…" forever, so ask them to reconnect instead.
+      setError('You are offline. Please connect to the internet and try again.');
+      return;
+    }
+    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
       await completeSignup(profile.id, name, classId);
     } catch (err) {
-      setError(navigator.onLine ? (err as Error).message : 'You need to be online to sign up.');
+      setError((err as Error).message);
       setBusy(false);
+      submitting.current = false;
     }
   };
 
@@ -57,6 +67,8 @@ export function Signup({ profile }: { profile: UserProfile }) {
             </label>
             {classes.loading ? (
               <Spinner label="Loading classes…" />
+            ) : classes.error ? (
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Could not load the class list: {classes.error.message}</p>
             ) : classes.data.length === 0 ? (
               <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">No classes have been set up yet. Please ask your teacher, then try again.</p>
             ) : (

@@ -43,7 +43,7 @@ jobs:
       PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
       DEPLOY_FUNCTIONS: ${{ (github.event_name == 'workflow_dispatch' && inputs.target == 'rules-and-functions') || (github.event_name == 'push' && vars.DEPLOY_FUNCTIONS == 'true') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check setup
         env:
@@ -54,11 +54,11 @@ jobs:
           echo "$SA" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('type')=='service_account'; print('Service account:', d['client_email'], '| key project:', d['project_id'])" \
             || { echo "::error::FIREBASE_SERVICE_ACCOUNT is not a valid service-account JSON key."; exit 1; }
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
