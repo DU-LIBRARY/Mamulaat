@@ -1,7 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  EmailAuthProvider,
   getRedirectResult,
+  linkWithCredential,
   onAuthStateChanged,
+  reauthenticateWithPopup,
+  signInWithEmailAndPassword,
+  unlink,
+  updatePassword,
   signInWithPopup,
   signInWithRedirect,
   signOut as fbSignOut,
@@ -34,6 +40,11 @@ interface Session {
   removed: boolean;
   dismissRemoved: () => void;
   signIn: () => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  /** Add (or change) an email + password sign-in on the signed-in account. */
+  setPassword: (password: string) => Promise<void>;
+  removePassword: () => Promise<void>;
+  hasPassword: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -162,6 +173,51 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           throw e;
         }
       }
+    },
+    async signInWithPassword(email, password) {
+      try {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+      } catch (e: unknown) {
+        const code = (e as { code?: string }).code ?? '';
+        if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'].includes(code)) {
+          throw new Error('Wrong email or password.');
+        }
+        if (code === 'auth/operation-not-allowed') throw new Error('Email & password sign-in is not enabled for this app yet.');
+        if (code === 'auth/too-many-requests') throw new Error('Too many attempts. Wait a few minutes and try again.');
+        throw e;
+      }
+    },
+    hasPassword: !!user?.providerData.some((p) => p.providerId === 'password'),
+    async setPassword(password) {
+      const u = auth.currentUser;
+      if (!u?.email) throw new Error('This account has no email address.');
+      const run = () =>
+        u.providerData.some((p) => p.providerId === 'password')
+          ? updatePassword(u, password)
+          : linkWithCredential(u, EmailAuthProvider.credential(u.email!, password));
+      try {
+        await run();
+      } catch (e: unknown) {
+        const code = (e as { code?: string }).code ?? '';
+        if (code === 'auth/requires-recent-login') {
+          await reauthenticateWithPopup(u, googleProvider);
+          await run();
+        } else if (code === 'auth/operation-not-allowed') {
+          throw new Error('Turn on Email/Password in Firebase → Authentication → Sign-in method first.');
+        } else if (code === 'auth/weak-password') {
+          throw new Error('Password must be at least 6 characters.');
+        } else throw e;
+      }
+      await u.reload();
+      setUser(auth.currentUser);
+    },
+    async removePassword() {
+      const u = auth.currentUser;
+      if (!u) return;
+      if (!u.providerData.some((p) => p.providerId !== 'password')) throw new Error('This account can only sign in with a password, so it cannot be removed.');
+      await unlink(u, 'password');
+      await u.reload();
+      setUser(auth.currentUser);
     },
     async signOut() {
       await fbSignOut(auth);

@@ -5,7 +5,10 @@ import { PrivacyNote } from '../components/PrivacyNote';
 import { DateLine } from '../components/DateLine';
 
 export function SignIn() {
-  const { signIn, today } = useSession();
+  const { signIn, signInWithPassword, today } = useSession();
+  const [showEmail, setShowEmail] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
@@ -37,6 +40,33 @@ export function SignIn() {
         </svg>
         {busy ? 'Signing in…' : 'Sign in with Google'}
       </button>
+      {!showEmail ? (
+        <button className="mt-4 text-sm font-semibold text-brand-700 underline" onClick={() => setShowEmail(true)}>
+          Sign in with email &amp; password instead
+        </button>
+      ) : (
+        <form
+          className="mt-4 flex w-full max-w-xs flex-col gap-2 text-left"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError(null);
+            try {
+              await signInWithPassword(email, password);
+            } catch (err) {
+              setError(navigator.onLine ? (err as Error).message : 'You need to be online to sign in the first time.');
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <input className="input" type="email" placeholder="Email" autoComplete="username" autoCapitalize="off" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className="input" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <button className="btn-secondary w-full" disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      )}
       {error && <p className="mt-3 max-w-xs text-sm text-red-600">{error}</p>}
       <div className="mt-8 max-w-md text-left">
         <PrivacyNote compact />

@@ -60,6 +60,8 @@ These are public client identifiers, not secrets. Security comes from the rules.
 
 For the live site, these same values are stored as GitHub **repository variables** (see §4), not in a file.
 
+> **Email & password sign-in (optional, e.g. for a demo).** Enable **Authentication → Sign-in method → Email/Password**. Create a demo student under **Authentication → Users → Add user**; they sign in with “Sign in with email & password”, complete sign-up and you approve them as usual. The single admin account can also get a password from **Admin → Settings → Password sign-in** (remove it when no longer needed).
+
 > **Sign-in:** the app uses a Google sign-in popup. If a browser blocks the popup, it falls back to a redirect sign-in. On GitHub Pages the redirect can be unreliable in Safari (the app's domain differs from `authDomain`), so ask students to allow the popup if sign-in doesn't complete.
 
 ## 3. Run locally with the emulators

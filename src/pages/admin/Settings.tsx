@@ -21,6 +21,56 @@ function offsetLabel(tz: string) {
   return `UTC${s}${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')}`;
 }
 
+function PasswordSignIn() {
+  const { profile, hasPassword, setPassword, removePassword } = useActiveSession();
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const act = async (fn: () => Promise<void>, ok: string) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await fn();
+      setMsg({ ok: true, text: ok });
+      setPw('');
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="card">
+      <div className="section-title">Password sign-in for this admin account</div>
+      <p className="mb-3 text-sm text-slate-600">
+        Lets someone (e.g. the teacher) open this admin account without Google: on the sign-in screen they tap “Sign in with email &amp; password” and use{' '}
+        <b>{profile.email}</b> with the password below. Anyone with it has full admin access — remove it when no longer needed.
+      </p>
+      <p className="mb-2 text-sm">
+        Status: {hasPassword ? <b className="text-brand-700">password sign-in is ON</b> : <b className="text-slate-500">off</b>}
+      </p>
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          act(() => setPassword(pw), hasPassword ? 'Password changed.' : 'Password sign-in turned on.');
+        }}
+      >
+        <input className="input" type="text" placeholder={hasPassword ? 'New password' : 'Choose a password (6+ characters)'} minLength={6} value={pw} onChange={(e) => setPw(e.target.value)} autoCapitalize="off" autoCorrect="off" required />
+        <button className="btn-primary shrink-0 px-4" disabled={busy || pw.length < 6}>
+          {hasPassword ? 'Change' : 'Set'}
+        </button>
+      </form>
+      {hasPassword && (
+        <button className="btn-secondary mt-2 w-full" disabled={busy} onClick={() => act(removePassword, 'Password sign-in removed.')}>
+          Remove password sign-in
+        </button>
+      )}
+      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-brand-700' : 'text-red-600'}`}>{msg.text}</p>}
+    </section>
+  );
+}
+
 function TransferAdmin() {
   const { actor, profile } = useActiveSession();
   const users = useAllUsers();
@@ -153,6 +203,7 @@ export function AdminSettings() {
         <span aria-hidden>›</span>
       </Link>
 
+      <PasswordSignIn />
       <TransferAdmin />
     </div>
   );
