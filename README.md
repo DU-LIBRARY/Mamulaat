@@ -126,7 +126,23 @@ One-time setup on GitHub:
 
 To build the Pages version locally: `VITE_BASE=/mamulaat/ npm run build:pages`.
 
-### 4b. Backend → Firebase (from your computer, when rules or functions change)
+### 4b. Backend → Firebase from GitHub (no computer needed, works on an iPad)
+
+`.github/workflows/deploy-firebase.yml` deploys the Firestore rules and indexes, and optionally the reminder functions. It **runs the security-rules tests first** and deploys nothing if any test fails. It runs automatically when `firestore.rules`, `firestore.indexes.json`, `firebase.json` or `functions/` change on `main`, or by hand from **Actions → Deploy Firebase backend → Run workflow**.
+
+One-time setup:
+1. Firebase console → ⚙️ **Project settings → Service accounts → Firebase Admin SDK → Generate new private key → Generate key.** A `.json` file downloads. On an iPad, open it from the Files app (Downloads) and **Select All → Copy**.
+2. GitHub → **Settings → Secrets and variables → Actions → Secrets tab → New repository secret**. Name: `FIREBASE_SERVICE_ACCOUNT`. Value: paste the whole JSON. Then **delete the downloaded file** from the device.
+3. `VITE_FIREBASE_PROJECT_ID` is already a repository variable from §4a.
+4. **Actions → Deploy Firebase backend → Run workflow → `rules`.**
+
+If the deploy step fails with a *permission* error, give the service account more access. Go to <https://console.cloud.google.com/iam-admin/iam>, select the project, find `firebase-adminsdk-…@<project>.iam.gserviceaccount.com`, click ✏️, and **add role → "Firebase Admin"**. Then re-run.
+
+Reminder functions (after upgrading to **Blaze**): run the workflow with `rules-and-functions`. Deploying functions needs more permissions. On the same service account, add **Cloud Functions Admin**, **Service Account User**, **Cloud Scheduler Admin**, **Artifact Registry Administrator** and **Cloud Build Editor**. The first functions deploy can take a few minutes while Google enables the APIs; if it fails saying an API "has not been used / is disabled", wait 2 minutes and re-run. Once it works, add the repository variable `DEPLOY_FUNCTIONS` = `true` so pushes also redeploy functions.
+
+> ⚠️ This key can read and write **all** data in the project (it bypasses the security rules). Anyone with admin access to the GitHub repo can use it through workflows. Keep repo admin access limited, and delete the key at handover (see §6).
+
+### 4c. Backend → Firebase (alternative: from a computer)
 
 ```bash
 npx firebase login
@@ -170,7 +186,7 @@ Anyone with **Owner/Editor** (or Firestore/Datastore viewer) access to the Fireb
 5. Have them confirm they can open the Firebase console for the project.
 6. Move **billing** to the school: Billing → Account management, then change the billing account or add them as Billing Account Administrator.
 7. **Remove yourself** from the project's IAM. Also remove yourself from the billing account and from Firebase → Project settings → Users and permissions if you're listed there.
-8. Delete any service-account keys or `application-default` credentials you created (`gcloud auth application-default revoke`), and remove local `.emulator-data` or exports that contain real data.
+8. **Delete the GitHub deploy key.** In Google Cloud → IAM & Admin → Service accounts → `firebase-adminsdk-…` → **Keys**, delete the key you created. Then delete the `FIREBASE_SERVICE_ACCOUNT` secret in GitHub. The new owner can create a new key for themselves if they want automatic deploys. Also remove yourself as a GitHub repo admin (or transfer the repo), and delete any other keys or `application-default` credentials you created (`gcloud auth application-default revoke`) and any local exports with real data.
 9. Optional: in Firebase → Authentication, delete your own user. Your Firestore profile stays inactive.
 
 Until steps 4–7 are done, you can still technically see data through the console. The in-app handover alone isn't enough.

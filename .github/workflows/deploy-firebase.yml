@@ -1,0 +1,93 @@
+# Deploys the Firebase BACKEND (Firestore security rules + indexes, and optionally the
+# reminder Cloud Functions) without needing a computer. Runs:
+#   - automatically on pushes to main that change the rules, indexes or functions/
+#   - manually from the Actions tab ("Run workflow"), where you choose what to deploy
+#
+# One-time setup (all doable from an iPad, see README → "Deploy the backend from GitHub"):
+#   Secret   FIREBASE_SERVICE_ACCOUNT  = full JSON of a Firebase service-account key
+#   Variable VITE_FIREBASE_PROJECT_ID  = your Firebase project id (already set for Pages)
+#   Variable DEPLOY_FUNCTIONS = true   (optional; only after upgrading to Blaze)
+#
+# The security-rules test suite runs first; nothing is deployed if any test fails.
+name: Deploy Firebase backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - firestore.indexes.json
+      - firebase.json
+      - functions/**
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to deploy
+        type: choice
+        options:
+          - rules
+          - rules-and-functions
+        default: rules
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+      DEPLOY_FUNCTIONS: ${{ (github.event_name == 'workflow_dispatch' && inputs.target == 'rules-and-functions') || (github.event_name == 'push' && vars.DEPLOY_FUNCTIONS == 'true') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check setup
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$PROJECT_ID" ]; then echo "::error::Repository variable VITE_FIREBASE_PROJECT_ID is not set."; exit 1; fi
+          if [ -z "$SA" ]; then echo "::error::Repository secret FIREBASE_SERVICE_ACCOUNT is not set (paste the service-account JSON key)."; exit 1; fi
+          echo "$SA" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('type')=='service_account'; print('Service account:', d['client_email'], '| key project:', d['project_id'])" \
+            || { echo "::error::FIREBASE_SERVICE_ACCOUNT is not a valid service-account JSON key."; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+
+      - name: Test security rules (Firestore emulator)
+        run: npm run test:rules
+
+      - name: Write credentials
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$SA" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Deploy Firestore rules + indexes
+        run: npx firebase deploy --only firestore --project "$PROJECT_ID" --non-interactive
+
+      - name: Install & test functions
+        if: env.DEPLOY_FUNCTIONS == 'true'
+        run: |
+          npm --prefix functions ci
+          npm --prefix functions test
+
+      - name: Deploy Cloud Functions (requires Blaze)
+        if: env.DEPLOY_FUNCTIONS == 'true'
+        run: npx firebase deploy --only functions --project "$PROJECT_ID" --non-interactive --force
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
