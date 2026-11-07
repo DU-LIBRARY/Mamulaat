@@ -1,5 +1,7 @@
 # Mamulaat
 
+> **Setting up for the first time? Follow [docs/SETUP.md](docs/SETUP.md). It can all be done from an iPad.**
+
 Mamulaat is an offline-first PWA for students to track their daily **mamoolaat** (daily routines and practices), with one **admin** (the teacher) who reviews them.
 
 - Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
