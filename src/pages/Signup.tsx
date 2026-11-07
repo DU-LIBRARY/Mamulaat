@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useClasses } from '../hooks/useAdminData';
 import { completeSignup } from '../lib/db';
@@ -10,21 +10,32 @@ import type { UserProfile } from '../types';
 export function Signup({ profile }: { profile: UserProfile }) {
   const { signOut } = useSession();
   const classes = useClasses();
-  const [name, setName] = useState(profile.name ?? '');
-  const [classId, setClassId] = useState(profile.requestedClassId ?? '');
+  // Start empty: the student must type the name their teacher will see (not their Google name).
+  const [name, setName] = useState('');
+  const [pickedClass, setClassId] = useState(profile.requestedClassId ?? '');
+  // Ignore a remembered class that has since been deleted
+  const classId = classes.data.some((c) => c.id === pickedClass) ? pickedClass : '';
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false); // guards double-taps before React re-renders
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !classId) return;
+    if (submitting.current || !name.trim() || !classId) return;
+    if (!navigator.onLine) {
+      // A queued write would sit "Saving…" forever, so ask them to reconnect instead.
+      setError('You are offline. Please connect to the internet and try again.');
+      return;
+    }
+    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
       await completeSignup(profile.id, name, classId);
     } catch (err) {
-      setError(navigator.onLine ? (err as Error).message : 'You need to be online to sign up.');
+      setError((err as Error).message);
       setBusy(false);
+      submitting.current = false;
     }
   };
 
@@ -49,7 +60,7 @@ export function Signup({ profile }: { profile: UserProfile }) {
               autoComplete="name"
               required
             />
-            <p className="mt-1 text-xs text-slate-500">This is the name you'll see in the app and your teacher will see.</p>
+            <p className="mt-1 text-xs text-slate-500">This is the name your teacher will see. Please use your real name.</p>
           </div>
           <div>
             <label className="label" htmlFor="class">
@@ -57,6 +68,8 @@ export function Signup({ profile }: { profile: UserProfile }) {
             </label>
             {classes.loading ? (
               <Spinner label="Loading classes…" />
+            ) : classes.error ? (
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Could not load the class list: {classes.error.message}</p>
             ) : classes.data.length === 0 ? (
               <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">No classes have been set up yet. Please ask your teacher, then try again.</p>
             ) : (

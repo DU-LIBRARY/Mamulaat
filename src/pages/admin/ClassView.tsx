@@ -33,6 +33,8 @@ export function ClassView() {
   const days = weekDays(weekStartOf(date, settings.weekStart));
   const from = view === 'week' ? days[0] : date;
   const to = view === 'week' ? days[6] : date;
+  // Next is only useful when there is something after what is shown: after today (day view) or after the week containing today (week view).
+  const nextDisabled = view === 'week' ? days[6] >= today : date >= today;
   const range = useStudentsRange(students.map((s) => s.id), from, to);
 
   const setParam = (k: string, v: string) => {
@@ -89,11 +91,11 @@ export function ClassView() {
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="btn-secondary px-3" onClick={() => setParam('date', addDays(date, view === 'week' ? -7 : -1))}>
+        <button className="btn-secondary px-3" aria-label={view === 'week' ? 'Previous week' : 'Previous day'} onClick={() => setParam('date', addDays(date, view === 'week' ? -7 : -1))}>
           ←
         </button>
         <input type="date" className="input text-center" value={date} max={today} onChange={(e) => e.target.value && setParam('date', e.target.value)} />
-        <button className="btn-secondary px-3" disabled={addDays(date, view === 'week' ? 7 : 1) > today && date === today} onClick={() => setParam('date', [addDays(date, view === 'week' ? 7 : 1), today].sort()[0])}>
+        <button className="btn-secondary px-3" aria-label={view === 'week' ? 'Next week' : 'Next day'} disabled={nextDisabled} onClick={() => setParam('date', [addDays(date, view === 'week' ? 7 : 1), today].sort()[0])}>
           →
         </button>
       </div>

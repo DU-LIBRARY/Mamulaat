@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { addMamool, removeMamool, reorderMamoolaat, restoreMamool, updateMamool, type Actor } from '../lib/db';
+import { addMamool, deleteMamoolForever, removeMamool, reorderMamoolaat, restoreMamool, updateMamool, type Actor } from '../lib/db';
 import type { Mamool } from '../types';
 import { targetLabel } from './Checklist';
 import { EmptyState } from './ui';
+import { useDialog } from './Dialog';
 
 export const SUGGESTIONS: Array<{ name: string; target: number; unit: string }> = [
   { name: 'Quran tilawat', target: 1, unit: 'juz' },
@@ -72,6 +73,8 @@ export function MamoolForm({
 
 export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }: { uid: string; all: Mamool[]; today: string; actor: Actor; showSuggestions?: boolean }) {
   const [editing, setEditing] = useState<string | null>(null);
+  const { confirm } = useDialog();
+  const byAdmin = actor.uid !== uid;
   const active = all.filter((m) => m.active);
   const removed = all.filter((m) => !m.active);
   const nextOrder = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
@@ -105,10 +108,10 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="flex flex-col">
-                    <button className="btn-ghost min-h-8 px-2 py-0 text-sm" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
+                    <button className="btn-ghost min-h-11 px-3 py-0 text-sm" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
                       ▲
                     </button>
-                    <button className="btn-ghost min-h-8 px-2 py-0 text-sm" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label="Move down">
+                    <button className="btn-ghost min-h-11 px-3 py-0 text-sm" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label="Move down">
                       ▼
                     </button>
                   </div>
@@ -125,8 +128,8 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                   </button>
                   <button
                     className="btn-ghost px-3 text-red-600"
-                    onClick={() => {
-                      if (confirm(`Remove "${m.name}"? Past logs are kept.`)) removeMamool(uid, m, today, actor);
+                    onClick={async () => {
+                      if (await confirm({ title: `Remove "${m.name}"?`, message: 'Past logs are kept. You can restore it later.', confirmLabel: 'Remove', danger: true })) removeMamool(uid, m, today, actor);
                     }}
                   >
                     Remove
@@ -164,9 +167,21 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                 <span className="text-slate-500 line-through" dir="auto">
                   {m.name} – {targetLabel(m)}
                 </span>
-                <button className="btn-ghost text-sm" onClick={() => restoreMamool(uid, m, actor)}>
-                  Restore
-                </button>
+                <span className="flex shrink-0 gap-1">
+                  <button className="btn-ghost text-sm" onClick={() => restoreMamool(uid, m, today, actor)}>
+                    Restore
+                  </button>
+                  {byAdmin && (
+                    <button
+                      className="btn-ghost text-sm text-red-600"
+                      onClick={async () => {
+                        if (await confirm({ title: `Delete "${m.name}" forever?`, message: 'It disappears completely (it can no longer be restored). Entries already logged for it stop showing in the history.', confirmLabel: 'Delete forever', danger: true })) deleteMamoolForever(uid, m, actor);
+                      }}
+                    >
+                      Delete forever
+                    </button>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

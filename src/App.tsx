@@ -24,6 +24,8 @@ import { Students } from './pages/admin/Students';
 import { StudentDetail } from './pages/admin/StudentDetail';
 import { AdminSettings } from './pages/admin/Settings';
 import { Audit } from './pages/admin/Audit';
+import { DialogProvider } from './components/Dialog';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { onForegroundMessage, refreshToken } from './lib/messaging';
 
 function Toast({ text, onClose }: { text: string; onClose: () => void }) {
@@ -99,7 +101,21 @@ function AdminRoutes() {
 }
 
 function Gate() {
-  const { user, profile, profileError, isAdmin, signOut } = useSession();
+  const { user, profile, profileError, isAdmin, signOut, removed, dismissRemoved } = useSession();
+  if (removed) {
+    return (
+      <FullScreen>
+        <h1 className="text-2xl font-extrabold text-brand-900">Your account was removed</h1>
+        <p className="mt-3 max-w-sm text-slate-600">
+          Your teacher removed your Mamulaat account and its data, and you have been signed out. If you think this is a mistake, please talk to your teacher.
+        </p>
+        <p className="mt-2 max-w-sm text-sm text-slate-500">If you sign in again, a new sign-up request will be sent to your teacher for approval.</p>
+        <button className="btn-primary mt-6" onClick={dismissRemoved}>
+          OK
+        </button>
+      </FullScreen>
+    );
+  }
   if (user === undefined) return <Spinner label="Opening Mamulaat…" />;
   if (user === null) return <SignIn />;
   if (profile === undefined) {
@@ -134,7 +150,10 @@ export default function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <SessionProvider>
-        <Gate />
+        <DialogProvider>
+          <UpdatePrompt />
+          <Gate />
+        </DialogProvider>
       </SessionProvider>
     </BrowserRouter>
   );

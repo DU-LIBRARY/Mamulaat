@@ -1,6 +1,6 @@
 # Mamulaat: setup guide (works entirely from an iPad)
 
-You'll end up with the app live at **https://du-library.github.io/mamulaat/**. Firebase stores the data and handles sign-in; GitHub hosts the app.
+You'll end up with the app live at **https://du-library.github.io/Mamulaat/**. Firebase stores the data and handles sign-in; GitHub hosts the app.
 Do the parts in order. It takes about 45 minutes.
 
 ---
@@ -94,7 +94,7 @@ Open **github.com/du-library/mamulaat**. Do steps 8–10 **before** step 11, bec
 13. **Publish the app**
     - **Actions** tab → **Deploy to GitHub Pages**. Creating `main` usually started it already.
     - If it isn't green, tap **Run workflow**.
-    - When it shows ✓, the app is live at **https://du-library.github.io/mamulaat/**.
+    - When it shows ✓, the app is live at **https://du-library.github.io/Mamulaat/**.
 
 ---
 

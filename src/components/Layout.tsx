@@ -13,7 +13,7 @@ export interface NavItem {
 
 export function Layout({ title, nav, children, right }: { title: string; nav: NavItem[]; children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col">
+    <div className="mx-auto flex min-h-dvh max-w-3xl flex-col">
       <header className="pt-safe sticky top-0 z-20 bg-brand-700 text-white shadow">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <div className="flex items-center gap-2">

@@ -11,7 +11,7 @@ export function Spinner({ label = 'Loading…' }: { label?: string }) {
 }
 
 export function FullScreen({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center">{children}</div>;
+  return <div className="flex min-h-dvh flex-col items-center justify-center p-6 text-center">{children}</div>;
 }
 
 export function Badge({ n }: { n: number }) {

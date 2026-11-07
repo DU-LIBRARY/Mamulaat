@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   getRedirectResult,
   onAuthStateChanged,
@@ -30,6 +30,9 @@ interface Session {
   today: string;
   actor: Actor | null;
   isAdmin: boolean;
+  /** True after the admin deleted this signed-in account (we then sign out). */
+  removed: boolean;
+  dismissRemoved: () => void;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -43,6 +46,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [rawSettings, setRawSettings] = useState<AppSettings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [removed, setRemoved] = useState(false);
+  const hadProfile = useRef(false);
 
   useEffect(() => {
     getRedirectResult(auth).catch((e) => console.warn('[auth] redirect result', e));
@@ -56,6 +61,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     setProfile(undefined);
+    hadProfile.current = false;
     let creating = false;
     return onSnapshot(
       userRef(user.uid),
@@ -63,6 +69,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setProfileError(null);
         if (!snap.exists()) {
           if (snap.metadata.fromCache) return; // wait for the server before deciding it's new
+          if (hadProfile.current) {
+            // The profile existed in this session and is now gone: the admin deleted the account.
+            // Do NOT silently create a new pending profile; tell the person and sign out.
+            hadProfile.current = false;
+            setRemoved(true);
+            setProfile(null);
+            fbSignOut(auth).catch(() => undefined);
+            return;
+          }
           if (!creating) {
             creating = true;
             createPendingProfile({
@@ -75,6 +90,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return;
         }
         const p = { id: snap.id, ...snap.data() } as UserProfile;
+        hadProfile.current = true;
         setProfile(p);
         // Keep the photo in sync with Google. The NAME is whatever the student typed at
         // sign-up (or later on their profile), so it is never overwritten from Google.
@@ -128,6 +144,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     user,
     profile,
     profileError,
+    removed,
+    dismissRemoved: () => setRemoved(false),
     settings,
     settingsLoaded,
     today,

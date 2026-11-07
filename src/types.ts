@@ -40,6 +40,8 @@ export interface Mamool {
   createdAt?: Timestamp;
   createdDate: string; // YYYY-MM-DD — first day this mamool counts
   removedDate: string | null; // YYYY-MM-DD — first day it no longer counts
+  /** Periods while it was removed then restored: days in [from, to) do not count. */
+  gaps?: { from: string; to: string }[];
   updatedBy: string;
   updatedAt?: Timestamp;
 }
@@ -58,6 +60,9 @@ export interface DayLog {
   date: string;
   entries: Record<string, LogEntry>;
   updatedAt?: Timestamp;
+  /** Set when the admin (not the student) last edited this day. */
+  editedBy?: string;
+  editedByName?: string;
 }
 
 export interface Comment {

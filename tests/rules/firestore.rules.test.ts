@@ -13,6 +13,7 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -343,8 +344,131 @@ describe('locked days', () => {
     await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), logDoc(daysAgo(1))));
   });
 
-  it('admin cannot write student logs', async () => {
-    await assertFails(setDoc(doc(db(ADMIN), `users/${A}/logs/${today}`), logDoc(today)));
+  it('a student cannot stamp their log as edited by someone else', async () => {
+    const f = db(A);
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), { ...logDoc(today), editedBy: ADMIN }));
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), { ...logDoc(today), editedBy: A, editedByName: 'x' }));
+  });
+
+  it('a student write must clear an earlier admin stamp', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `users/${A}/logs/${today}`), { ...logDoc(today), updatedAt: Timestamp.now(), editedBy: ADMIN });
+    });
+    const f = db(A);
+    // keeping the stamp (plain merge write) is refused; removing it with deleteField works
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), { date: today, entries: {}, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertSucceeds(
+      setDoc(doc(f, `users/${A}/logs/${today}`), { date: today, entries: {}, updatedAt: serverTimestamp(), editedBy: deleteField(), editedByName: deleteField() }, { merge: true }),
+    );
+  });
+});
+
+describe('admin edits student logs (any day)', () => {
+  const adminLog = (day: string, extra: Record<string, unknown> = {}) => ({ ...logDoc(day), editedBy: ADMIN, editedByName: 'Admin', ...extra });
+
+  it('admin can write today, a locked day and an old day, stamped with their uid', async () => {
+    const f = db(ADMIN);
+    await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${today}`), adminLog(today)));
+    await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${daysAgo(30)}`), adminLog(daysAgo(30))));
+    await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${daysAgo(400)}`), adminLog(daysAgo(400))));
+  });
+
+  it('admin log must carry their own uid as editedBy', async () => {
+    const f = db(ADMIN);
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${daysAgo(30)}`), logDoc(daysAgo(30))));
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${daysAgo(30)}`), adminLog(daysAgo(30), { editedBy: A })));
+  });
+
+  it('admin log still has to be a valid log', async () => {
+    const f = db(ADMIN);
+    await assertFails(setDoc(doc(f, `users/${A}/logs/not-a-date`), adminLog('not-a-date')));
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), adminLog(daysAgo(1))));
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), adminLog(today, { extra: 1 })));
+  });
+
+  it('admin cannot create logs for a user that does not exist', async () => {
+    await assertFails(setDoc(doc(db(ADMIN), `users/ghost/logs/${today}`), adminLog(today)));
+  });
+
+  it('students cannot write another student\'s log (admin edit is admin-only)', async () => {
+    await assertFails(setDoc(doc(db(A), `users/${B}/logs/${daysAgo(30)}`), adminLog(daysAgo(30), { editedBy: A })));
+    await assertFails(setDoc(doc(db(B), `users/${B}/logs/${daysAgo(30)}`), adminLog(daysAgo(30), { editedBy: B })));
+  });
+
+  it('a former admin (after handover) cannot edit logs', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `users/${TEACHER}`), profile('admin', 'active'));
+      await setDoc(doc(ctx.firestore(), `users/${ADMIN}`), profile('student', 'inactive', { handedOverTo: TEACHER }));
+    });
+    await assertFails(setDoc(doc(db(ADMIN), `users/${A}/logs/${daysAgo(30)}`), adminLog(daysAgo(30))));
+  });
+});
+
+describe('admin edits profiles and classes', () => {
+  it('admin can rename, move, deactivate and put a student back to pending', async () => {
+    const f = db(ADMIN);
+    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { name: 'New Name' }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { classId: 'class-2' }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { status: 'inactive' }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { status: 'pending', classId: null }));
+  });
+
+  it('admin cannot set an empty/huge name, a missing class, or change email/other fields', async () => {
+    const f = db(ADMIN);
+    await assertFails(updateDoc(doc(f, `users/${A}`), { name: '   ' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { name: 'x'.repeat(101) }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { classId: 'no-such-class' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { email: 'other@example.com' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { reminderEnabled: true }));
+  });
+
+  it('students cannot rename-by-admin, move or change another student', async () => {
+    await assertFails(updateDoc(doc(db(A), `users/${B}`), { name: 'Hacked' }));
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { classId: 'class-2' }));
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { status: 'pending' }));
+  });
+
+  it('admin can rename and delete classes; students cannot', async () => {
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'classes/class-1'), { name: 'Renamed' }));
+    await assertFails(updateDoc(doc(db(A), 'classes/class-1'), { name: 'Renamed' }));
+    await assertFails(deleteDoc(doc(db(A), 'classes/class-1')));
+    await assertSucceeds(deleteDoc(doc(db(ADMIN), 'classes/class-2')));
+  });
+
+  it('moving students out of a class and deleting it works as one batch', async () => {
+    const f = db(ADMIN);
+    const b = writeBatch(f);
+    b.update(doc(f, `users/${A}`), { classId: 'class-2' });
+    b.update(doc(f, `users/${B}`), { classId: 'class-2' });
+    b.delete(doc(f, 'classes/class-1'));
+    await assertSucceeds(b.commit());
+  });
+});
+
+describe('admin deletes records outright', () => {
+  it('admin can hard-delete a mamool, a log, a comment and a change record; students cannot delete others\'', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `users/${A}/changes/ch1`), { kind: 'added', actorId: ADMIN, createdAt: Timestamp.now(), seenAt: null });
+    });
+    const f = db(ADMIN);
+    await assertSucceeds(deleteDoc(doc(f, `users/${A}/changes/ch1`)));
+    await assertSucceeds(deleteDoc(doc(f, `users/${A}/comments/c1`)));
+    await assertSucceeds(deleteDoc(doc(f, `users/${A}/logs/${daysAgo(1)}`)));
+    await assertSucceeds(deleteDoc(doc(f, `users/${A}/mamoolaat/m1`)));
+    await assertFails(deleteDoc(doc(db(A), `users/${B}/mamoolaat/m1`)));
+    await assertFails(deleteDoc(doc(db(A), `users/${B}/comments/c1`)));
+    await assertFails(deleteDoc(doc(db(A), `users/${A}/comments/c1`)));
+  });
+});
+
+describe('restoring a removed mamool keeps a gap', () => {
+  it('a student can save the gap list on restore', async () => {
+    const f = db(A);
+    await assertSucceeds(
+      updateDoc(doc(f, `users/${A}/mamoolaat/m1`), {
+        active: true, removedDate: null, gaps: [{ from: daysAgo(5), to: daysAgo(2) }], updatedBy: A, updatedAt: serverTimestamp(),
+      }),
+    );
   });
 });
 
@@ -389,6 +513,52 @@ describe('admin', () => {
     await assertSucceeds(deleteDoc(doc(f, `users/${B}/mamoolaat/m1`)));
     await assertSucceeds(deleteDoc(doc(f, `users/${B}/comments/c1`)));
     await assertSucceeds(deleteDoc(doc(f, `users/${B}`)));
+  });
+});
+
+describe('admin deleting a student (full control)', () => {
+  const SUBS = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens'];
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const f = ctx.firestore();
+      await setDoc(doc(f, `users/${B}/fcmTokens/tok1`), { createdAt: Timestamp.now(), lastSeen: Timestamp.now(), userAgent: 'x' });
+      await setDoc(doc(f, `users/${B}/changes/ch1`), {
+        kind: 'added', mamoolId: 'm1', mamoolName: 'Quran', before: null, after: null,
+        actorId: ADMIN, actorName: 'Admin', createdAt: Timestamp.now(), seenAt: null,
+      });
+    });
+  });
+
+  it('admin can list every sub-collection of a student (needed to delete them)', async () => {
+    const f = db(ADMIN);
+    for (const sub of SUBS) await assertSucceeds(getDocs(collection(f, `users/${B}/${sub}`)));
+  });
+
+  it('admin can delete an active student and ALL their data, then the profile', async () => {
+    const f = db(ADMIN);
+    for (const sub of SUBS) {
+      const snap = await assertSucceeds(getDocs(collection(f, `users/${B}/${sub}`)));
+      for (const d of snap.docs) await assertSucceeds(deleteDoc(d.ref));
+    }
+    await assertSucceeds(deleteDoc(doc(f, `users/${B}`)));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      for (const sub of SUBS) {
+        const left = await getDocs(collection(ctx.firestore(), `users/${B}/${sub}`));
+        if (!left.empty) throw new Error(`${sub} not fully deleted`);
+      }
+    });
+  });
+
+  it('admin can delete pending, inactive and rejected users too', async () => {
+    const f = db(ADMIN);
+    await assertSucceeds(deleteDoc(doc(f, `users/${PENDING}`)));
+    await assertSucceeds(deleteDoc(doc(f, `users/${INACTIVE}`)));
+  });
+
+  it("a student still cannot read another student's device tokens", async () => {
+    await assertFails(getDocs(collection(db(A), `users/${B}/fcmTokens`)));
+    await assertFails(deleteDoc(doc(db(A), `users/${B}/fcmTokens/tok1`)));
   });
 });
 

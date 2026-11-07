@@ -123,7 +123,7 @@ One-time setup on GitHub:
 2. **Settings → Secrets and variables → Actions → Variables tab → New repository variable.** Add each of these with the values from §2:
    `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_VAPID_KEY`.
    Optional: `VITE_BASE` = `/` if you use a custom domain.
-3. Merge to `main`, or run the workflow by hand from the **Actions** tab. The site will be at **`https://<owner>.github.io/<repo>/`** (here: `https://du-library.github.io/mamulaat/`).
+3. Merge to `main`, or run the workflow by hand from the **Actions** tab. The site will be at **`https://<owner>.github.io/<repo>/`** (here: `https://du-library.github.io/Mamulaat/`).
 4. Add `<owner>.github.io` to Firebase **Authentication → Settings → Authorized domains** (§1, step 2).
 
 To build the Pages version locally: `VITE_BASE=/mamulaat/ npm run build:pages`.
@@ -227,6 +227,10 @@ There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists
 
 **Sign-up.** A new student signs in with Google, then types their **name** (this becomes their name everywhere in the app; it is never overwritten from Google) and picks their **class** from the classes the admin created. That is only a *request*: the student stays pending until the admin approves, and the admin sees the requested class pre-selected (and can change it). Because the class list must be readable before approval, **class names are readable by any signed-in user**; classes contain nothing but a name. Students can later rename themselves under **Me**, and add, edit, reorder or remove their own mamoolaat at any time (**Add a mamool** on the Today screen, or **Me → My mamoolaat**); additions apply from the day they're added and don't change past days.
 
-**Deleting a student** (Admin → student → Delete) removes their mamoolaat, logs, comments, changes and tokens, then the profile. The `cleanupDeletedUser` function also deletes any leftovers and their Firebase Auth account.
+**Deleting a student** (Admin → student → Delete) removes their mamoolaat, logs, comments, changes and tokens, then the profile. The `cleanupDeletedUser` function also deletes any leftovers and their Firebase Auth account. Without that Cloud Function their Google sign-in still works and would create a fresh sign-up request, so use **Deactivate** or **Reject** to keep someone out. A student who is signed in when deleted sees an "account removed" screen and is signed out.
+
+**Admin controls.** The admin can: edit any student's log for any day (Student → *Day* tab; locked days too; the log is stamped `editedBy` and audited, and the student sees a note); rename a student, change class/status (including back to pending); hard-delete a mamool, a day's log, a comment or a change record; rename classes, move all students out of a class, or delete a class and move its students in one step (pending sign-ups that asked for it are asked to pick another); and select several people on the Students page to approve, move, deactivate, reactivate or delete in bulk. Restoring a removed mamool does not count the days it was removed as missed.
+
+**App updates.** When a new version is deployed, installed apps show a "tap to update" bar instead of silently keeping the old version.
 
 **Privacy.** Only what Google sign-in provides (name, email, photo) plus the student's mamoolaat data is stored. A "Who can see what" note is shown on sign-in, onboarding and the profile page.
