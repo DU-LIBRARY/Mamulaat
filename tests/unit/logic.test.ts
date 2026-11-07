@@ -92,3 +92,72 @@ describe('reports', () => {
     expect(toCsv([['a,b', 'c"d', 'خ']])).toBe('"a,b","c""d",خ');
   });
 });
+
+import { daysAgoLabel, lastEditableDay, monthDays } from '../../src/lib/dates';
+import { findOverlaps, sameMamoolName, similarMamoolName } from '../../src/lib/names';
+import { registerRows, studentDetailRows } from '../../src/lib/exports';
+
+describe('new date helpers', () => {
+  it('lists the days of a month', () => {
+    expect(monthDays('2028-02-15')).toHaveLength(29);
+    expect(monthDays('2026-11-07')[0]).toBe('2026-11-01');
+    expect(monthDays('2026-11-07').at(-1)).toBe('2026-11-30');
+  });
+  it('knows when a day locks', () => {
+    expect(lastEditableDay('2026-11-05', 2)).toBe('2026-11-07');
+    expect(lastEditableDay('2026-11-05', 0)).toBe('2026-11-05');
+  });
+  it('labels last seen', () => {
+    expect(daysAgoLabel(null)).toBe('never');
+    expect(daysAgoLabel(0)).toBe('today');
+    expect(daysAgoLabel(1)).toBe('yesterday');
+    expect(daysAgoLabel(9)).toBe('9 days ago');
+  });
+});
+
+describe('mamool names (class templates and overlaps)', () => {
+  it('matches the same name loosely', () => {
+    expect(sameMamoolName('Tasbeeh', ' tasbeeh. ')).toBe(true);
+    expect(sameMamoolName('Durood Shareef', 'durood-shareef')).toBe(true);
+    expect(sameMamoolName('سورۃ الملک', 'سورۃ الملک')).toBe(true);
+    expect(sameMamoolName('Tasbeeh', 'Tahajjud')).toBe(false);
+  });
+  it('spots likely overlaps', () => {
+    expect(similarMamoolName('Quran', 'Quran tilawat')).toBe(true);
+    expect(similarMamoolName('Dua', 'Duas after salah')).toBe(false); // too short to guess
+    const o = findOverlaps([
+      { id: 'a', name: 'Quran tilawat' },
+      { id: 'b', name: 'Quran' },
+      { id: 'c', name: 'Tasbeeh' },
+    ]);
+    expect(o.get('a')?.id).toBe('b');
+    expect(o.get('b')?.id).toBe('a');
+    expect(o.has('c')).toBe(false);
+  });
+});
+
+describe('exports', () => {
+  const days = ['2026-11-02', '2026-11-03', '2026-11-04'];
+  const mams = [m('q', '2026-11-01', { name: 'Quran', target: 1, unit: 'juz' }), m('t', '2026-11-03', { name: 'Tasbeeh', target: 100, unit: 'times' })];
+  const logs = logsByDay([
+    log('2026-11-02', { q: { status: 'done', amount: 1, target: 1 } }),
+    log('2026-11-03', { q: { status: 'missed', amount: 0, target: 1 }, t: { status: 'partial', amount: 50, target: 100 } }),
+  ]);
+  const student = { id: 's1', name: 'Aisha' } as UserProfile;
+
+  it('builds register rows per student and per mamool', () => {
+    const rows = registerRows([student], new Map([['s1', { mamoolaat: mams, logs }]]), days, '2026-11-03', () => 'Class A');
+    expect(rows[0]).toEqual(['Student', 'Class', 'Mamool', 'Target', ...days, 'Overall %', 'Full days', 'Days logged']);
+    // ALL row: day 1 = 100, day 2 = (0 + 50)/2 = 25, day 3 is in the future
+    expect(rows[1]).toEqual(['Aisha', 'Class A', 'ALL', '', 100, 25, '', 63, 1, 2]);
+    expect(rows[2].slice(2, 7)).toEqual(['Quran', '1 juz', 100, 0, '']);
+    expect(rows[3].slice(2, 7)).toEqual(['Tasbeeh', '100 times', '', 50, '']);
+  });
+
+  it("builds one student's detailed rows", () => {
+    const rows = studentDetailRows(mams, logs, days, '2026-11-03');
+    expect(rows[1]).toEqual(['Quran', '1 juz', 'done', 'missed', '', 50]);
+    expect(rows[2]).toEqual(['Tasbeeh', '100 times', '', '50/100 (50%)', '', 50]);
+    expect(rows.at(-1)).toEqual(['ALL', '', 100, 25, '', 63]);
+  });
+});

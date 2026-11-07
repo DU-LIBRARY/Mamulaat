@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { addMamool, deleteMamoolForever, removeMamool, reorderMamoolaat, restoreMamool, updateMamool, type Actor } from '../lib/db';
+import { findOverlaps } from '../lib/names';
 import type { Mamool } from '../types';
 import { targetLabel } from './Checklist';
 import { EmptyState } from './ui';
 import { useDialog } from './Dialog';
 import { IconPlus } from './icons';
+import { useUndo } from './Undo';
 
 export const SUGGESTIONS: Array<{ name: string; target: number; unit: string }> = [
   { name: 'Quran tilawat', target: 1, unit: 'juz' },
@@ -31,6 +33,7 @@ export function MamoolForm({
   const [name, setName] = useState(initial?.name ?? '');
   const [target, setTarget] = useState(String(initial?.target ?? 1));
   const [unit, setUnit] = useState(initial?.unit ?? '');
+  const id = useId();
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const t = Number(target);
@@ -45,17 +48,23 @@ export function MamoolForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <div>
-        <label className="label">Name</label>
-        <input className="input" dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Quran, Tasbeeh, تسبیح" maxLength={120} required />
+        <label className="label" htmlFor={`${id}-name`}>
+          Name
+        </label>
+        <input id={`${id}-name`} className="input" dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Quran, Tasbeeh, تسبیح" maxLength={120} required />
       </div>
       <div className="flex gap-2">
         <div className="w-28">
-          <label className="label">Target</label>
-          <input className="input" type="number" inputMode="decimal" min={0.01} step="any" value={target} onChange={(e) => setTarget(e.target.value)} required />
+          <label className="label" htmlFor={`${id}-target`}>
+            Target
+          </label>
+          <input id={`${id}-target`} className="input" type="number" inputMode="decimal" min={0.01} step="any" value={target} onChange={(e) => setTarget(e.target.value)} required />
         </div>
         <div className="flex-1">
-          <label className="label">Unit (optional)</label>
-          <input className="input" dir="auto" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="juz, pages, times…" maxLength={40} />
+          <label className="label" htmlFor={`${id}-unit`}>
+            Unit (optional)
+          </label>
+          <input id={`${id}-unit`} className="input" dir="auto" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="juz, pages, times…" maxLength={40} />
         </div>
       </div>
       <div className="flex gap-2">
@@ -75,8 +84,10 @@ export function MamoolForm({
 export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }: { uid: string; all: Mamool[]; today: string; actor: Actor; showSuggestions?: boolean }) {
   const [editing, setEditing] = useState<string | null>(null);
   const { confirm } = useDialog();
+  const undo = useUndo();
   const byAdmin = actor.uid !== uid;
   const active = all.filter((m) => m.active);
+  const overlaps = findOverlaps(active);
   const removed = all.filter((m) => !m.active);
   const nextOrder = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
 
@@ -109,10 +120,10 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="flex flex-col">
-                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
+                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Move ${m.name} up`}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="M2 8l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
-                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label="Move down">
+                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label={`Move ${m.name} down`}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
                   </div>
@@ -122,15 +133,23 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                     </div>
                     <div className="text-sm text-slate-500" dir="auto">
                       {targetLabel(m)}
+                      {m.createdBy !== uid && <span className="chip ml-2 bg-[#fbf6e9] text-[#5b4512]">Added by {byAdmin ? 'admin' : 'your teacher'}</span>}
                     </div>
+                    {overlaps.has(m.id) && (
+                      <div className="mt-1 text-xs text-amber-800" dir="auto">
+                        Looks like “{overlaps.get(m.id)!.name}”. If it's the same, remove one of them.
+                      </div>
+                    )}
                   </div>
-                  <button className="btn-secondary px-3" onClick={() => setEditing(m.id)}>
+                  <button className="btn-secondary px-3" onClick={() => setEditing(m.id)} aria-label={`Edit ${m.name}`}>
                     Edit
                   </button>
                   <button
                     className="btn-ghost px-3 text-red-700 hover:bg-red-50 hover:text-red-800"
-                    onClick={async () => {
-                      if (await confirm({ title: `Remove "${m.name}"?`, message: 'Past logs are kept. You can restore it later.', confirmLabel: 'Remove', danger: true })) removeMamool(uid, m, today, actor);
+                    aria-label={`Remove ${m.name}`}
+                    onClick={() => {
+                      removeMamool(uid, m, today, actor);
+                      undo.undoable(`Removed “${m.name}”`, () => restoreMamool(uid, { ...m, active: false, removedDate: today }, today, actor));
                     }}
                   >
                     Remove

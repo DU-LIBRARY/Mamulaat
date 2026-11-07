@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers } from '../../hooks/useAdminData';
-import { saveSettings, transferAdmin } from '../../lib/db';
+import { saveSettings, transferAdmin, updateOwnProfile } from '../../lib/db';
+import { pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
+import { Notice } from '../../components/ui';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
 import type { AppSettings } from '../../types';
 import { displayName } from '../../lib/display';
@@ -57,7 +59,7 @@ function PasswordSignIn() {
           act(() => setPassword(pw), hasPassword ? 'Password changed.' : 'Password sign-in turned on.');
         }}
       >
-        <input className="input" type="text" placeholder={hasPassword ? 'New password' : 'Choose a password (6+ characters)'} minLength={6} value={pw} onChange={(e) => setPw(e.target.value)} autoCapitalize="off" autoCorrect="off" required />
+        <input className="input" type="text" aria-label="Password" placeholder={hasPassword ? 'New password' : 'Choose a password (6+ characters)'} minLength={6} value={pw} onChange={(e) => setPw(e.target.value)} autoCapitalize="off" autoCorrect="off" required />
         <button className="btn-primary shrink-0 px-4" disabled={busy || pw.length < 6}>
           {hasPassword ? 'Change' : 'Set'}
         </button>
@@ -68,6 +70,66 @@ function PasswordSignIn() {
         </button>
       )}
       {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-brand-700' : 'text-red-700'}`}>{msg.text}</p>}
+    </section>
+  );
+}
+
+/** Lets the admin get a push on this device when someone finishes signing up. */
+function AdminNotifications() {
+  const { profile } = useActiveSession();
+  const [support, setSupport] = useState<PushSupport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    pushSupport().then(setSupport);
+  }, []);
+  const on = !!profile.reminderEnabled;
+  const toggle = async () => {
+    setMsg(null);
+    if (on) {
+      updateOwnProfile(profile.id, { reminderEnabled: false });
+      await unregisterDevice(profile.id);
+      return;
+    }
+    setBusy(true);
+    const res = await registerDevice(profile.id);
+    setBusy(false);
+    setSupport(res.ok ? { ok: true } : res);
+    if (res.ok) {
+      updateOwnProfile(profile.id, { reminderEnabled: true });
+      setMsg('Notifications are on for this device.');
+    } else setMsg(pushSupportMessage[res.reason]);
+  };
+  return (
+    <section className="card">
+      <h2 className="section-title">Notifications</h2>
+      <div className="flex min-h-12 items-center justify-between gap-3">
+        <span id="admin-notif-label">
+          <span className="font-medium text-slate-900">Tell me when someone signs up</span>
+          <span className="block text-sm text-slate-500">A notification on this device when a new student is waiting for approval.</span>
+        </span>
+        <button
+          role="switch"
+          aria-checked={on}
+          aria-labelledby="admin-notif-label"
+          disabled={busy}
+          onClick={toggle}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-brand-700' : 'bg-slate-300'}`}
+        >
+          <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-[left] ${on ? 'left-[22px]' : 'left-0.5'}`} />
+        </button>
+      </div>
+      {msg && (
+        <div className="mt-3">
+          <Notice>{msg}</Notice>
+        </div>
+      )}
+      {support && !support.ok && !msg && on && (
+        <div className="mt-3">
+          <Notice>{pushSupportMessage[support.reason]}</Notice>
+        </div>
+      )}
+      <p className="mt-3 text-xs text-slate-500">Needs the reminder functions to be deployed (see the README). Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
     </section>
   );
 }
@@ -90,7 +152,7 @@ function TransferAdmin() {
         student data in the app. This is recorded in the audit log and cannot be undone by you. See the README handover checklist — you
         must also change Google Cloud IAM.
       </p>
-      <select className="input mb-2" value={target} onChange={(e) => setTarget(e.target.value)}>
+      <select className="input mb-2" aria-label="New admin" value={target} onChange={(e) => setTarget(e.target.value)}>
         <option value="">Choose an approved user…</option>
         {candidates.map((u) => (
           <option key={u.id} value={u.id}>
@@ -100,10 +162,10 @@ function TransferAdmin() {
       </select>
       {t && (
         <>
-          <label className="label">
+          <label className="label" htmlFor="transfer-confirm">
             Type <b>TRANSFER</b> to confirm
           </label>
-          <input className="input mb-2" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoCapitalize="off" autoCorrect="off" />
+          <input id="transfer-confirm" className="input mb-2" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoCapitalize="off" autoCorrect="off" />
           <button
             className="btn-danger w-full"
             disabled={busy || confirmText.trim().toUpperCase() !== 'TRANSFER' || !navigator.onLine}
@@ -154,8 +216,8 @@ export function AdminSettings() {
       >
         <h2 className="section-title">App settings</h2>
         <div>
-          <label className="label">Project timezone (days run midnight-to-midnight here)</label>
-          <input className="input" list="tzlist" value={s.timezone} onChange={(e) => set('timezone', e.target.value)} />
+          <label className="label" htmlFor="set-tz">Project timezone (days run midnight-to-midnight here)</label>
+          <input id="set-tz" className="input" list="tzlist" value={s.timezone} onChange={(e) => set('timezone', e.target.value)} />
           <datalist id="tzlist">
             {TIMEZONES.map((z) => (
               <option key={z} value={z} />
@@ -167,12 +229,12 @@ export function AdminSettings() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">Backfill window (days)</label>
-            <input className="input" type="number" min={0} max={30} value={s.backfillDays} onChange={(e) => set('backfillDays', Number(e.target.value))} />
+            <label className="label" htmlFor="set-backfill">Backfill window (days)</label>
+            <input id="set-backfill" className="input" type="number" min={0} max={30} value={s.backfillDays} onChange={(e) => set('backfillDays', Number(e.target.value))} />
           </div>
           <div>
-            <label className="label">Week starts on</label>
-            <select className="input" value={s.weekStart} onChange={(e) => set('weekStart', Number(e.target.value))}>
+            <label className="label" htmlFor="set-week">Week starts on</label>
+            <select id="set-week" className="input" value={s.weekStart} onChange={(e) => set('weekStart', Number(e.target.value))}>
               {WEEKDAY_NAMES.map((n, i) => (
                 <option key={n} value={i}>
                   {n}
@@ -181,22 +243,26 @@ export function AdminSettings() {
             </select>
           </div>
           <div>
-            <label className="label">Attention threshold (%)</label>
-            <input className="input" type="number" min={0} max={100} value={s.attentionThreshold} onChange={(e) => set('attentionThreshold', Number(e.target.value))} />
+            <label className="label" htmlFor="set-threshold">Attention threshold (%)</label>
+            <input id="set-threshold" className="input" type="number" min={0} max={100} value={s.attentionThreshold} onChange={(e) => set('attentionThreshold', Number(e.target.value))} />
           </div>
           <div>
-            <label className="label">Flag after no logs for (days)</label>
-            <input className="input" type="number" min={1} max={60} value={s.attentionNoLogDays} onChange={(e) => set('attentionNoLogDays', Number(e.target.value))} />
+            <label className="label" htmlFor="set-nolog">Flag after no logs for (days)</label>
+            <input id="set-nolog" className="input" type="number" min={1} max={60} value={s.attentionNoLogDays} onChange={(e) => set('attentionNoLogDays', Number(e.target.value))} />
           </div>
           <div className="col-span-2">
-            <label className="label">Default reminder time</label>
-            <input className="input" type="time" value={s.defaultReminderTime} onChange={(e) => e.target.value && set('defaultReminderTime', e.target.value)} />
+            <label className="label" htmlFor="set-reminder">Default reminder time</label>
+            <input id="set-reminder" className="input" type="time" value={s.defaultReminderTime} onChange={(e) => e.target.value && set('defaultReminderTime', e.target.value)} />
           </div>
         </div>
         <button className="btn-primary" type="submit" disabled={!tzOk}>
           Save settings
         </button>
-        {saved && <p className="text-sm text-slate-600">{saved}</p>}
+        {saved && (
+          <p className="text-sm text-slate-600" role="status">
+            {saved}
+          </p>
+        )}
       </form>
 
       <Link to="/admin/audit" className="card flex items-center justify-between">
@@ -204,6 +270,7 @@ export function AdminSettings() {
         <span aria-hidden>›</span>
       </Link>
 
+      <AdminNotifications />
       <PasswordSignIn />
       <TransferAdmin />
 

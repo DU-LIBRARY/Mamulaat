@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { useSession } from '../hooks/useSession';
+import { pushSupport, pushSupportMessage, registerDevice, type PushSupport } from '../lib/messaging';
 import { FullScreen } from '../components/ui';
 import { useClasses } from '../hooks/useAdminData';
 import type { UserProfile } from '../types';
@@ -18,6 +20,53 @@ const copy: Record<string, { title: string; body: string }> = {
     body: 'Your sign-up request was not approved. Please contact your teacher if you think this is a mistake.',
   },
 };
+
+const ASKED_KEY = 'mamulaat.notifyOnApproval';
+
+/** Lets a pending student get a notification on this device when the teacher approves them. */
+function NotifyWhenApproved({ uid }: { uid: string }) {
+  const [support, setSupport] = useState<PushSupport | null>(null);
+  const [state, setState] = useState<'idle' | 'busy' | 'on' | 'error'>(() => {
+    try {
+      return localStorage.getItem(ASKED_KEY) === uid && Notification.permission === 'granted' ? 'on' : 'idle';
+    } catch {
+      return 'idle';
+    }
+  });
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    pushSupport().then(setSupport);
+  }, []);
+  if (!support) return null;
+  if (!support.ok && support.reason !== 'denied' && support.reason !== 'ios-not-installed') return null;
+  if (state === 'on') return <p className="mt-4 max-w-sm text-sm text-brand-700">We'll send a notification to this device when you're approved.</p>;
+  return (
+    <div className="mt-4 flex max-w-sm flex-col items-center gap-2">
+      <button
+        className="btn-secondary"
+        disabled={state === 'busy'}
+        onClick={async () => {
+          setState('busy');
+          const r = await registerDevice(uid);
+          if (r.ok) {
+            try {
+              localStorage.setItem(ASKED_KEY, uid);
+            } catch {
+              /* private mode */
+            }
+            setState('on');
+          } else {
+            setState('error');
+            setMsg(pushSupportMessage[r.reason]);
+          }
+        }}
+      >
+        Notify me when I'm approved
+      </button>
+      {msg && <p className="text-sm text-slate-600">{msg}</p>}
+    </div>
+  );
+}
 
 export function Waiting({ profile }: { profile: UserProfile }) {
   const { signOut } = useSession();
@@ -42,6 +91,7 @@ export function Waiting({ profile }: { profile: UserProfile }) {
           {profile.status === 'pending' && requested && <div className="text-sm text-slate-600">Requested class: {requested.name}</div>}
         </div>
       </div>
+      {profile.status === 'pending' && !profile.handedOverTo && <NotifyWhenApproved uid={profile.id} />}
       <button className="btn-ghost mt-6" onClick={() => signOut()}>
         Sign out
       </button>

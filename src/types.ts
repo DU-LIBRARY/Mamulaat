@@ -24,9 +24,28 @@ export interface UserProfile {
   handedOverTo?: string;
 }
 
+/** One mamool in a class template (added to each student's own list; never replaces it). */
+export interface TemplateItem {
+  name: string;
+  target: number;
+  unit: string;
+}
+
 export interface ClassDoc {
   id: string;
   name: string;
+  /** Mamoolaat the admin wants everyone in this class to have. */
+  template?: TemplateItem[];
+}
+
+/** A one-off "please log today" push from the admin. Doc id = `${uid}_${day}` (one per student per day). */
+export interface Nudge {
+  id: string;
+  uid: string;
+  day: string;
+  actorId: string;
+  actorName: string;
+  createdAt?: Timestamp;
 }
 
 export interface Mamool {

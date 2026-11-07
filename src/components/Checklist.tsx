@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react';
-import { adminSaveEntry, saveEntry, type Actor } from '../lib/db';
+import { useId, useState, type ReactNode } from 'react';
+import { adminSaveEntry, restoreEntries, saveEntries, saveEntry, type Actor } from '../lib/db';
 import type { DayLog, EntryStatus, LogEntry, Mamool } from '../types';
 import { entryFraction } from '../lib/scoring';
 import { IconCheck, IconHalf, IconX } from './icons';
+import { useUndo } from './Undo';
 
 function fmt(n: number) {
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
@@ -11,6 +12,16 @@ function fmt(n: number) {
 export function targetLabel(m: Pick<Mamool, 'target' | 'unit'>) {
   return `${fmt(m.target)}${m.unit ? ` ${m.unit}` : ''}`;
 }
+
+function statusText(e: LogEntry | undefined, m: Pick<Mamool, 'target' | 'unit'>) {
+  if (!e) return 'not logged';
+  if (e.status === 'done') return 'done';
+  if (e.status === 'missed') return 'missed';
+  return `${fmt(e.amount)} of ${targetLabel(m)}`;
+}
+
+/** Counted mamoolaat (e.g. 100 tasbeeh) get a +1 tap counter. */
+const isCounted = (m: Pick<Mamool, 'target'>) => m.target > 1;
 
 const STATUS: Record<EntryStatus, { label: string; icon: ReactNode; on: string }> = {
   done: { label: 'Done', icon: <IconCheck size={18} />, on: 'bg-brand-700 text-white border-brand-700' },
@@ -39,6 +50,8 @@ function MamoolRow({
   showPercent: boolean;
   onChange: (e: LogEntry | null) => void;
 }) {
+  const undo = useUndo();
+  const amountId = useId();
   const [editingPartial, setEditingPartial] = useState(false);
   const [amount, setAmount] = useState<string>(entry?.status === 'partial' ? String(entry.amount) : '');
   const status = entry?.status;
@@ -52,8 +65,22 @@ function MamoolRow({
       return;
     }
     setEditingPartial(false);
-    if (status === s) onChange(null); // tap again to clear
-    else onChange({ status: s, amount: s === 'done' ? m.target : 0, target: m.target });
+    if (status === s) {
+      // tap again to clear (with Undo, since a mis-tap is easy on a phone)
+      const prev = entry;
+      onChange(null);
+      if (prev) undo.undoable(`Cleared “${m.name}”`, () => onChange(prev));
+    } else onChange({ status: s, amount: s === 'done' ? m.target : 0, target: m.target });
+  };
+
+  /** +1 on a counted mamool: becomes "done" when it reaches the target. */
+  const bump = () => {
+    if (!editable) return;
+    const current = entry ? (entry.status === 'done' ? m.target : entry.amount) : 0;
+    const next = Math.min(m.target, current + 1);
+    setEditingPartial(false);
+    if (next >= m.target) onChange({ status: 'done', amount: m.target, target: m.target });
+    else onChange({ status: 'partial', amount: next, target: m.target });
   };
 
   const savePartial = () => {
@@ -81,8 +108,23 @@ function MamoolRow({
             )}
           </div>
         </div>
-        {showPercent && entry && <div className="num shrink-0 text-sm font-medium text-slate-500">{Math.round(f * 100)}%</div>}
+        <div className="flex shrink-0 items-center gap-2">
+          {showPercent && entry && <div className="num text-sm font-medium text-slate-500">{Math.round(f * 100)}%</div>}
+          {editable && isCounted(m) && status !== 'done' && (
+            <button
+              type="button"
+              onClick={bump}
+              className="num inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-brand-200 bg-brand-50 px-2.5 text-sm font-semibold text-brand-800 hover:border-brand-500"
+              aria-label={`Add 1 to ${m.name} (now ${entry ? fmt(entry.status === 'done' ? m.target : entry.amount) : 0} of ${targetLabel(m)})`}
+            >
+              +1
+            </button>
+          )}
+        </div>
       </div>
+      <span className="sr-only" aria-live="polite">
+        {m.name}: {statusText(entry, m)}
+      </span>
       <div className="grid grid-cols-3 gap-2" role="group" aria-label={`${m.name} status`}>
         {(Object.keys(STATUS) as EntryStatus[]).map((s) => (
           <button
@@ -105,12 +147,13 @@ function MamoolRow({
           <button
             type="button"
             className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl"
-            aria-label="Less"
+            aria-label={`Less ${m.name}`}
             onClick={() => setAmount(String(Math.max(0, (Number(amount) || 0) - 1)))}
           >
             −
           </button>
           <input
+            id={amountId}
             className="input num text-center text-lg"
             type="number"
             inputMode="decimal"
@@ -121,7 +164,7 @@ function MamoolRow({
             aria-label={`Amount of ${m.name}`}
             autoFocus
           />
-          <button type="button" className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl" aria-label="More" onClick={() => setAmount(String((Number(amount) || 0) + 1))}>
+          <button type="button" className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl" aria-label={`More ${m.name}`} onClick={() => setAmount(String((Number(amount) || 0) + 1))}>
             +
           </button>
           <button type="button" className="btn-primary shrink-0" onClick={savePartial}>
@@ -149,18 +192,42 @@ export function Checklist({
   /** When the admin edits a student's day: the edit is stamped and audited. */
   asAdmin?: Actor;
 }) {
+  const undo = useUndo();
+  const remaining = mamoolaat.filter((m) => !log?.entries?.[m.id]);
+  const markRest = () => {
+    const prev: Record<string, LogEntry | undefined> = {};
+    const next: Record<string, LogEntry> = {};
+    for (const m of remaining) {
+      prev[m.id] = undefined;
+      next[m.id] = { status: 'done', amount: m.target, target: m.target };
+    }
+    saveEntries(uid, day, next);
+    undo.undoable(`Marked ${remaining.length} done`, () => restoreEntries(uid, day, prev));
+  };
   return (
-    <ul className="sheet">
-      {mamoolaat.map((m) => (
-        <MamoolRow
-          key={m.id + day}
-          m={m}
-          entry={log?.entries?.[m.id]}
-          editable={editable}
-          showPercent={!!asAdmin}
-          onChange={(e) => (asAdmin ? adminSaveEntry(uid, day, m, e, asAdmin) : saveEntry(uid, day, m.id, e))}
-        />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-2">
+      {editable && !asAdmin && remaining.length > 0 && (
+        <button
+          type="button"
+          onClick={markRest}
+          className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-md border border-brand-200 bg-white px-3 text-sm font-medium text-brand-800 hover:border-brand-500 hover:bg-brand-50"
+        >
+          <IconCheck size={16} />
+          {remaining.length === mamoolaat.length ? 'Mark all done' : `Mark the other ${remaining.length} done`}
+        </button>
+      )}
+      <ul className="sheet" aria-label="Checklist">
+        {mamoolaat.map((m) => (
+          <MamoolRow
+            key={m.id + day}
+            m={m}
+            entry={log?.entries?.[m.id]}
+            editable={editable}
+            showPercent={!!asAdmin}
+            onChange={(e) => (asAdmin ? adminSaveEntry(uid, day, m, e, asAdmin) : saveEntry(uid, day, m.id, e))}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -203,6 +203,9 @@ There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists
 - The browser asks for notification permission. On success, the device token is stored at `users/{uid}/fcmTokens/{token}`. Tokens are refreshed on app start, and the old one is replaced if it rotated. If permission is denied or push is unsupported, the app explains this and keeps the **in-app banner** fallback, shown whenever the app is opened and today isn't logged.
 - **iPhone/iPad:** web push only works after adding the app to the Home Screen (iOS 16.4+) and enabling reminders from the Home Screen app. The app explains this on iOS.
 - `functions/src/index.ts → sendDailyReminders` runs every 15 minutes. For each active student with reminders on whose time has passed (within a 3-hour window) and who hasn't been reminded today, it checks `logs/{today}`. If nothing is logged, it sends a data-only push to their devices. Dead tokens (`registration-token-not-registered`, etc.) and tokens unseen for 60 days are deleted.
+- **Other pushes** (same deploy, same Blaze requirement):
+  - `sendNudge`: when the admin taps **Remind** on Overview → *Not logged today*, a `nudges/{uid}_{day}` doc is written (one per student per day) and the student gets a push straight away. The student also sees "Your teacher reminded you" in the app.
+  - `notifyUserChange`: pushes the admin when someone finishes signing up (turn on **Admin → Settings → Notifications** on the admin's device), and pushes a student when they're approved (they can tap *Notify me when I'm approved* on the waiting screen).
 - The PWA and FCM share **one** service worker (`src/sw.ts`). The page registers it via vite-plugin-pwa and passes it to `getToken({ serviceWorkerRegistration })`, so there's no separate `firebase-messaging-sw.js`.
 
 ## 8. How it works
@@ -232,6 +235,12 @@ There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists
 **Deleting a student** (Admin → student → Delete) removes their mamoolaat, logs, comments, changes and tokens, then the profile. The `cleanupDeletedUser` function also deletes any leftovers and their Firebase Auth account. Without that Cloud Function their Google sign-in still works and would create a fresh sign-up request, so use **Deactivate** or **Reject** to keep someone out. A student who is signed in when deleted sees an "account removed" screen and is signed out.
 
 **Admin controls.** The admin can: edit any student's log for any day (Student → *Day* tab; locked days too; the log is stamped `editedBy` and audited, and the student sees a note); rename a student, change class/status (including back to pending); hard-delete a mamool, a day's log, a comment or a change record; rename classes, move all students out of a class, or delete a class and move its students in one step (pending sign-ups that asked for it are asked to pick another); and select several people on the Students page to approve, move, deactivate, reactivate or delete in bulk. Restoring a removed mamool does not count the days it was removed as missed.
+
+**Class mamoolaat (templates).** Admin → Classes → *Mamoolaat* sets a standard list for a class. It is **added** to each student's own list, never replacing it: automatically when a student is approved into that class, or for the whole class with *Add to all students now*. Anything a student already has with the same name is skipped; the rest are recorded as changes the student sees in their Inbox. Students keep their own items and can remove, rename or reorder anything that overlaps (likely doubles are pointed out under *My mamoolaat*).
+
+**Exports.** Week CSV, Month CSV and a print-friendly page are on Overview (whole madrassah), each class's week view, and each student's Weekly tab.
+
+**Undo.** Small, reversible actions (removing a mamool, clearing an entry, *Mark all done*, deleting a comment/history entry/day log) show an Undo bar instead of an "Are you sure?" dialog. Big ones (deleting a student, deactivating, transferring admin) still ask first.
 
 **App updates.** When a new version is deployed, installed apps show a "tap to update" bar instead of silently keeping the old version.
 

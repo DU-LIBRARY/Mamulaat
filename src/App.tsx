@@ -25,13 +25,15 @@ import { StudentDetail } from './pages/admin/StudentDetail';
 import { AdminSettings } from './pages/admin/Settings';
 import { Audit } from './pages/admin/Audit';
 import { DialogProvider } from './components/Dialog';
+import { UndoProvider } from './components/Undo';
+import { touchLastSeen } from './lib/db';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { onForegroundMessage, refreshToken } from './lib/messaging';
 import { IconInbox, IconLog, IconPerson, IconToday, IconWeek, IconX } from './components/icons';
 
 function Toast({ text, onClose }: { text: string; onClose: () => void }) {
   return (
-    <div className="top-safe-toast fixed inset-x-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-lg bg-slate-900 py-3 pr-2 pl-4 text-sm text-white shadow-lg">
+    <div role="alert" className="top-safe-toast fixed inset-x-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-lg bg-slate-900 py-3 pr-2 pl-4 text-sm text-white shadow-lg">
       <span className="flex-1">{text}</span>
       <button className="btn min-h-9 px-2 text-white/80 hover:bg-white/10 hover:text-white" onClick={onClose} aria-label="Dismiss">
         <IconX size={18} />
@@ -52,6 +54,17 @@ function StudentRoutes() {
     onForegroundMessage((t, b) => setToast(`${t}: ${b}`)).then((u) => (unsub = u));
     return () => unsub?.();
   }, [uid, profile?.reminderEnabled]);
+
+  // "Last seen" for the admin's Students page: at most every 30 minutes, when the app is in front.
+  const lastSeenMs = profile?.lastSeenAt?.toMillis?.() ?? 0;
+  useEffect(() => {
+    const touch = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastSeenMs > 30 * 60_000) touchLastSeen(uid);
+    };
+    touch();
+    document.addEventListener('visibilitychange', touch);
+    return () => document.removeEventListener('visibilitychange', touch);
+  }, [uid, lastSeenMs]);
 
   if (data.loading && !data.all.length) return <Spinner />;
   if (!profile!.onboarded) return <Onboarding />;
@@ -82,10 +95,20 @@ function StudentRoutes() {
 }
 
 function AdminRoutes() {
+  const { profile } = useSession();
   const users = useAllUsers();
+  const [toast, setToast] = useState<string | null>(null);
   const pending = users.data.filter((u) => u.status === 'pending').length;
+  const uid = profile!.id;
+  useEffect(() => {
+    if (profile?.reminderEnabled) refreshToken(uid);
+    let unsub: (() => void) | undefined;
+    onForegroundMessage((t, b) => setToast(`${t}: ${b}`)).then((u) => (unsub = u));
+    return () => unsub?.();
+  }, [uid, profile?.reminderEnabled]);
   return (
     <AdminLayout pending={pending}>
+      {toast && <Toast text={toast} onClose={() => setToast(null)} />}
       <Routes>
         <Route path="/admin" element={<Overview />} />
         <Route path="/admin/classes" element={<Classes />} />
@@ -151,8 +174,10 @@ export default function App() {
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <SessionProvider>
         <DialogProvider>
-          <UpdatePrompt />
-          <Gate />
+          <UndoProvider>
+            <UpdatePrompt />
+            <Gate />
+          </UndoProvider>
         </DialogProvider>
       </SessionProvider>
     </BrowserRouter>

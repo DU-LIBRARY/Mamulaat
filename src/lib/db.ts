@@ -14,9 +14,12 @@ import {
   type WriteBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { AppSettings, LogEntry, Mamool, UserProfile } from '../types';
+import type { AppSettings, DayLog, LogEntry, Mamool, TemplateItem, UserProfile } from '../types';
 import { DEFAULT_TIMEZONE, utcOffsetMinutes } from './dates';
 import { fire, track } from './sync';
+import { sameMamoolName } from './names';
+
+export { sameMamoolName };
 
 export const DEFAULT_SETTINGS: AppSettings = {
   backfillDays: 2,
@@ -40,6 +43,8 @@ export const tokensCol = (uid: string) => collection(db, 'users', uid, 'fcmToken
 export const classesCol = () => collection(db, 'classes');
 export const settingsRef = () => doc(db, 'settings', 'app');
 export const auditCol = () => collection(db, 'auditLog');
+export const nudgesCol = () => collection(db, 'nudges');
+export const nudgeRef = (uid: string, day: string) => doc(db, 'nudges', `${uid}_${day}`);
 
 export function logsRangeQuery(uid: string, from: string, to: string) {
   return query(logsCol(uid), where(documentId(), '>=', from), where(documentId(), '<=', to));
@@ -95,6 +100,11 @@ export function updateOwnProfile(uid: string, data: Partial<Pick<UserProfile, 'n
   fire(updateDoc(userRef(uid), data));
 }
 
+/** Record that the student opened the app (the admin sees "last seen"). Throttled by the caller. */
+export function touchLastSeen(uid: string) {
+  fire(updateDoc(userRef(uid), { lastSeenAt: serverTimestamp() }));
+}
+
 // ---------- logs ----------
 /** Student writes clear any "edited by the teacher" stamp (the rules require it). */
 const CLEAR_STAMP = { editedBy: deleteField(), editedByName: deleteField() };
@@ -115,6 +125,16 @@ export function saveEntry(uid: string, day: string, mamoolId: string, entry: Log
 }
 
 export function saveEntries(uid: string, day: string, entries: Record<string, LogEntry>) {
+  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true }));
+}
+
+/**
+ * Put a day's entries back to exactly `prev` for the given mamoolaat (used by Undo):
+ * entries that did not exist before are removed again.
+ */
+export function restoreEntries(uid: string, day: string, prev: Record<string, LogEntry | undefined>) {
+  const entries: Record<string, unknown> = {};
+  for (const [id, e] of Object.entries(prev)) entries[id] = e ?? deleteField();
   fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true }));
 }
 
@@ -294,6 +314,22 @@ export function deleteChange(uid: string, changeId: string, actor: Actor) {
   fire(batch.commit());
 }
 
+// ---------- nudges ----------
+/**
+ * Ask the reminder function to push "please log today" to these students now.
+ * One nudge per student per day (the doc id makes a second one fail, so nobody is spammed).
+ */
+export async function sendNudges(uids: string[], day: string, actor: Actor) {
+  for (let i = 0; i < uids.length; i += 200) {
+    const batch = writeBatch(db);
+    uids.slice(i, i + 200).forEach((uid) =>
+      batch.set(nudgeRef(uid, day), { uid, day, actorId: actor.uid, actorName: actor.name.slice(0, 200), createdAt: serverTimestamp() }),
+    );
+    addAudit(batch, actor, 'nudge.send', { day, count: Math.min(200, uids.length - i), studentIds: uids.slice(i, i + 200) });
+    await track(batch.commit());
+  }
+}
+
 // ---------- classes ----------
 export function createClass(name: string, actor: Actor) {
   const batch = writeBatch(db);
@@ -339,6 +375,72 @@ export async function deleteClass(classId: string, actor: Actor, members: UserPr
   batch.delete(doc(classesCol(), classId));
   addAudit(batch, actor, 'class.delete', { classId, movedTo: moveTo, studentsMoved: ops.length });
   await track(batch.commit());
+}
+
+// ---------- class templates ----------
+export function saveClassTemplate(classId: string, template: TemplateItem[], actor: Actor) {
+  const batch = writeBatch(db);
+  const clean = template.slice(0, 50).map((t) => cleanInput(t));
+  batch.update(doc(classesCol(), classId), { template: clean });
+  addAudit(batch, actor, 'class.template', { classId, template: clean });
+  return track(batch.commit());
+}
+
+/**
+ * Add the class template to each student's OWN list. Nothing is replaced or removed:
+ * items the student already has (same name) are skipped, the rest go at the end of their list,
+ * and each addition is recorded so the student sees it and can tidy up any overlaps.
+ */
+export async function applyTemplate(uids: string[], template: TemplateItem[], today: string, actor: Actor) {
+  let added = 0;
+  let skipped = 0;
+  for (const uid of uids) {
+    const snap = await getDocs(mamoolaatCol(uid));
+    const existing = snap.docs.map((d) => d.data() as Mamool);
+    let order = existing.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
+    const toAdd = template.filter((t) => {
+      const dup = existing.some((m) => m.active && sameMamoolName(m.name, t.name));
+      if (dup) skipped++;
+      return !dup;
+    });
+    if (!toAdd.length) continue;
+    const batch = writeBatch(db);
+    for (const t of toAdd) {
+      const ref = doc(mamoolaatCol(uid));
+      const m = cleanInput(t);
+      batch.set(ref, {
+        ...m,
+        active: true,
+        order: order++,
+        createdBy: actor.uid,
+        createdAt: serverTimestamp(),
+        createdDate: today,
+        removedDate: null,
+        updatedBy: actor.uid,
+        updatedAt: serverTimestamp(),
+      });
+      recordChange(batch, uid, actor, 'added', ref.id, m.name, null, m);
+      added++;
+    }
+    await track(batch.commit());
+  }
+  return { added, skipped };
+}
+
+// ---------- one-off reads for exports ----------
+/** Mamoolaat + logs in [from, to] for several students, read once (for CSV exports). */
+export async function fetchStudentsRange(uids: string[], from: string, to: string) {
+  const out = new Map<string, { mamoolaat: Mamool[]; logs: Map<string, DayLog> }>();
+  await Promise.all(
+    uids.map(async (uid) => {
+      const [m, l] = await Promise.all([getDocs(mamoolaatCol(uid)), getDocs(logsRangeQuery(uid, from, to))]);
+      out.set(uid, {
+        mamoolaat: m.docs.map((d) => ({ id: d.id, ...d.data() }) as Mamool),
+        logs: new Map(l.docs.map((d) => [d.id, { id: d.id, ...d.data() } as DayLog])),
+      });
+    }),
+  );
+  return out;
 }
 
 // ---------- user management (admin) ----------
@@ -400,6 +502,16 @@ export async function deleteStudent(uid: string, actor: Actor, name: string) {
     } catch (e) {
       failed.push(`${sub}: ${(e as Error).message}`);
     }
+  }
+  try {
+    const nudges = await getDocs(query(nudgesCol(), where('uid', '==', uid)));
+    for (let i = 0; i < nudges.docs.length; i += 400) {
+      const batch = writeBatch(db);
+      nudges.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await track(batch.commit());
+    }
+  } catch (e) {
+    failed.push(`nudges: ${(e as Error).message}`);
   }
   if (failed.length) throw new Error(`Could not delete everything (${failed.join('; ')}). The student was NOT removed; try again.`);
   const batch = writeBatch(db);

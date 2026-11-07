@@ -1,12 +1,58 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
-import { useAllUsers, useClasses } from '../../hooks/useAdminData';
-import { approveUser, bulkUpdateUsers, deactivateUser, deleteStudent, moveUser, reactivateUser, rejectUser, type Actor, type BulkAction } from '../../lib/db';
-import { EmptyState, Spinner } from '../../components/ui';
+import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
+import { applyTemplate, approveUser, bulkUpdateUsers, deactivateUser, deleteStudent, moveUser, reactivateUser, rejectUser, type Actor, type BulkAction } from '../../lib/db';
+import { EmptyState, Spinner, cellClass } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
+import { IconCheck } from '../../components/icons';
 import type { ClassDoc, UserProfile } from '../../types';
 import { displayName } from '../../lib/display';
+import { daysAgoLabel, diffDays, todayIn, weekDays, weekStartOf } from '../../lib/dates';
+import { periodCompletion, pct } from '../../lib/scoring';
+
+/** Approve, then add the class template (if any) to the student's own list. */
+async function approveInto(uids: string[], cls: ClassDoc | undefined, classId: string, today: string, actor: Actor) {
+  if (uids.length === 1) await approveUser(uids[0], classId, actor);
+  else await bulkUpdateUsers(uids, { kind: 'approve', classId }, actor);
+  if (cls?.template?.length) await applyTemplate(uids, cls.template, today, actor);
+}
+
+/** "Approve all into the class they asked for", grouped by class, with one confirmation. */
+export function useApproveAll() {
+  const { actor, today } = useActiveSession();
+  const classes = useClasses();
+  const { confirm, notify } = useDialog();
+  return async (list: UserProfile[]) => {
+    const ready = list.filter((u) => u.status === 'pending' && u.signupComplete && classes.data.some((c) => c.id === u.requestedClassId));
+    if (!ready.length) return;
+    const byClass = new Map<string, string[]>();
+    ready.forEach((u) => byClass.set(u.requestedClassId!, [...(byClass.get(u.requestedClassId!) ?? []), u.id]));
+    const ok = await confirm({
+      title: `Approve ${ready.length} ${ready.length === 1 ? 'person' : 'people'}?`,
+      message: (
+        <ul className="list-disc pl-5">
+          {[...byClass].map(([cid, ids]) => {
+            const c = classes.data.find((x) => x.id === cid);
+            return (
+              <li key={cid} dir="auto">
+                {ids.length} into {c?.name}
+                {c?.template?.length ? ` (+ ${c.template.length} class mamoolaat)` : ''}
+              </li>
+            );
+          })}
+        </ul>
+      ),
+      confirmLabel: 'Approve',
+    });
+    if (!ok) return;
+    try {
+      for (const [cid, ids] of byClass) await approveInto(ids, classes.data.find((c) => c.id === cid), cid, today, actor);
+    } catch (e) {
+      await notify('Could not approve everyone', (e as Error).message);
+    }
+  };
+}
 
 export function ClassSelect({ classes, value, onChange, placeholder = 'Choose class…', label }: { classes: ClassDoc[]; value: string; onChange: (v: string) => void; placeholder?: string; label?: string }) {
   // A stale id (class deleted) must show as "no class", not as a silent invalid value.
@@ -74,8 +120,11 @@ export function useDeleteUsers(actor: Actor) {
   };
 }
 
-function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; classes: ClassDoc[]; actor: Actor; selected: boolean; onToggle: () => void }) {
+function UserRow({ u, classes, actor, selected, onToggle, week, today }: { u: UserProfile; classes: ClassDoc[]; actor: Actor; selected: boolean; onToggle: () => void; week?: number | null; today: string }) {
   const { confirm } = useDialog();
+  const { settings } = useActiveSession();
+  const tz = settings.timezone;
+  const seen = lastSeenDays(u, today, tz);
   const del = useDeleteUsers(actor);
   const initial = u.classId ?? u.requestedClassId ?? '';
   const [cls, setCls] = useState(classes.some((c) => c.id === initial) ? initial : '');
@@ -93,6 +142,12 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
           <Link to={`/admin/student/${u.id}`} className="block truncate font-semibold text-brand-700" dir="auto">
             {displayName(u)}
           </Link>
+          {u.status === 'active' && (
+            <div className="flex flex-wrap items-center gap-x-2 text-sm text-slate-500">
+              {week !== undefined && <span className={`chip num ${cellClass(week)}`}>{pct(week)} this week</span>}
+              <span className={seen == null || seen >= STALE_DAYS ? 'text-amber-800' : ''}>Last opened: {daysAgoLabel(seen)}</span>
+            </div>
+          )}
           {u.status === 'pending' && (
             <div className="text-sm text-slate-600" dir="auto">
               {u.signupComplete ? (requestedName ? `Requested: ${requestedName}` : 'Their requested class no longer exists. Pick one below.') : 'Has not entered their name/class yet'}
@@ -105,7 +160,7 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
           <div className="min-w-40 flex-1">
             <ClassSelect classes={classes} value={cls} onChange={setCls} />
           </div>
-          <button className="btn-primary" disabled={!cls} onClick={() => run(approveUser(u.id, cls, actor))}>
+          <button className="btn-primary" disabled={!cls} onClick={() => run(approveInto([u.id], classes.find((c) => c.id === cls), cls, today, actor))}>
             Approve
           </button>
           <button
@@ -141,7 +196,7 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
               <div className="min-w-40 flex-1">
                 <ClassSelect classes={classes} value={cls} onChange={setCls} />
               </div>
-              <button className="btn-secondary" disabled={!cls} onClick={() => run(approveUser(u.id, cls, actor))}>
+              <button className="btn-secondary" disabled={!cls} onClick={() => run(approveInto([u.id], classes.find((c) => c.id === cls), cls, today, actor))}>
                 Approve
               </button>
             </>
@@ -159,7 +214,7 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
   );
 }
 
-function BulkBar({ selected, users, classes, actor, clear }: { selected: UserProfile[]; users: UserProfile[]; classes: ClassDoc[]; actor: Actor; clear: () => void }) {
+function BulkBar({ selected, users, classes, actor, clear, today }: { selected: UserProfile[]; users: UserProfile[]; classes: ClassDoc[]; actor: Actor; clear: () => void; today: string }) {
   const { confirm, notify } = useDialog();
   const del = useDeleteUsers(actor);
   const [cls, setCls] = useState('');
@@ -176,7 +231,8 @@ function BulkBar({ selected, users, classes, actor, clear }: { selected: UserPro
     if (!(await confirm({ title, message: `This applies to ${uids.length} ${uids.length === 1 ? 'person' : 'people'}.`, confirmLabel: 'Apply', danger }))) return;
     setBusy(true);
     try {
-      await bulkUpdateUsers(uids, action, actor);
+      if (action.kind === 'approve') await approveInto(uids, classes.find((c) => c.id === action.classId), action.classId, today, actor);
+      else await bulkUpdateUsers(uids, action, actor);
       clear();
     } catch (e) {
       await notify('Could not finish', (e as Error).message);
@@ -186,7 +242,7 @@ function BulkBar({ selected, users, classes, actor, clear }: { selected: UserPro
   };
 
   return (
-    <div className="pb-safe fixed inset-x-0 bottom-[4.5rem] z-30 mx-auto max-w-3xl px-3">
+    <div className="pb-safe fixed inset-x-0 bottom-[4.5rem] z-30 mx-auto max-w-3xl px-3" role="region" aria-label="Actions for selected people">
       <div className="card flex flex-col gap-2 border-slate-300 shadow-lg">
         <div className="flex items-center justify-between">
           <b>{selected.length} selected</b>
@@ -227,21 +283,55 @@ function BulkBar({ selected, users, classes, actor, clear }: { selected: UserPro
   );
 }
 
+const STALE_DAYS = 7;
+
+/** Whole days since the student last opened the app (in the project timezone), or null if never. */
+function lastSeenDays(u: UserProfile, today: string, tz: string): number | null {
+  const ms = u.lastSeenAt?.toMillis?.();
+  if (!ms) return null;
+  return Math.max(0, diffDays(todayIn(tz, new Date(ms)), today));
+}
+
+type Sort = 'name' | 'week' | 'seen';
+
 export function Students() {
-  const { actor, profile } = useActiveSession();
+  const { actor, profile, today, settings } = useActiveSession();
   const users = useAllUsers();
   const classes = useClasses();
+  const approveAll = useApproveAll();
   const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState<Sort>('name');
+  const [staleOnly, setStaleOnly] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const tz = settings.timezone;
 
   const everyone = useMemo(() => users.data.filter((u) => u.id !== profile.id), [users.data, profile.id]);
+  const activeIds = everyone.filter((u) => u.status === 'active' && u.role === 'student').map((u) => u.id);
+  const days = weekDays(weekStartOf(today, settings.weekStart));
+  const range = useStudentsRange(activeIds, days[0], today);
+  const weekOf = (u: UserProfile) => {
+    const r = range.get(u.id);
+    return r?.loaded ? periodCompletion(days, r.logs, r.mamoolaat, today) : undefined;
+  };
+
   if (users.loading || classes.loading) return <Spinner />;
   const q = filter.trim().toLowerCase();
-  const list = everyone.filter((u) => !q || (u.name ?? '').toLowerCase().includes(q));
+  const isStale = (u: UserProfile) => {
+    const d = lastSeenDays(u, today, tz);
+    return d == null || d >= STALE_DAYS;
+  };
+  const list = everyone.filter((u) => (!q || (u.name ?? '').toLowerCase().includes(q)) && (!staleOnly || (u.status === 'active' && isStale(u))));
+  const sorted = (g: UserProfile[]) => {
+    if (sort === 'name') return g;
+    const key = (u: UserProfile) => (sort === 'week' ? (weekOf(u) ?? -1) : -(lastSeenDays(u, today, tz) ?? 1e6));
+    return [...g].sort((a, b) => key(a) - key(b));
+  };
   const pending = list.filter((u) => u.status === 'pending');
   const active = list.filter((u) => u.status === 'active');
   const other = list.filter((u) => u.status === 'inactive' || u.status === 'rejected');
   const noClass = active.filter((u) => !u.classId || !classes.data.some((c) => c.id === u.classId));
+  const staleCount = everyone.filter((u) => u.status === 'active' && isStale(u)).length;
+  const readyToApprove = pending.filter((u) => u.signupComplete && classes.data.some((c) => c.id === u.requestedClassId));
   // Only keep selections that still exist (someone may have been deleted meanwhile)
   const selected = everyone.filter((u) => sel.has(u.id));
   const toggle = (id: string) =>
@@ -261,37 +351,79 @@ export function Students() {
 
   const rows = (group: UserProfile[]) => (
     <ul className="flex flex-col gap-2">
-      {group.map((u) => (
-        <UserRow key={u.id} u={u} classes={classes.data} actor={actor} selected={sel.has(u.id)} onToggle={() => toggle(u.id)} />
+      {sorted(group).map((u) => (
+        <UserRow
+          key={u.id}
+          u={u}
+          classes={classes.data}
+          actor={actor}
+          selected={sel.has(u.id)}
+          onToggle={() => toggle(u.id)}
+          week={u.status === 'active' ? weekOf(u) : undefined}
+          today={today}
+        />
       ))}
     </ul>
   );
-  const title = (text: string, group: UserProfile[]) => (
-    <div className="mb-2 flex items-center justify-between">
-      <div className="section-title mb-0" dir="auto">
+  const title = (text: string, group: UserProfile[], extra?: ReactNode) => (
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <h2 className="section-title mb-0" dir="auto">
         {text}
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {extra}
+        {group.length > 0 && (
+          <button className="btn-ghost min-h-11 px-3 text-sm" onClick={() => toggleAll(group)}>
+            {group.every((u) => sel.has(u.id)) ? 'Unselect all' : 'Select all'}
+          </button>
+        )}
       </div>
-      {group.length > 0 && (
-        <button className="btn-ghost min-h-11 px-3 text-sm" onClick={() => toggleAll(group)}>
-          {group.every((u) => sel.has(u.id)) ? 'Unselect all' : 'Select all'}
-        </button>
-      )}
     </div>
   );
 
   return (
     <div className={`flex flex-col gap-5 ${selected.length ? 'pb-56' : ''}`}>
-      <input className="input" placeholder="Search name" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <div className="flex flex-col gap-2">
+        <input className="input" type="search" placeholder="Search name" aria-label="Search students by name" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            Sort
+            <select className="input min-h-9 w-auto py-1 text-sm" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+              <option value="name">by name</option>
+              <option value="week">lowest this week first</option>
+              <option value="seen">longest since opened first</option>
+            </select>
+          </label>
+          <button
+            className={`btn min-h-9 border px-3 text-sm ${staleOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+            aria-pressed={staleOnly}
+            onClick={() => setStaleOnly((v) => !v)}
+          >
+            Not opened in {STALE_DAYS}+ days ({staleCount})
+          </button>
+        </div>
+      </div>
       {users.error && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Could not load students: {users.error.message}</div>}
       {classes.data.length === 0 && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
           Create a class first (<Link className="underline" to="/admin/classes">Classes</Link>) — students must be assigned to one when approved.
         </div>
       )}
-      <section>
-        {title(`Waiting for approval (${pending.length})`, pending)}
-        {pending.length === 0 ? <EmptyState>No pending sign-ups.</EmptyState> : rows(pending)}
-      </section>
+      {!staleOnly && (
+        <section>
+          {title(
+            `Waiting for approval (${pending.length})`,
+            pending,
+            readyToApprove.length > 0 && (
+              <button className="btn-primary min-h-11 px-3 text-sm" onClick={() => approveAll(readyToApprove)}>
+                <IconCheck size={16} />
+                Approve {readyToApprove.length === pending.length ? 'all' : readyToApprove.length} as requested
+              </button>
+            ),
+          )}
+          {pending.length === 0 ? <EmptyState>No pending sign-ups.</EmptyState> : rows(pending)}
+        </section>
+      )}
       {classes.data.map((c) => {
         const members = active.filter((u) => u.classId === c.id);
         if (!members.length) return null;
@@ -314,8 +446,9 @@ export function Students() {
           {rows(other)}
         </section>
       )}
-      {q && list.length === 0 && <EmptyState>Nobody matches “{filter}”.</EmptyState>}
-      {selected.length > 0 && <BulkBar selected={selected} users={everyone} classes={classes.data} actor={actor} clear={() => setSel(new Set())} />}
+      {(q || staleOnly) && list.length === 0 && <EmptyState>{staleOnly ? 'Everyone has opened the app recently.' : `Nobody matches “${filter}”.`}</EmptyState>}
+      <p className="text-xs text-slate-500">“Last opened” is updated when a student opens the app (from this version on).</p>
+      {selected.length > 0 && <BulkBar selected={selected} users={everyone} classes={classes.data} actor={actor} clear={() => setSel(new Set())} today={today} />}
     </div>
   );
 }

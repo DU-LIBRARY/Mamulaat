@@ -63,3 +63,21 @@ export const DEAD_TOKEN_CODES = new Set([
   'messaging/invalid-registration-token',
   'messaging/invalid-argument',
 ]);
+
+export interface UserSnapshotLike {
+  role?: unknown;
+  status?: unknown;
+  signupComplete?: unknown;
+}
+
+/**
+ * What a change to users/{uid} should notify, if anything:
+ *  - 'admin-signup': a pending student just finished sign-up (name + class) → tell the admin.
+ *  - 'student-approved': a student just became active → tell the student.
+ */
+export function userChangeNotice(before: UserSnapshotLike | undefined, after: UserSnapshotLike | undefined): 'admin-signup' | 'student-approved' | null {
+  if (!after) return null;
+  if (after.status === 'pending' && after.signupComplete === true && before?.signupComplete !== true) return 'admin-signup';
+  if (after.role === 'student' && after.status === 'active' && before?.status !== 'active' && before?.status != null) return 'student-approved';
+  return null;
+}

@@ -136,3 +136,28 @@ export function formatHijri(ymd: string, locale = 'en'): string {
 }
 
 export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** The last day on which a student can still change `day` (it locks at the end of this day). */
+export function lastEditableDay(day: string, backfillDays: number): string {
+  return addDays(day, backfillDays);
+}
+
+/** Every day of the calendar month containing `ymd`. */
+export function monthDays(ymd: string): string[] {
+  const first = `${ymd.slice(0, 7)}-01`;
+  const out: string[] = [];
+  for (let d = first; d.slice(0, 7) === first.slice(0, 7); d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
+export function formatMonth(ymd: string): string {
+  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(toUtc(ymd));
+}
+
+/** Readable "last seen" text, e.g. "today", "yesterday", "5 days ago". */
+export function daysAgoLabel(days: number | null): string {
+  if (days == null) return 'never';
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days} days ago`;
+}

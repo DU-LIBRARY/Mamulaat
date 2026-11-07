@@ -7,10 +7,13 @@ import { WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { DateLine } from '../../components/DateLine';
 import { EmptyState, Spinner, cellClass } from '../../components/ui';
 import { targetLabel } from '../../components/Checklist';
-import { addDays, formatGregorian, isValidYmd, weekDays, weekStartOf } from '../../lib/dates';
+import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { dayStats, entryFraction, pct, scheduledFor } from '../../lib/scoring';
 import { studentWeek } from '../../lib/reports';
 import { downloadCsv } from '../../lib/csv';
+import { fetchStudentsRange } from '../../lib/db';
+import { fileSafe, registerRows } from '../../lib/exports';
+import { ExportBar } from '../../components/ExportBar';
 import type { LogEntry } from '../../types';
 import { displayName } from '../../lib/display';
 
@@ -57,16 +60,16 @@ export function ClassView() {
   if (users.loading || classes.loading) return <Spinner />;
   if (!cls) return <EmptyState>Class not found.</EmptyState>;
 
-  const exportCsv = () => {
-    const header = ['Student', 'Mamool', 'Target', ...days, 'Week %', 'Full days'];
-    const rows: (string | number | null)[][] = [header];
-    for (const w of weeks) {
-      rows.push([w.student.name ?? '', 'ALL', '', ...w.days.map((d) => (d.completion == null ? '' : Math.round(d.completion * 100))), w.completion == null ? '' : Math.round(w.completion * 100), w.fullDays]);
-      for (const pm of w.perMamool) {
-        rows.push([w.student.name ?? '', pm.mamool.name, targetLabel(pm.mamool), ...pm.cells.map((c) => (c == null ? '' : Math.round(c * 100))), pm.completion == null ? '' : Math.round(pm.completion * 100), '']);
-      }
-    }
-    downloadCsv(`mamulaat-${cls.name.replace(/\W+/g, '_')}-${days[0]}.csv`, rows);
+  const className = () => cls.name;
+  const exportWeek = () =>
+    downloadCsv(
+      `mamulaat-${fileSafe(cls.name)}-${days[0]}.csv`,
+      registerRows(students, new Map(students.map((s) => [s.id, range.get(s.id) ?? { mamoolaat: [], logs: new Map() }])), days, today, className),
+    );
+  const exportMonth = async () => {
+    const md = monthDays(date);
+    const data = await fetchStudentsRange(students.map((s) => s.id), md[0], md[md.length - 1]);
+    downloadCsv(`mamulaat-${fileSafe(cls.name)}-${date.slice(0, 7)}.csv`, registerRows(students, data, md, today, className));
   };
 
   const gridRows: GridRow[] = weeks.map((w) => ({
@@ -83,20 +86,20 @@ export function ClassView() {
         <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-slate-900" dir="auto">
           {cls.name}
         </h1>
-        <div className="flex rounded-md border border-slate-200 bg-white p-0.5">
+        <div className="no-print flex rounded-md border border-slate-200 bg-white p-0.5" role="group" aria-label="View">
           {(['day', 'week'] as const).map((v) => (
-            <button key={v} className={`btn min-h-9 rounded px-4 text-sm ${view === v ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
+            <button key={v} aria-pressed={view === v} className={`btn min-h-9 rounded px-4 text-sm ${view === v ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
               {v === 'day' ? 'Day' : 'Week'}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="no-print flex items-center gap-2">
         <button className="btn-secondary w-11 shrink-0 px-0" aria-label={view === 'week' ? 'Previous week' : 'Previous day'} onClick={() => setParam('date', addDays(date, view === 'week' ? -7 : -1))}>
           <IconChevronLeft size={20} />
         </button>
-        <input type="date" className="input text-center" value={date} max={today} onChange={(e) => e.target.value && setParam('date', e.target.value)} />
+        <input type="date" aria-label="Date" className="input text-center" value={date} max={today} onChange={(e) => e.target.value && setParam('date', e.target.value)} />
         <button className="btn-secondary w-11 shrink-0 px-0" aria-label={view === 'week' ? 'Next week' : 'Next day'} disabled={nextDisabled} onClick={() => setParam('date', [addDays(date, view === 'week' ? 7 : 1), today].sort()[0])}>
           <IconChevronRight size={20} />
         </button>
@@ -106,7 +109,10 @@ export function ClassView() {
 
       {view === 'day' ? (
         <>
-          <DateLine day={date} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <DateLine day={date} />
+            {students.length > 0 && <ExportBar month={exportMonth} monthLabel={formatMonth(date)} />}
+          </div>
           <ul className="flex flex-col gap-3">
             {students.map((s) => {
               const r = range.get(s.id);
@@ -132,7 +138,7 @@ export function ClassView() {
                         const t = entryText(e);
                         return (
                           <li key={m.id} className={`rounded-lg px-2 py-1 text-sm ${t.cls}`} title={`${Math.round(entryFraction(e) * 100)}%`}>
-                            <b>{t.icon}</b> <span dir="auto">{m.name}</span> <span className="opacity-70">({e?.status === 'partial' ? `${e.amount}/${targetLabel(m)}` : targetLabel(m)})</span>
+                            <b aria-hidden>{t.icon}</b> <span className="sr-only">{t.text}:</span> <span dir="auto">{m.name}</span> <span className="opacity-70">({e?.status === 'partial' ? `${e.amount}/${targetLabel(m)}` : targetLabel(m)})</span>
                           </li>
                         );
                       })}
@@ -145,13 +151,11 @@ export function ClassView() {
         </>
       ) : (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm text-slate-600">
               {formatGregorian(days[0])} – {formatGregorian(days[6])}
             </div>
-            <button className="btn-secondary px-3 text-sm" onClick={exportCsv} disabled={!students.length}>
-              ⬇ CSV
-            </button>
+            {students.length > 0 && <ExportBar week={exportWeek} month={exportMonth} monthLabel={formatMonth(date)} />}
           </div>
           {students.length > 0 && (
             <div className="rounded-lg border border-slate-200 bg-white p-2">

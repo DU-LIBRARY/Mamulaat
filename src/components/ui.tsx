@@ -3,8 +3,8 @@ import { pct } from '../lib/scoring';
 
 export function Spinner({ label = 'Loading…' }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center gap-3 p-8 text-sm text-slate-500">
-      <span className="h-4 w-4 animate-spin rounded-full border-[1.5px] border-slate-300 border-t-brand-700" />
+    <div className="flex items-center justify-center gap-3 p-8 text-sm text-slate-500" role="status">
+      <span aria-hidden className="h-4 w-4 animate-spin rounded-full border-[1.5px] border-slate-300 border-t-brand-700" />
       {label}
     </div>
   );
@@ -17,7 +17,7 @@ export function FullScreen({ children }: { children: ReactNode }) {
 export function Badge({ n }: { n: number }) {
   if (!n) return null;
   return (
-    <span className="num ml-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gold-500 px-1 text-[11px] font-semibold text-white">
+    <span className="num ml-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#8a6416] px-1 text-[11px] font-semibold text-white">
       {n > 99 ? '99+' : n}
     </span>
   );
@@ -30,7 +30,7 @@ export function ProgressRing({ value, size = 56, label }: { value: number; size?
   const c = 2 * Math.PI * r;
   const v = Math.max(0, Math.min(1, value));
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }} role="img" aria-label={`${pct(v)} complete`}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} className="fill-none stroke-slate-200" />
         <circle
@@ -43,7 +43,9 @@ export function ProgressRing({ value, size = 56, label }: { value: number; size?
           className="fill-none stroke-brand-700 transition-[stroke-dashoffset] duration-300"
         />
       </svg>
-      <span className="num absolute text-[13px] font-semibold text-slate-800">{label ?? pct(v)}</span>
+      <span className="num absolute text-[13px] font-semibold text-slate-800" aria-hidden>
+        {label ?? pct(v)}
+      </span>
     </div>
   );
 }
@@ -94,7 +96,7 @@ export function StatCard({ label, value, sub }: { icon?: string; label: string; 
 
 /** Colour scale for completion cells. */
 export function cellClass(f: number | null | undefined): string {
-  if (f == null) return 'bg-slate-100 text-slate-400';
+  if (f == null) return 'bg-slate-100 text-slate-500';
   if (f >= 1) return 'bg-brand-700 text-white';
   if (f >= 0.75) return 'bg-brand-300 text-brand-900';
   if (f >= 0.5) return 'bg-brand-100 text-brand-900';

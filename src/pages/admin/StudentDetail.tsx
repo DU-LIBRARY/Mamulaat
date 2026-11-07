@@ -10,9 +10,13 @@ import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { Checklist, targetLabel } from '../../components/Checklist';
 import { DateLine } from '../../components/DateLine';
 import { useDialog } from '../../components/Dialog';
+import { useUndo } from '../../components/Undo';
+import { ExportBar } from '../../components/ExportBar';
+import { downloadCsv } from '../../lib/csv';
+import { fileSafe, studentDetailRows } from '../../lib/exports';
 import { addComment, addMamool, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
 import type { Mamool } from '../../types';
-import { addDays, formatGregorian, isValidYmd, weekDays, weekStartOf } from '../../lib/dates';
+import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
 import { bestStreak, currentStreak, dayStats, pct, scheduledFor } from '../../lib/scoring';
 import { ClassSelect, useDeleteUsers } from './Students';
@@ -25,7 +29,7 @@ function when(ts?: { toDate(): Date } | null) {
 
 /** Quick add / remove / restore of a student's mamoolaat, shown under the weekly grid. */
 function WeekMamoolaat({ uid, all, today, actor }: { uid: string; all: Mamool[]; today: string; actor: Actor }) {
-  const { confirm } = useDialog();
+  const undo = useUndo();
   const [adding, setAdding] = useState(false);
   const active = sortMamoolaat(all.filter((m) => m.active));
   const removed = sortMamoolaat(all.filter((m) => !m.active));
@@ -68,16 +72,10 @@ function WeekMamoolaat({ uid, all, today, actor }: { uid: string; all: Mamool[];
               </div>
               <button
                 className="btn-ghost min-h-11 px-3 text-red-700"
-                onClick={async () => {
-                  if (
-                    await confirm({
-                      title: `Remove "${m.name}"?`,
-                      message: 'It stops counting from today. Past logs are kept, and you can restore it later.',
-                      confirmLabel: 'Remove',
-                      danger: true,
-                    })
-                  )
-                    removeMamool(uid, m, today, actor);
+                aria-label={`Remove ${m.name}`}
+                onClick={() => {
+                  removeMamool(uid, m, today, actor);
+                  undo.undoable(`Removed “${m.name}”`, () => restoreMamool(uid, { ...m, active: false, removedDate: today }, today, actor));
                 }}
               >
                 Remove
@@ -95,7 +93,7 @@ function WeekMamoolaat({ uid, all, today, actor }: { uid: string; all: Mamool[];
                 <span className="min-w-0 break-words text-slate-500 line-through" dir="auto">
                   {m.name} – {targetLabel(m)}
                 </span>
-                <button className="btn-ghost min-h-11 shrink-0 px-3 text-sm" onClick={() => restoreMamool(uid, m, today, actor)}>
+                <button className="btn-ghost min-h-11 shrink-0 px-3 text-sm" onClick={() => restoreMamool(uid, m, today, actor)} aria-label={`Restore ${m.name}`}>
                   Restore
                 </button>
               </li>
@@ -118,6 +116,22 @@ export function StudentDetail() {
   const [text, setText] = useState('');
   const [tab, setTab] = useState<'week' | 'day' | 'mamoolaat' | 'comments' | 'profile'>(sp.get('tab') === 'day' ? 'day' : 'week');
   const { confirm, notify } = useDialog();
+  const undo = useUndo();
+  // Deletes wait a few seconds (with Undo) before they happen; hide them meanwhile.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const hide = (id: string, on: boolean) =>
+    setHidden((p) => {
+      const n = new Set(p);
+      if (on) n.add(id);
+      else n.delete(id);
+      return n;
+    });
+  const later = (id: string, message: string, commit: () => void) => {
+    hide(id, true);
+    undo.deferred(message, commit);
+    // If Undo is pressed the commit never runs; show the item again once the toast is gone.
+    setTimeout(() => hide(id, false), 6500);
+  };
   const del = useDeleteUsers(actor);
   const student = users.data.find((u) => u.id === uid);
   const [nameDraft, setNameDraft] = useState('');
@@ -168,7 +182,7 @@ export function StudentDetail() {
         <Stat label="Logged" value={[...data.logs.keys()].filter((d) => d <= today).length} sub="days in total" />
       </StatRow>
 
-      <div className="-mx-4 flex overflow-x-auto border-b border-slate-200 px-4">
+      <div className="no-print -mx-4 flex overflow-x-auto border-b border-slate-200 px-4" role="tablist" aria-label="Student sections">
         {(
           [
             ['week', 'Weekly'],
@@ -178,7 +192,7 @@ export function StudentDetail() {
             ['profile', 'Profile'],
           ] as const
         ).map(([k, l]) => (
-          <button key={k} className={`-mb-px min-h-11 shrink-0 border-b-2 px-3 text-sm font-medium whitespace-nowrap ${tab === k ? 'border-brand-700 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={() => setTab(k)}>
+          <button key={k} role="tab" aria-selected={tab === k} className={`-mb-px min-h-11 shrink-0 border-b-2 px-3 text-sm font-medium whitespace-nowrap ${tab === k ? 'border-brand-700 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={() => setTab(k)}>
             {l}
           </button>
         ))}
@@ -186,19 +200,32 @@ export function StudentDetail() {
 
       {tab === 'week' && (
         <>
-          <div className="flex items-center justify-between">
-            <button className="btn-secondary w-11 shrink-0 px-0" onClick={() => setAnchor(addDays(days[0], -7))}>
+          <div className="no-print flex items-center justify-between">
+            <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Previous week" onClick={() => setAnchor(addDays(days[0], -7))}>
               <IconChevronLeft size={20} />
             </button>
             <div className="num text-sm font-medium text-slate-800">
               {formatGregorian(days[0], { year: undefined })} – {formatGregorian(days[6])}
             </div>
-            <button className="btn-secondary w-11 shrink-0 px-0" disabled={days[6] >= today} onClick={() => setAnchor([addDays(days[0], 7), today].sort()[0])}>
+            <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Next week" disabled={days[6] >= today} onClick={() => setAnchor([addDays(days[0], 7), today].sort()[0])}>
               <IconChevronRight size={20} />
             </button>
           </div>
+          <h2 className="print-only text-lg font-semibold" dir="auto">
+            {displayName(student)} — {formatGregorian(days[0])} – {formatGregorian(days[6])}
+          </h2>
+          <ExportBar
+            week={() => downloadCsv(`mamulaat-${fileSafe(displayName(student))}-${days[0]}.csv`, studentDetailRows(data.all, data.logs, days, today))}
+            monthLabel={formatMonth(anchor)}
+            month={() => {
+              const md = monthDays(anchor);
+              downloadCsv(`mamulaat-${fileSafe(displayName(student))}-${anchor.slice(0, 7)}.csv`, studentDetailRows(data.all, data.logs, md, today));
+            }}
+          />
           <div className="rounded-lg border border-slate-200 bg-white p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
-          <WeekMamoolaat uid={uid} all={data.all} today={today} actor={actor} />
+          <div className="no-print">
+            <WeekMamoolaat uid={uid} all={data.all} today={today} actor={actor} />
+          </div>
         </>
       )}
 
@@ -214,7 +241,7 @@ export function StudentDetail() {
               <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Previous day" onClick={() => setAnchor(addDays(dayId, -1))}>
                 <IconChevronLeft size={20} />
               </button>
-              <input type="date" className="input text-center" value={dayId} max={today} onChange={(e) => e.target.value && setAnchor(e.target.value)} />
+              <input type="date" aria-label="Day" className="input text-center" value={dayId} max={today} onChange={(e) => e.target.value && setAnchor(e.target.value)} />
               <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Next day" disabled={dayId >= today} onClick={() => setAnchor(addDays(dayId, 1))}>
                 <IconChevronRight size={20} />
               </button>
@@ -224,16 +251,15 @@ export function StudentDetail() {
               <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.hasLog ? pct(st.completion) : 'No log'}</span>
             </div>
             {log?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {log.editedByName ?? 'the teacher'}.</div>}
-            {mams.length ? (
+            {hidden.has(`log:${dayId}`) ? (
+              <EmptyState>This day's log will be cleared.</EmptyState>
+            ) : mams.length ? (
               <Checklist key={dayId} uid={uid} day={dayId} mamoolaat={mams} log={log} editable asAdmin={actor} />
             ) : (
               <EmptyState>No mamoolaat were set for this day.</EmptyState>
             )}
-            {log && (
-              <button
-                className="btn-ghost text-red-700"
-                onClick={async () => (await confirm({ title: 'Clear this whole day?', message: 'Deletes every entry logged on this day for this student.', confirmLabel: 'Clear day', danger: true })) && adminDeleteLog(uid, dayId, actor)}
-              >
+            {log && !hidden.has(`log:${dayId}`) && (
+              <button className="btn-ghost text-red-700" onClick={() => later(`log:${dayId}`, `Cleared ${formatGregorian(dayId, { year: undefined })}`, () => adminDeleteLog(uid, dayId, actor))}>
                 Clear this day's log
               </button>
             )}
@@ -249,14 +275,14 @@ export function StudentDetail() {
             <section className="card">
               <h2 className="section-title">Change history</h2>
               <ul className="flex flex-col gap-2 text-sm">
-                {data.changes.map((c) => (
+                {data.changes.filter((c) => !hidden.has(c.id)).map((c) => (
                   <li key={c.id} className="border-b border-slate-100 pb-2 last:border-0">
                     <div dir="auto">{describeChange(c)}</div>
                     <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
                       <span>
                         {c.actorName} · {when(c.createdAt)} · {c.seenAt ? 'seen by student' : 'not seen yet'}
                       </span>
-                      <button className="btn-ghost min-h-11 px-3 text-xs text-red-700" onClick={async () => (await confirm({ title: 'Delete this history entry?', confirmLabel: 'Delete', danger: true })) && deleteChange(uid, c.id, actor)}>
+                      <button className="btn-ghost min-h-11 px-3 text-xs text-red-700" onClick={() => later(c.id, 'History entry deleted', () => deleteChange(uid, c.id, actor))}>
                         Delete
                       </button>
                     </div>
@@ -278,8 +304,10 @@ export function StudentDetail() {
               setText('');
             }}
           >
-            <label className="label">Leave a comment (shows on the student's home page)</label>
-            <textarea className="input min-h-24" dir="auto" value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} />
+            <label className="label" htmlFor="comment-text">
+              Leave a comment (shows on the student's home page)
+            </label>
+            <textarea id="comment-text" className="input min-h-24" dir="auto" value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} />
             <button className="btn-primary" type="submit" disabled={!text.trim()}>
               Send
             </button>
@@ -288,7 +316,7 @@ export function StudentDetail() {
             <EmptyState>No comments yet.</EmptyState>
           ) : (
             <ul className="flex flex-col gap-2">
-              {data.comments.map((c) => (
+              {data.comments.filter((c) => !hidden.has(c.id)).map((c) => (
                 <li key={c.id} className="card p-3">
                   <p className="whitespace-pre-wrap" dir="auto">
                     {c.text}
@@ -297,7 +325,7 @@ export function StudentDetail() {
                     <span>
                       {when(c.createdAt)} · {c.readAt ? `read ${when(c.readAt)}` : 'unread'}
                     </span>
-                    <button className="btn-ghost min-h-8 px-2 text-xs text-red-700" onClick={async () => (await confirm({ title: 'Delete this comment?', confirmLabel: 'Delete', danger: true })) && deleteComment(uid, c.id, actor)}>
+                    <button className="btn-ghost min-h-11 px-3 text-xs text-red-700" onClick={() => later(c.id, 'Comment deleted', () => deleteComment(uid, c.id, actor))}>
                       Delete
                     </button>
                   </div>
@@ -329,8 +357,8 @@ export function StudentDetail() {
           </form>
           <div className="card flex flex-col gap-3">
             <div>
-              <label className="label">Class</label>
-              <ClassSelect classes={classes.data} value={student.classId ?? ''} onChange={(v) => v && run(moveUser(uid, v, actor))} placeholder="No class" />
+              <span className="label">Class</span>
+              <ClassSelect label="Class" classes={classes.data} value={student.classId ?? ''} onChange={(v) => v && run(moveUser(uid, v, actor))} placeholder="No class" />
             </div>
             <div>
               <label className="label" htmlFor="sstatus">

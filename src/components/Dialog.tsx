@@ -73,7 +73,7 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
       if (e.key === 'Escape') close(false);
       if (e.key === 'Tab') {
         // keep focus inside the dialog
-        const f = ref.current?.querySelectorAll<HTMLElement>('input, button:not(:disabled)');
+        const f = ref.current?.querySelectorAll<HTMLElement>('input, select, textarea, a[href], button:not(:disabled)');
         if (!f?.length) return;
         const first = f[0];
         const last = f[f.length - 1];
@@ -96,12 +96,12 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 p-4 sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && close(false)}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="dlg-title" className="pb-safe w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby={req.message ? 'dlg-desc' : undefined} className="pb-safe w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
         <h2 id="dlg-title" className="text-lg font-semibold text-slate-900" dir="auto">
           {req.title}
         </h2>
         {req.message && (
-          <div className="mt-2 text-sm text-slate-600" dir="auto">
+          <div id="dlg-desc" className="mt-2 text-sm text-slate-600" dir="auto">
             {req.message}
           </div>
         )}

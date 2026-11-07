@@ -5,11 +5,14 @@ import { useMyData } from '../../hooks/useStudentData';
 import { DateLine } from '../../components/DateLine';
 import { Checklist } from '../../components/Checklist';
 import { ReminderBanner } from '../../components/ReminderBanner';
-import { Spinner, Badge, cellClass, EmptyState, SegmentBar, StatRow, Stat } from '../../components/ui';
-import { IconPlus } from '../../components/icons';
+import { Spinner, Badge, cellClass, EmptyState, Notice, SegmentBar, StatRow, Stat } from '../../components/ui';
+import { IconBell, IconLock, IconPlus } from '../../components/icons';
+import { LastChanceNotice, PendingSyncNotice } from '../../components/LockNotices';
+import { useDocData } from '../../hooks/useFirestore';
 import { currentStreak, bestStreak, dayStats, scheduledFor, periodCompletion, pct, entryFraction } from '../../lib/scoring';
-import { shortDay, weekDays, weekStartOf } from '../../lib/dates';
-import { addMamool, markCommentRead } from '../../lib/db';
+import { formatGregorian, isDayEditable, shortDay, weekDays, weekStartOf } from '../../lib/dates';
+import { addMamool, markCommentRead, nudgeRef } from '../../lib/db';
+import type { Nudge } from '../../types';
 import { MamoolForm } from '../../components/MamoolEditor';
 
 export function Home() {
@@ -17,6 +20,7 @@ export function Home() {
   const data = useMyData();
   const [adding, setAdding] = useState(false);
   const { logs, all } = data;
+  const nudge = useDocData<Nudge>(nudgeRef(profile.id, today), `nudge:${profile.id}:${today}`);
 
   const stats = useMemo(() => {
     const days = weekDays(weekStartOf(today, settings.weekStart));
@@ -60,7 +64,15 @@ export function Home() {
         <SegmentBar className="mt-4" fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />
       </header>
 
-      <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
+      <PendingSyncNotice />
+      {nudge.data && stats.todayS.logged < stats.todayS.scheduled ? (
+        <Notice tone="teacher" icon={<IconBell size={18} />}>
+          <span className="font-medium">Your teacher reminded you to log today.</span> Mark each mamool below as you go.
+        </Notice>
+      ) : (
+        <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
+      )}
+      <LastChanceNotice />
 
       <section>
         <div className="mb-2.5 flex items-baseline justify-between">
@@ -106,16 +118,22 @@ export function Home() {
         <Stat label="Full days" value={stats.fullDays} sub="this week" />
       </StatRow>
 
-      <section>
+      <section aria-labelledby="home-week">
         <div className="mb-2.5 flex items-baseline justify-between">
-          <h2 className="section-title mb-0">This week</h2>
+          <h2 id="home-week" className="section-title mb-0">This week</h2>
           <Link to="/week" className="link">
             Details
           </Link>
         </div>
         <div className="grid grid-cols-7 gap-1.5 text-center">
-          {stats.week.map((d) => (
-            <Link to={`/log/${d.day}`} key={d.day} className="group flex flex-col items-center gap-1.5">
+          {stats.week.map((d) => {
+            const future = d.day > today;
+            const locked = !future && !isDayEditable(d.day, today, settings.backfillDays);
+            const label = `${formatGregorian(d.day, { year: undefined })}: ${
+              future ? 'not yet' : d.scheduled ? `${Math.round(d.completion * 100)}% done` : 'no mamoolaat'
+            }${locked ? ', locked' : ''}`;
+            const body = (
+              <>
               <span className={`text-xs ${d.day === today ? 'font-semibold text-brand-700' : 'text-slate-500'}`}>{shortDay(d.day)}</span>
               <span
                 className={`num flex h-10 w-full items-center justify-center rounded-md text-xs font-medium ${
@@ -124,8 +142,19 @@ export function Home() {
               >
                 {d.day > today ? '' : d.scheduled ? Math.round(d.completion * 100) : '–'}
               </span>
-            </Link>
-          ))}
+              {locked && <IconLock size={10} className="-mt-1 text-slate-400" aria-hidden />}
+              </>
+            );
+            return future ? (
+              <div key={d.day} className="flex flex-col items-center gap-1.5" aria-label={label} role="img">
+                {body}
+              </div>
+            ) : (
+              <Link to={`/log/${d.day}`} key={d.day} className="group flex flex-col items-center gap-1.5" aria-label={label}>
+                {body}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -145,7 +174,7 @@ export function Home() {
                 <p className="flex-1 whitespace-pre-wrap text-slate-800" dir="auto">
                   {c.text}
                 </p>
-                <button className="shrink-0 text-sm font-medium text-[#5b4512] underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
+                <button className="min-h-11 shrink-0 text-sm font-medium text-[#5b4512] underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
                   Mark read
                 </button>
               </li>

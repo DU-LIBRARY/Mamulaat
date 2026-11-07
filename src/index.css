@@ -161,3 +161,38 @@ body {
 .top-safe-toast {
   top: calc(env(safe-area-inset-top) + 4.5rem);
 }
+
+/* Print-friendly pages (registers and reports for parents' evenings). */
+.print-only {
+  display: none;
+}
+@media print {
+  .no-print,
+  .update-prompt,
+  .top-safe-toast {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  body {
+    background: white;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+  th.sticky {
+    position: static !important;
+  }
+  tr,
+  .card {
+    break-inside: avoid;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

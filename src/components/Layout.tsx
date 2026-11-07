@@ -23,7 +23,10 @@ export function Wordmark({ className = '' }: { className?: string }) {
 export function Layout({ title, nav, children, right }: { title?: string; nav: NavItem[]; children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-3xl flex-col">
-      <header className="pt-safe sticky top-0 z-20 border-b border-slate-200 bg-sand-100">
+      <a href="#main" className="sr-only z-50 rounded-md bg-white px-3 py-2 text-sm font-medium text-brand-800 focus:not-sr-only focus:fixed focus:top-2 focus:left-2">
+        Skip to content
+      </a>
+      <header className="no-print pt-safe sticky top-0 z-20 border-b border-slate-200 bg-sand-100">
         <div className="flex h-14 items-center justify-between gap-2 px-4">
           <div className="flex items-baseline gap-2">
             <Wordmark />
@@ -35,8 +38,10 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
           </div>
         </div>
       </header>
-      <main className="flex-1 px-4 pt-5 pb-28">{children}</main>
-      <nav className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white">
+      <main id="main" tabIndex={-1} className="flex-1 px-4 pt-5 pb-28 focus:outline-none">
+        {children}
+      </main>
+      <nav aria-label="Main" className="no-print pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white">
         <ul className="mx-auto flex max-w-3xl justify-around">
           {nav.map((n) => (
             <li key={n.to} className="flex-1">
@@ -54,6 +59,7 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
                   {!!n.badge && (
                     <span className="absolute -top-1.5 -right-3">
                       <Badge n={n.badge} />
+                      <span className="sr-only"> new</span>
                     </span>
                   )}
                 </span>

@@ -4,8 +4,9 @@ import { useMyData } from '../../hooks/useStudentData';
 import { Checklist } from '../../components/Checklist';
 import { DateLine } from '../../components/DateLine';
 import { EmptyState, Notice, ProgressRing } from '../../components/ui';
-import { IconLock, IconPencil } from '../../components/icons';
-import { addDays, isDayEditable, isValidYmd, shortDay, dayNumber } from '../../lib/dates';
+import { IconPencil } from '../../components/icons';
+import { LockedDayNotice, PendingSyncNotice } from '../../components/LockNotices';
+import { addDays, formatGregorian, isDayEditable, isValidYmd, lastEditableDay, shortDay, dayNumber } from '../../lib/dates';
 import { dayStats, scheduledFor } from '../../lib/scoring';
 
 export function LogDay() {
@@ -17,31 +18,38 @@ export function LogDay() {
   const mams = scheduledFor(day, all);
   const s = dayStats(day, logs.get(day), all);
   const chips = Array.from({ length: settings.backfillDays + 1 }, (_, i) => addDays(today, -i)).reverse();
+  const locksTonight = (d: string) => d !== today && lastEditableDay(d, settings.backfillDays) === today;
+  const lastDay = lastEditableDay(day, settings.backfillDays);
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
+      <PendingSyncNotice />
+      <nav aria-label="Days you can fill in" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
         {chips.map((d) => (
           <Link
             key={d}
             to={`/log/${d}`}
+            aria-current={d === day ? 'page' : undefined}
+            aria-label={`${formatGregorian(d)}${d === today ? ' (today)' : ''}${locksTonight(d) ? ', locks tonight' : ''}`}
             className={`flex min-w-14 flex-col items-center rounded-md border px-3 py-1.5 text-xs font-medium ${
               d === day ? 'border-brand-700 bg-brand-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
             }`}
           >
             <span>{d === today ? 'Today' : shortDay(d)}</span>
             <span className="num text-lg leading-tight font-semibold">{dayNumber(d)}</span>
+            {locksTonight(d) && <span className={`text-[10px] ${d === day ? 'text-white/90' : 'text-amber-800'}`}>locks tonight</span>}
           </Link>
         ))}
-      </div>
+      </nav>
 
       <div className="flex items-center justify-between">
         <DateLine day={day} size="lg" />
         <ProgressRing value={s.completion} />
       </div>
 
-      {!editable && (
-        <Notice icon={<IconLock size={18} />}>This day is locked.</Notice>
+      <LockedDayNotice day={day} />
+      {editable && day !== today && lastDay === today && (
+        <Notice tone="warn">Last chance: this day locks at midnight tonight.</Notice>
       )}
 
       {logs.get(day)?.editedBy && (

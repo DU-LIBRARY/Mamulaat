@@ -609,3 +609,78 @@ describe('admin handover', () => {
     await assertSucceeds(getDocs(collection(f, 'auditLog')));
   });
 });
+
+describe('nudges (admin "please log today" reminders)', () => {
+  const nudge = (uid: string, day: string, actorId = ADMIN) => ({ uid, day, actorId, actorName: 'Admin', createdAt: serverTimestamp() });
+
+  it('admin can nudge a student once per day; the id must match', async () => {
+    const f = db(ADMIN);
+    await assertSucceeds(setDoc(doc(f, `nudges/${A}_${today}`), nudge(A, today)));
+    // a second nudge for the same day is an update, which is not allowed
+    await assertFails(setDoc(doc(f, `nudges/${A}_${today}`), nudge(A, today)));
+    await assertFails(setDoc(doc(f, `nudges/${B}_${today}`), nudge(A, today)));
+    await assertFails(setDoc(doc(f, `nudges/nobody_${today}`), nudge('nobody', today)));
+    await assertFails(setDoc(doc(f, `nudges/${B}_${today}`), { ...nudge(B, today), extra: 1 }));
+  });
+
+  it('students cannot send nudges, and can only read their own', async () => {
+    await assertFails(setDoc(doc(db(A), `nudges/${B}_${today}`), nudge(B, today, A)));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `nudges/${A}_${today}`), { uid: A, day: today, actorId: ADMIN, actorName: 'Admin', createdAt: Timestamp.now() });
+    });
+    await assertSucceeds(getDoc(doc(db(A), `nudges/${A}_${today}`)));
+    await assertFails(getDoc(doc(db(B), `nudges/${A}_${today}`)));
+    await assertFails(getDocs(collection(db(A), 'nudges')));
+    await assertSucceeds(getDocs(collection(db(ADMIN), 'nudges')));
+    await assertFails(deleteDoc(doc(db(A), `nudges/${A}_${today}`)));
+    await assertSucceeds(deleteDoc(doc(db(ADMIN), `nudges/${A}_${today}`)));
+  });
+});
+
+describe('class templates', () => {
+  it('admin can set a template on a class; students cannot', async () => {
+    const template = [{ name: 'Quran', target: 1, unit: 'juz' }];
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'classes/class-1'), { template }));
+    await assertFails(updateDoc(doc(db(A), 'classes/class-1'), { template }));
+    await assertFails(updateDoc(doc(db(ADMIN), 'classes/class-1'), { template: 'not a list' }));
+    await assertFails(updateDoc(doc(db(ADMIN), 'classes/class-1'), { other: 1 }));
+    const tooMany = Array.from({ length: 51 }, (_, i) => ({ name: `m${i}`, target: 1, unit: '' }));
+    await assertFails(updateDoc(doc(db(ADMIN), 'classes/class-1'), { template: tooMany }));
+  });
+
+  it('admin can add template mamoolaat to a student and record the change', async () => {
+    const f = db(ADMIN);
+    const b = writeBatch(f);
+    b.set(doc(f, `users/${A}/mamoolaat/tpl1`), {
+      name: 'Tasbeeh', target: 100, unit: 'times', active: true, order: 5, createdBy: ADMIN, createdAt: serverTimestamp(),
+      createdDate: today, removedDate: null, updatedBy: ADMIN, updatedAt: serverTimestamp(),
+    });
+    b.set(doc(f, `users/${A}/changes/ch1`), {
+      kind: 'added', mamoolId: 'tpl1', mamoolName: 'Tasbeeh', before: null, after: { name: 'Tasbeeh', target: 100, unit: 'times' },
+      actorId: ADMIN, actorName: 'Admin', createdAt: serverTimestamp(), seenAt: null,
+    });
+    await assertSucceeds(b.commit());
+    // and the student can then edit or remove it like their own
+    await assertSucceeds(updateDoc(doc(db(A), `users/${A}/mamoolaat/tpl1`), { name: 'Tasbih', updatedBy: A, updatedAt: serverTimestamp() }));
+  });
+});
+
+describe('last seen and device tokens', () => {
+  it('a student can record when they last opened the app', async () => {
+    await assertSucceeds(updateDoc(doc(db(A), `users/${A}`), { lastSeenAt: serverTimestamp() }));
+  });
+
+  it('a pending sign-up can register a device (to hear about approval); inactive users cannot', async () => {
+    const t = { createdAt: serverTimestamp(), lastSeen: serverTimestamp(), userAgent: 'test' };
+    await assertSucceeds(setDoc(doc(db(PENDING), `users/${PENDING}/fcmTokens/tok1`), t));
+    await assertSucceeds(deleteDoc(doc(db(PENDING), `users/${PENDING}/fcmTokens/tok1`)));
+    await assertFails(setDoc(doc(db(INACTIVE), `users/${INACTIVE}/fcmTokens/tok1`), t));
+    await assertFails(setDoc(doc(db(PENDING), `users/${A}/fcmTokens/tok1`), t));
+  });
+
+  it('the admin can register their own device for sign-up alerts', async () => {
+    const t = { createdAt: serverTimestamp(), lastSeen: serverTimestamp(), userAgent: 'test' };
+    await assertSucceeds(setDoc(doc(db(ADMIN), `users/${ADMIN}/fcmTokens/tok1`), t));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), `users/${ADMIN}`), { reminderEnabled: true }));
+  });
+});

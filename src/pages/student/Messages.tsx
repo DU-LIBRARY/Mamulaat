@@ -1,7 +1,9 @@
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
 import { markChangeSeen, markCommentRead } from '../../lib/db';
-import { EmptyState } from '../../components/ui';
+import { Link } from 'react-router-dom';
+import { EmptyState, Notice } from '../../components/ui';
+import { findOverlaps } from '../../lib/names';
 import type { ChangeRecord } from '../../types';
 import { targetLabel } from '../../components/Checklist';
 
@@ -23,7 +25,9 @@ export function describeChange(c: ChangeRecord) {
 
 export function Messages() {
   const { profile } = useActiveSession();
-  const { comments, changes } = useMyData();
+  const { comments, changes, active } = useMyData();
+  const unseen = changes.filter((c) => !c.seenAt);
+  const overlapCount = findOverlaps(active).size;
   return (
     <div className="flex flex-col gap-6">
       <section>
@@ -55,7 +59,22 @@ export function Messages() {
         )}
       </section>
       <section>
-        <h2 className="section-title">Changes to your mamoolaat</h2>
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <h2 className="section-title mb-0">Changes to your mamoolaat</h2>
+          {unseen.length > 1 && (
+            <button className="link min-h-11" onClick={() => unseen.forEach((c) => markChangeSeen(profile.id, c.id))}>
+              Mark all seen
+            </button>
+          )}
+        </div>
+        {unseen.some((c) => c.kind === 'added') && (
+          <div className="mb-3">
+            <Notice tone="teacher" action={<Link to="/mamoolaat" className="text-sm font-medium underline decoration-gold-400 underline-offset-4">My mamoolaat</Link>}>
+              Your teacher added to your list. Your own mamoolaat are still there.
+              {overlapCount > 0 ? ' Some look the same as ones you already had — remove or rename any doubles.' : ' You can reorder, edit or remove any of them.'}
+            </Notice>
+          </div>
+        )}
         {changes.length === 0 ? (
           <EmptyState>Your teacher hasn't changed your list.</EmptyState>
         ) : (

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hasLogged, isDue, localNow, toMinutes } from './reminders';
+import { hasLogged, isDue, localNow, toMinutes, userChangeNotice } from './reminders';
 
 test('localNow uses the project timezone', () => {
   const t = new Date('2026-11-07T22:30:00Z');
@@ -24,4 +24,15 @@ test('helpers', () => {
   assert.equal(hasLogged(undefined), false);
   assert.equal(hasLogged({ entries: {} }), false);
   assert.equal(hasLogged({ entries: { a: {} } }), true);
+});
+
+test('userChangeNotice: sign-up finished tells the admin, approval tells the student', () => {
+  assert.equal(userChangeNotice({ status: 'pending', signupComplete: false }, { status: 'pending', signupComplete: true }), 'admin-signup');
+  assert.equal(userChangeNotice({ status: 'pending', signupComplete: true }, { status: 'pending', signupComplete: true }), null);
+  assert.equal(userChangeNotice({ role: 'student', status: 'pending' }, { role: 'student', status: 'active' }), 'student-approved');
+  assert.equal(userChangeNotice({ role: 'student', status: 'inactive' }, { role: 'student', status: 'active' }), 'student-approved');
+  assert.equal(userChangeNotice({ role: 'student', status: 'active' }, { role: 'student', status: 'active' }), null);
+  assert.equal(userChangeNotice(undefined, { role: 'student', status: 'active' }), null);
+  assert.equal(userChangeNotice({ role: 'student', status: 'active' }, { role: 'admin', status: 'active' }), null);
+  assert.equal(userChangeNotice({ status: 'pending' }, undefined), null);
 });

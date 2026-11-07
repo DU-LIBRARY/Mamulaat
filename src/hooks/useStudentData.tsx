@@ -14,6 +14,8 @@ export interface StudentData {
   changes: ChangeRecord[];
   unreadComments: number;
   unseenChanges: number;
+  /** Days whose log is saved on this device but not yet on the server. */
+  pendingDays: string[];
 }
 
 export function sortMamoolaat(list: Mamool[]) {
@@ -37,8 +39,9 @@ export function useStudentLive(uid: string): StudentData {
       changes: changes.data,
       unreadComments: comments.data.filter((c) => !c.readAt).length,
       unseenChanges: changes.data.filter((c) => !c.seenAt).length,
+      pendingDays: logs.pendingIds ?? [],
     };
-  }, [mam.data, mam.loading, logs.data, logs.loading, comments.data, changes.data]);
+  }, [mam.data, mam.loading, logs.data, logs.loading, logs.pendingIds, comments.data, changes.data]);
 }
 
 const Ctx = createContext<StudentData | null>(null);

@@ -2,11 +2,113 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses } from '../../hooks/useAdminData';
-import { bulkUpdateUsers, createClass, deleteClass, renameClass } from '../../lib/db';
-import { EmptyState, Spinner } from '../../components/ui';
+import { applyTemplate, bulkUpdateUsers, createClass, deleteClass, renameClass, sameMamoolName, saveClassTemplate } from '../../lib/db';
+import { EmptyState, Notice, Spinner } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
+import { useUndo } from '../../components/Undo';
+import { MamoolForm, SUGGESTIONS } from '../../components/MamoolEditor';
+import { targetLabel } from '../../components/Checklist';
+import { IconPlus } from '../../components/icons';
 import { ClassSelect } from './Students';
-import type { ClassDoc, UserProfile } from '../../types';
+import type { ClassDoc, TemplateItem, UserProfile } from '../../types';
+
+/**
+ * The class's standard mamoolaat. They are ADDED to each student's own list (never replacing it):
+ * automatically when a student is approved into the class, or for everyone now with one tap.
+ * Students keep their own items and can tidy any overlaps themselves.
+ */
+function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) {
+  const { actor, today } = useActiveSession();
+  const { confirm, notify } = useDialog();
+  const undo = useUndo();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const items = c.template ?? [];
+  const save = (next: TemplateItem[]) => saveClassTemplate(c.id, next, actor).catch((e) => notify('Could not save', (e as Error).message));
+  const add = (t: TemplateItem) => {
+    if (items.some((x) => sameMamoolName(x.name, t.name))) return void notify('Already in the template', `“${t.name}” is already in this class's list.`);
+    if (items.length >= 50) return void notify('Template is full', 'A class template can have up to 50 mamoolaat.');
+    save([...items, t]);
+  };
+
+  const applyNow = async () => {
+    if (!items.length || !members.length) return;
+    const ok = await confirm({
+      title: `Add ${items.length} mamool${items.length === 1 ? '' : 'aat'} to ${members.length} student${members.length === 1 ? '' : 's'}?`,
+      message: (
+        <>
+          <p>Each student keeps their own list. These are added at the end, starting today; anything a student already has with the same name is skipped.</p>
+          <p className="mt-2">Students see what was added in their Inbox and can remove or rename anything that overlaps.</p>
+        </>
+      ),
+      confirmLabel: 'Add to students',
+    });
+    if (!ok) return;
+    if (!navigator.onLine) return void notify('You are offline', 'Adding to students needs an internet connection.');
+    setBusy(true);
+    setResult(null);
+    try {
+      const r = await applyTemplate(members.map((m) => m.id), items, today, actor);
+      setResult(`Added ${r.added} mamool${r.added === 1 ? '' : 'aat'} in total${r.skipped ? `; skipped ${r.skipped} that students already had` : ''}.`);
+    } catch (e) {
+      await notify('Could not finish', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-sm text-slate-600">
+        Mamoolaat everyone in <b dir="auto">{c.name}</b> should do. They are <b>added</b> to each student's own list — when you approve someone into this class, or now with the button
+        below. Nothing a student already has is removed.
+      </p>
+      {items.length === 0 ? (
+        <EmptyState>No class mamoolaat yet.</EmptyState>
+      ) : (
+        <ul className="sheet">
+          {items.map((t, i) => (
+            <li key={`${t.name}-${i}`} className="flex items-center gap-2 px-3 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium break-words text-slate-900" dir="auto">
+                  {t.name}
+                </span>
+                <span className="text-sm text-slate-500" dir="auto">
+                  {targetLabel(t)}
+                </span>
+              </span>
+              <button
+                className="btn-ghost min-h-11 px-3 text-sm text-red-700"
+                aria-label={`Remove ${t.name} from the class template`}
+                onClick={() => {
+                  save(items.filter((_, j) => j !== i));
+                  undo.undoable(`Removed “${t.name}” from the template`, () => save(items));
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <MamoolForm submitLabel="Add to template" onSubmit={add} />
+      <div className="flex flex-wrap gap-2">
+        {SUGGESTIONS.filter((x) => !items.some((t) => sameMamoolName(t.name, x.name))).map((x) => (
+          <button key={x.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 hover:border-brand-500" dir="auto" onClick={() => add(x)}>
+            <IconPlus size={14} className="text-slate-400" />
+            {x.name}
+          </button>
+        ))}
+      </div>
+      {items.length > 0 && (
+        <button className="btn-primary" disabled={busy || !members.length} onClick={applyNow}>
+          {busy ? 'Adding…' : members.length ? `Add to all ${members.length} student${members.length === 1 ? '' : 's'} now` : 'No active students in this class yet'}
+        </button>
+      )}
+      {result && <Notice tone="info">{result}</Notice>}
+    </div>
+  );
+}
 
 /** Inline panel: move everyone out (optional), then delete the class. */
 function DeletePanel({ c, classes, related, done }: { c: ClassDoc; classes: ClassDoc[]; related: UserProfile[]; done: () => void }) {
@@ -64,6 +166,7 @@ export function Classes() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState('');
+  const [templateFor, setTemplateFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (classes.loading || users.loading) return <Spinner />;
@@ -121,7 +224,9 @@ export function Classes() {
                     <div className="font-semibold break-words" dir="auto">
                       {c.name}
                     </div>
-                    <div className="text-sm text-slate-500">{members.length} active students</div>
+                    <div className="text-sm text-slate-500">
+                      {members.length} active students{c.template?.length ? ` · ${c.template.length} class mamoolaat` : ''}
+                    </div>
                   </div>
                   <Link className="btn-secondary px-3" to={`/admin/class/${c.id}`}>
                     Day
@@ -129,6 +234,9 @@ export function Classes() {
                   <Link className="btn-secondary px-3" to={`/admin/class/${c.id}?view=week`}>
                     Week
                   </Link>
+                  <button className="btn-ghost px-3" aria-expanded={templateFor === c.id} onClick={() => setTemplateFor(templateFor === c.id ? null : c.id)}>
+                    Mamoolaat
+                  </button>
                   <button
                     className="btn-ghost px-3"
                     onClick={() => {
@@ -177,6 +285,7 @@ export function Classes() {
                   </button>
                 </div>
               )}
+              {templateFor === c.id && <TemplatePanel c={c} members={members.filter((u) => u.role === 'student')} />}
               {deleting === c.id && <DeletePanel c={c} classes={classes.data} related={related} done={() => setDeleting(null)} />}
             </li>
           );

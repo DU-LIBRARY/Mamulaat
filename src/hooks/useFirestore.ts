@@ -10,6 +10,8 @@ export interface LiveResult<T> {
   loading: boolean;
   error: Error | null;
   fromCache: boolean;
+  /** Ids of documents with local changes the server hasn't confirmed yet (queries only). */
+  pendingIds?: string[];
 }
 
 /** Live document subscription. Works offline from the persistent cache. `key` must change when the ref changes. */
@@ -56,6 +58,7 @@ export function useCollectionData<T>(q: Query | null, key: string): LiveResult<T
           loading: false,
           error: null,
           fromCache: snap.metadata.fromCache,
+          pendingIds: snap.docs.filter((d) => d.metadata.hasPendingWrites).map((d) => d.id),
         }),
       (error) => setState({ data: [], loading: false, error, fromCache: false }),
     );
