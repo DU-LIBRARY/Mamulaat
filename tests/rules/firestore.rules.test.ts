@@ -392,6 +392,52 @@ describe('admin', () => {
   });
 });
 
+describe('admin deleting a student (full control)', () => {
+  const SUBS = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens'];
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const f = ctx.firestore();
+      await setDoc(doc(f, `users/${B}/fcmTokens/tok1`), { createdAt: Timestamp.now(), lastSeen: Timestamp.now(), userAgent: 'x' });
+      await setDoc(doc(f, `users/${B}/changes/ch1`), {
+        kind: 'added', mamoolId: 'm1', mamoolName: 'Quran', before: null, after: null,
+        actorId: ADMIN, actorName: 'Admin', createdAt: Timestamp.now(), seenAt: null,
+      });
+    });
+  });
+
+  it('admin can list every sub-collection of a student (needed to delete them)', async () => {
+    const f = db(ADMIN);
+    for (const sub of SUBS) await assertSucceeds(getDocs(collection(f, `users/${B}/${sub}`)));
+  });
+
+  it('admin can delete an active student and ALL their data, then the profile', async () => {
+    const f = db(ADMIN);
+    for (const sub of SUBS) {
+      const snap = await assertSucceeds(getDocs(collection(f, `users/${B}/${sub}`)));
+      for (const d of snap.docs) await assertSucceeds(deleteDoc(d.ref));
+    }
+    await assertSucceeds(deleteDoc(doc(f, `users/${B}`)));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      for (const sub of SUBS) {
+        const left = await getDocs(collection(ctx.firestore(), `users/${B}/${sub}`));
+        if (!left.empty) throw new Error(`${sub} not fully deleted`);
+      }
+    });
+  });
+
+  it('admin can delete pending, inactive and rejected users too', async () => {
+    const f = db(ADMIN);
+    await assertSucceeds(deleteDoc(doc(f, `users/${PENDING}`)));
+    await assertSucceeds(deleteDoc(doc(f, `users/${INACTIVE}`)));
+  });
+
+  it("a student still cannot read another student's device tokens", async () => {
+    await assertFails(getDocs(collection(db(A), `users/${B}/fcmTokens`)));
+    await assertFails(deleteDoc(doc(db(A), `users/${B}/fcmTokens/tok1`)));
+  });
+});
+
 describe('admin handover', () => {
   async function handover() {
     const f = db(ADMIN);

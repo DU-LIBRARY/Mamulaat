@@ -211,7 +211,8 @@ service cloud.firestore {
 
       // ----- FCM device tokens (doc id = token) -----
       match /fcmTokens/{token} {
-        allow read: if isActiveSelf(uid);
+        // The admin may list tokens so a student's data can be deleted completely.
+        allow read: if isActiveSelf(uid) || isAdmin();
         allow create, update: if isActiveSelf(uid)
                               && request.resource.data.keys().hasOnly(['createdAt', 'lastSeen', 'userAgent']);
         allow delete: if isActiveSelf(uid) || isAdmin();

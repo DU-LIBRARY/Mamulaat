@@ -109,11 +109,13 @@ function UserRow({ u, classes, actor }: { u: UserProfile; classes: ClassDoc[]; a
               </button>
             </>
           )}
-          <button className="btn-ghost text-red-600" onClick={() => confirmDelete(u, actor)}>
-            Delete
-          </button>
         </div>
       )}
+      <div>
+        <button className="btn-ghost min-h-9 px-2 text-sm text-red-600" onClick={() => confirmDelete(u, actor)}>
+          Delete {u.status === 'active' ? 'student' : 'user'} and all data…
+        </button>
+      </div>
       {u.handedOverTo && <div className="text-xs text-slate-500">Former admin (handed over).</div>}
       {err && <div className="text-sm text-red-600">{err}</div>}
     </li>

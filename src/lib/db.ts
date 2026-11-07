@@ -287,14 +287,22 @@ export const moveUser = (uid: string, classId: string, actor: Actor) => adminUse
 /** Delete a student and ALL their data (mamoolaat, logs, comments, changes, tokens). Must be online. */
 export async function deleteStudent(uid: string, actor: Actor, email: string) {
   const subs = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens'];
+  const failed: string[] = [];
+  // Delete every sub-collection; keep going if one fails so we never leave a half-deleted student,
+  // and only remove the profile once everything else is gone (so a retry can finish the job).
   for (const sub of subs) {
-    const snap = await getDocs(collection(db, 'users', uid, sub));
-    for (let i = 0; i < snap.docs.length; i += 400) {
-      const batch = writeBatch(db);
-      snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
-      await track(batch.commit());
+    try {
+      const snap = await getDocs(collection(db, 'users', uid, sub));
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = writeBatch(db);
+        snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+        await track(batch.commit());
+      }
+    } catch (e) {
+      failed.push(`${sub}: ${(e as Error).message}`);
     }
   }
+  if (failed.length) throw new Error(`Could not delete everything (${failed.join('; ')}). The student was NOT removed; try again.`);
   const batch = writeBatch(db);
   batch.delete(userRef(uid));
   addAudit(batch, actor, 'user.delete', { userId: uid, email });
