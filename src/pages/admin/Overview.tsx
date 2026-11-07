@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
+import type { UserProfile } from '../../types';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
 import { DateLine } from '../../components/DateLine';
 import { EmptyState, Spinner, StatCard, cellClass } from '../../components/ui';
-import { addDays, weekDays, weekStartOf } from '../../lib/dates';
-import { needsAttention, studentWeek } from '../../lib/reports';
+import { addDays, dayNumber, formatGregorian, shortDay, weekDays, weekStartOf } from '../../lib/dates';
+import { needsAttention, studentWeek, type StudentWeek } from '../../lib/reports';
 import { pct } from '../../lib/scoring';
 
 export function Overview() {
@@ -18,8 +19,9 @@ export function Overview() {
   const from = [days[0], addDays(today, -(settings.attentionNoLogDays - 1))].sort()[0];
   const range = useStudentsRange(students.map((s) => s.id), from, today);
 
-  const { attention, byClass, loggedToday } = useMemo(() => {
+  const { attention, byClass, loggedToday, weeks } = useMemo(() => {
     const attention = [];
+    const weeks = new Map<string, StudentWeek>();
     const byClass = new Map<string, number[]>();
     let loggedToday = 0;
     for (const s of students) {
@@ -28,13 +30,14 @@ export function Overview() {
       const a = needsAttention(s, days, r.mamoolaat, r.logs, today, settings.attentionThreshold, settings.attentionNoLogDays);
       if (a) attention.push(a);
       const w = studentWeek(s, days, r.mamoolaat, r.logs, today);
+      weeks.set(s.id, w);
       if (w.days.find((d) => d.day === today)?.hasLog) loggedToday++;
       if (w.completion != null) {
         const k = s.classId ?? '';
         byClass.set(k, [...(byClass.get(k) ?? []), w.completion]);
       }
     }
-    return { attention, byClass, loggedToday };
+    return { attention, byClass, loggedToday, weeks };
   }, [students, range, days.join(), today, settings]);
 
   if (users.loading) return <Spinner />;
@@ -86,6 +89,26 @@ export function Overview() {
       </section>
 
       <section>
+        <div className="section-title">
+          Madrassah register <span className="font-normal normal-case">({formatGregorian(days[0])} – {formatGregorian(days[6])})</span>
+        </div>
+        {students.length === 0 ? (
+          <EmptyState>No active students yet.</EmptyState>
+        ) : (
+          <Register
+            days={days}
+            today={today}
+            groups={[
+              ...classes.data.map((c) => ({ id: c.id, name: c.name, students: students.filter((s) => s.classId === c.id) })),
+              { id: '', name: 'No class', students: students.filter((s) => !s.classId || !classes.data.some((c) => c.id === s.classId)) },
+            ].filter((g) => g.students.length > 0)}
+            weeks={weeks}
+          />
+        )}
+        <p className="mt-2 text-xs text-slate-500">✓ = every mamool completed that day · number = % completed · ✕ = nothing logged · – = no mamoolaat set. Tap a student for details.</p>
+      </section>
+
+      <section>
         <div className="section-title">Classes this week</div>
         {classes.data.length === 0 ? (
           <EmptyState>
@@ -116,6 +139,81 @@ export function Overview() {
           </ul>
         )}
       </section>
+    </div>
+  );
+}
+
+interface RegisterGroup {
+  id: string;
+  name: string;
+  students: UserProfile[];
+}
+
+/** Whole-madrassah weekly register: classes in order, each student's daily completion. */
+function Register({ days, today, groups, weeks }: { days: string[]; today: string; groups: RegisterGroup[]; weeks: Map<string, StudentWeek> }) {
+  const cols = days.length + 3;
+  return (
+    <div className="card overflow-x-auto p-2">
+      <table className="w-full border-separate border-spacing-0.5 text-center text-[11px]">
+        <thead>
+          <tr>
+            <th className="sticky left-0 z-10 bg-white text-left font-semibold text-slate-500">Student</th>
+            {days.map((d) => (
+              <th key={d} className={`min-w-8 font-semibold ${d === today ? 'text-brand-700' : 'text-slate-500'}`}>
+                <div>{shortDay(d)}</div>
+                <div className="text-sm">{dayNumber(d)}</div>
+              </th>
+            ))}
+            <th className="min-w-10 font-semibold text-slate-700">Full</th>
+            <th className="min-w-12 font-semibold text-slate-700">Week</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => (
+            <Fragment key={g.id || 'none'}>
+              <tr>
+                <th colSpan={cols} className="bg-brand-50 px-2 py-1.5 text-left text-xs font-bold tracking-wide text-brand-900 uppercase" dir="auto">
+                  {g.id ? (
+                    <Link to={`/admin/class/${g.id}?view=week`} className="hover:underline">
+                      {g.name}
+                    </Link>
+                  ) : (
+                    g.name
+                  )}{' '}
+                  <span className="font-normal text-slate-500 normal-case">· {g.students.length}</span>
+                </th>
+              </tr>
+              {g.students.map((s) => {
+                const w = weeks.get(s.id);
+                const elapsed = days.filter((d) => d <= today && w?.days.find((x) => x.day === d)?.completion != null).length;
+                return (
+                  <tr key={s.id}>
+                    <th className="sticky left-0 z-10 max-w-32 truncate bg-white pr-2 text-left text-sm font-medium" dir="auto">
+                      <Link to={`/admin/student/${s.id}?date=${days[0]}`} className="text-brand-700 underline-offset-2 hover:underline">
+                        {s.name ?? s.email}
+                      </Link>
+                    </th>
+                    {days.map((d, i) => {
+                      if (d > today) return <td key={d} className="h-9" />;
+                      if (!w) return <td key={d} className="h-9 rounded-md bg-slate-50 text-slate-300">…</td>;
+                      const day = w.days[i];
+                      const c = day.completion;
+                      const label = c == null ? '–' : c >= 1 ? '✓' : !day.hasLog ? '✕' : Math.round(c * 100);
+                      return (
+                        <td key={d} className={`h-9 rounded-md font-semibold ${cellClass(c)}`} title={c == null ? 'No mamoolaat' : `${Math.round(c * 100)}%`}>
+                          {label}
+                        </td>
+                      );
+                    })}
+                    <td className="font-semibold text-slate-700">{w ? `${w.fullDays}/${elapsed}` : ''}</td>
+                    <td className={`rounded-md font-bold ${cellClass(w?.completion)}`}>{w ? pct(w.completion) : ''}</td>
+                  </tr>
+                );
+              })}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

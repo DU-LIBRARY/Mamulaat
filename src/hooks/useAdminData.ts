@@ -13,7 +13,7 @@ export function useAllUsers() {
 
 export function useClasses() {
   const r = useCollectionData<ClassDoc>(classesCol(), 'classes');
-  const data = useMemo(() => [...r.data].sort((a, b) => a.name.localeCompare(b.name)), [r.data]);
+  const data = useMemo(() => [...r.data].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })), [r.data]);
   return { ...r, data };
 }
 
