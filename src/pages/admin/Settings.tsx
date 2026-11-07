@@ -205,6 +205,17 @@ export function AdminSettings() {
 
       <PasswordSignIn />
       <TransferAdmin />
+
+      <SignOutButton />
     </div>
+  );
+}
+
+function SignOutButton() {
+  const { signOut } = useActiveSession();
+  return (
+    <button className="btn-secondary w-full" onClick={() => signOut()}>
+      Sign out
+    </button>
   );
 }
