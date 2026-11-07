@@ -10,7 +10,8 @@ import type { UserProfile } from '../types';
 export function Signup({ profile }: { profile: UserProfile }) {
   const { signOut } = useSession();
   const classes = useClasses();
-  const [name, setName] = useState(profile.name ?? '');
+  // Start empty: the student must type the name their teacher will see (not their Google name).
+  const [name, setName] = useState('');
   const [pickedClass, setClassId] = useState(profile.requestedClassId ?? '');
   // Ignore a remembered class that has since been deleted
   const classId = classes.data.some((c) => c.id === pickedClass) ? pickedClass : '';
@@ -59,7 +60,7 @@ export function Signup({ profile }: { profile: UserProfile }) {
               autoComplete="name"
               required
             />
-            <p className="mt-1 text-xs text-slate-500">This is the name you'll see in the app and your teacher will see.</p>
+            <p className="mt-1 text-xs text-slate-500">This is the name your teacher will see. Please use your real name.</p>
           </div>
           <div>
             <label className="label" htmlFor="class">
