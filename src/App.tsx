@@ -30,7 +30,7 @@ import { onForegroundMessage, refreshToken } from './lib/messaging';
 
 function Toast({ text, onClose }: { text: string; onClose: () => void }) {
   return (
-    <div className="fixed inset-x-4 top-16 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-brand-900 p-4 text-white shadow-lg">
+    <div className="top-safe-toast fixed inset-x-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-brand-900 p-4 text-white shadow-lg">
       <span className="flex-1">{text}</span>
       <button className="btn-ghost min-h-8 px-2 text-white" onClick={onClose} aria-label="Dismiss">
         ✕

@@ -81,3 +81,12 @@ body {
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+
+/* Sit above the fixed bottom nav (~4.5rem) and the home indicator. */
+.update-prompt {
+  bottom: calc(max(env(safe-area-inset-bottom), 0.5rem) + 4.5rem);
+}
+/* Keep top-anchored overlays clear of the status bar / Dynamic Island. */
+.top-safe-toast {
+  top: calc(env(safe-area-inset-top) + 4.5rem);
+}
