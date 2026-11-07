@@ -4,6 +4,7 @@ Mamulaat is an offline-first PWA for students to track their daily **mamoolaat**
 
 - Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
 - Progress and streaks are private: only the student and the admin can see them. There are no leaderboards.
+- **Hosting: GitHub Pages** (built and published by a GitHub Action on every push to `main`). Firebase is the backend only: sign-in, Firestore, push messaging and the reminder function.
 - Stack: React + Vite + TypeScript, Tailwind v4, vite-plugin-pwa, Firebase JS SDK (modular), Firestore with a persistent offline cache, Google sign-in, FCM web push, and Cloud Functions (TypeScript) for reminders.
 - **Access control lives entirely in `firestore.rules`.** The UI is never trusted. The rules are tested with the Emulator Suite (`tests/rules`).
 
@@ -27,9 +28,9 @@ Mamulaat must have its **own** Firebase project. Do not reuse or connect it to a
 
 1. Go to <https://console.firebase.google.com> and choose **Add project**. Name it something like `mamulaat-<school>`. Google Analytics is not needed.
 2. **Build → Authentication → Get started → Sign-in method → Google → Enable.** Set the support email. Leave every other provider disabled.
-   - Under **Authentication → Settings → Authorized domains**, add the domain you'll serve from (`<project>.web.app` is added automatically).
+   - Under **Authentication → Settings → Authorized domains**, add **`<github-owner>.github.io`** (for this repo: `du-library.github.io`), or your custom domain. Without this, Google sign-in fails on the live site.
 3. **Build → Firestore Database → Create database.** Use production mode and pick a region close to your students. The region can't be changed later.
-4. **Project settings → General → Your apps → Add app → Web (</>).** Register the app and copy the config values into `.env.local` (see §2). Firebase Hosting can be set up at the same time.
+4. **Project settings → General → Your apps → Add app → Web (</>).** Register the app and copy the config values into `.env.local` (see §2). Don't tick "Firebase Hosting"; the app is hosted on GitHub Pages.
 5. **FCM (web push):** go to **Project settings → Cloud Messaging → Web configuration → Web Push certificates → Generate key pair**. Copy the public key into `VITE_FIREBASE_VAPID_KEY`.
 6. **Blaze plan (needed for reminders):** go to **Upgrade → Blaze** and link a billing account. The scheduled function (every 15 minutes, about 2,900 runs a month) plus a few reads per student should stay **well inside the free tier** for a class-sized app. However, Cloud Scheduler and Cloud Functions both **require a billing account**. Set a budget alert (e.g. $1) under Google Cloud → Billing → Budgets. Without Blaze, everything works except push reminders. Students still see the in-app reminder banner.
 7. Install the CLI (`npm i` installs it locally as `firebase-tools`) and point it at the project:
@@ -45,7 +46,7 @@ Copy `.env.example` to `.env.local` and fill it in. All config comes from env va
 | Variable | Where to find it |
 |---|---|
 | `VITE_FIREBASE_API_KEY` | Project settings → Your apps → SDK config |
-| `VITE_FIREBASE_AUTH_DOMAIN` | same (`<project>.firebaseapp.com`). Optionally use your Hosting domain, see note below |
+| `VITE_FIREBASE_AUTH_DOMAIN` | same (`<project>.firebaseapp.com`). Keep this value |
 | `VITE_FIREBASE_PROJECT_ID` | same |
 | `VITE_FIREBASE_STORAGE_BUCKET` | same |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | same |
@@ -55,7 +56,9 @@ Copy `.env.example` to `.env.local` and fill it in. All config comes from env va
 
 These are public client identifiers, not secrets. Security comes from the rules.
 
-> **Sign-in on iOS / Safari:** when popups are blocked, the app falls back to a redirect sign-in. That works most reliably when `VITE_FIREBASE_AUTH_DOMAIN` is the same domain the app is served from (e.g. `<project>.web.app`) when hosted on Firebase Hosting.
+For the live site, these same values are stored as GitHub **repository variables** (see §4), not in a file.
+
+> **Sign-in:** the app uses a Google sign-in popup. If a browser blocks the popup, it falls back to a redirect sign-in. On GitHub Pages the redirect can be unreliable in Safari (the app's domain differs from `authDomain`), so ask students to allow the popup if sign-in doesn't complete.
 
 ## 3. Run locally with the emulators
 
@@ -106,14 +109,34 @@ The rules tests show that:
 
 ## 4. Deploy
 
+Deploying has two parts: the **app** goes to GitHub Pages, and the **backend** (rules and functions) goes to Firebase.
+
+### 4a. App → GitHub Pages (automatic)
+
+`.github/workflows/deploy-pages.yml` runs on every push to `main`. It installs, runs the unit tests, builds with `VITE_BASE=/<repo-name>/`, copies `index.html` to `404.html` (so deep links like `/mamulaat/week` work, since Pages has no rewrites), and publishes `dist/`.
+
+One-time setup on GitHub:
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+   Pages on a **private** repo needs a paid GitHub plan (Pro/Team/Enterprise). On a free plan the repo must be public. That's fine: the code and Firebase config contain no secrets, and the security rules protect the data.
+2. **Settings → Secrets and variables → Actions → Variables tab → New repository variable.** Add each of these with the values from §2:
+   `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_VAPID_KEY`.
+   Optional: `VITE_BASE` = `/` if you use a custom domain.
+3. Merge to `main`, or run the workflow by hand from the **Actions** tab. The site will be at **`https://<owner>.github.io/<repo>/`** (here: `https://du-library.github.io/mamulaat/`).
+4. Add `<owner>.github.io` to Firebase **Authentication → Settings → Authorized domains** (§1, step 2).
+
+To build the Pages version locally: `VITE_BASE=/mamulaat/ npm run build:pages`.
+
+### 4b. Backend → Firebase (from your computer, when rules or functions change)
+
 ```bash
+npx firebase login
 npx firebase use <your-project-id>
-npm run build
-npx firebase deploy --only firestore      # rules + indexes
-npx firebase deploy --only hosting
-npx firebase deploy --only functions      # needs Blaze
-# or everything:  npm run deploy
+npm --prefix functions install
+npm run deploy              # = firebase deploy --only firestore,functions  (functions need Blaze)
+# rules only:  npm run deploy:rules
 ```
+
+Run this once at the start, and again whenever `firestore.rules`, `firestore.indexes.json` or `functions/` change. **The app can't work until the rules are deployed.**
 
 ## 5. Bootstrap the first admin (one-off)
 

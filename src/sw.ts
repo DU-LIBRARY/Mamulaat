@@ -50,10 +50,10 @@ if (config.apiKey && config.messagingSenderId && import.meta.env.VITE_USE_EMULAT
       const body = data.body || payload.notification?.body || "You haven't logged your mamoolaat today.";
       return self.registration.showNotification(title, {
         body,
-        icon: '/icons/icon-192.png',
-        badge: '/icons/badge-72.png',
+        icon: new URL('icons/icon-192.png', self.registration.scope).href,
+        badge: new URL('icons/badge-72.png', self.registration.scope).href,
         tag: data.tag || 'mamulaat-reminder',
-        data: { url: data.url || '/' },
+        data: { url: new URL(data.url || '.', self.registration.scope).href },
       });
     });
   } catch (e) {
@@ -63,7 +63,7 @@ if (config.apiKey && config.messagingSenderId && import.meta.env.VITE_USE_EMULAT
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  const url = (event.notification.data && event.notification.data.url) || self.registration.scope;
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

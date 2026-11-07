@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// GitHub Pages serves the app from /<repo>/ — VITE_BASE sets that (the deploy workflow does it).
+const base = process.env.VITE_BASE || '/';
+
 export default defineConfig({
+  base,
   build: { chunkSizeWarningLimit: 1500 },
   plugins: [
     react(),
@@ -23,16 +27,16 @@ export default defineConfig({
         name: 'Mamulaat',
         short_name: 'Mamulaat',
         description: 'Track your daily mamoolaat — offline-first.',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#f7f5ef',
         theme_color: '#0f5132',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       devOptions: {

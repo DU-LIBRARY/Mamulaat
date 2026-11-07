@@ -10,7 +10,7 @@ export function SignIn() {
   const [busy, setBusy] = useState(false);
   return (
     <FullScreen>
-      <img src="/favicon.svg" alt="" className="mb-4 h-20 w-20" />
+      <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="mb-4 h-20 w-20" />
       <h1 className="text-3xl font-extrabold text-brand-900">Mamulaat</h1>
       <p className="mt-1 mb-2 text-slate-600">Your daily mamoolaat, one tap at a time.</p>
       <DateLine day={today} className="mb-6 text-slate-600" />

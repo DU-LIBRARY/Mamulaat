@@ -17,7 +17,7 @@ export function Layout({ title, nav, children, right }: { title: string; nav: Na
       <header className="pt-safe sticky top-0 z-20 bg-brand-700 text-white shadow">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <div className="flex items-center gap-2">
-            <img src="/favicon.svg" alt="" className="h-7 w-7" />
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-7 w-7" />
             <h1 className="text-lg font-bold">{title}</h1>
           </div>
           <div className="flex items-center gap-2">

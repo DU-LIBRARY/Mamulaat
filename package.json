@@ -15,10 +15,12 @@
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test": "npm run test:unit && npm run test:rules && npm run test:functions",
     "bootstrap-admin": "node scripts/bootstrap-admin.mjs",
-    "deploy": "npm run build && firebase deploy",
+    "deploy": "firebase deploy --only firestore,functions",
     "dev:emulators": "cp -n .env.emulator.example .env.local || true; vite",
     "test:functions": "npm --prefix functions test",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "build:pages": "npm run build && cp dist/index.html dist/404.html",
+    "deploy:rules": "firebase deploy --only firestore"
   },
   "dependencies": {
     "firebase": "^13.2.0",

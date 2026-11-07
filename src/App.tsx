@@ -130,7 +130,7 @@ function Gate() {
 export default function App() {
   if (configMissing) return <ConfigMissing />;
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <SessionProvider>
         <Gate />
       </SessionProvider>

@@ -67,7 +67,7 @@ export const sendDailyReminders = onSchedule(
         data: {
           title: 'Mamulaat',
           body: "You haven't logged your mamoolaat today.",
-          url: '/',
+          url: '.', // resolved against the service worker scope (works under a GitHub Pages sub-path)
           tag: `reminder-${today}`,
         },
         webpush: { headers: { Urgency: 'high', TTL: String(4 * 3600) } },
