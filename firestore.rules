@@ -1,0 +1,242 @@
+rules_version = '2';
+
+// Mamulaat — Firestore Security Rules
+//
+// These rules are the ONLY access control. The UI is never trusted.
+// There are no hard-coded emails or UIDs here: the admin is whoever has
+// users/{uid}.role == 'admin' (with status 'active'), and that field can only
+// be written by the current admin (or by the one-off bootstrap script, which
+// uses the Admin SDK and therefore needs Google Cloud project access).
+//
+// Roles:  'student' | 'admin'   (keep the list in validRole() to add e.g. 'teacher' later)
+// Status: 'pending' | 'active' | 'inactive' | 'rejected'
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() { return request.auth != null; }
+    function userPath(uid) { return /databases/$(database)/documents/users/$(uid); }
+    function hasProfile() { return signedIn() && exists(userPath(request.auth.uid)); }
+    function me() { return get(userPath(request.auth.uid)).data; }
+    function isActive() { return hasProfile() && me().status == 'active'; }
+    function isAdmin() { return isActive() && me().role == 'admin'; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function isActiveSelf(uid) { return isSelf(uid) && isActive(); }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    function validRole(r) { return r in ['student', 'admin']; }
+    function validStatus(s) { return s in ['pending', 'active', 'inactive', 'rejected']; }
+    function validTime(t) { return t == null || (t is string && t.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')); }
+    function optString(v, max) { return v == null || (v is string && v.size() <= max); }
+
+    // ---------- settings / dates ----------
+    function settingsPath() { return /databases/$(database)/documents/settings/app; }
+    function appSettings() {
+      return exists(settingsPath()) ? get(settingsPath()).data : {};
+    }
+    function validDayId(day) { return day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+
+    // Local midnight (in the project timezone) at the start of `day`, as a timestamp.
+    // utcOffsetMinutes is written by the admin client from the IANA timezone
+    // (and refreshed automatically when it changes, e.g. for DST).
+    function dayStart(day, s) {
+      return timestamp.date(int(day[0:4]), int(day[5:7]), int(day[8:10]))
+        - duration.value(int(s.get('utcOffsetMinutes', 0)), 'm');
+    }
+
+    // A day can be written from its start until the end of day + backfillDays.
+    // One hour of grace on both sides absorbs DST changes and clock skew.
+    function dayEditable(day) {
+      let s = appSettings();
+      let start = dayStart(day, s);
+      let backfill = int(s.get('backfillDays', 2));
+      return request.time >= start - duration.value(1, 'h')
+        && request.time < start + duration.value(backfill + 1, 'd') + duration.value(1, 'h');
+    }
+
+    // ---------- users ----------
+    function validNewProfile(uid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'email', 'photoURL', 'role', 'status', 'classId',
+                                'reminderEnabled', 'reminderTime', 'onboarded', 'createdAt'])
+        && d.role == 'student'
+        && d.status == 'pending'
+        && d.get('classId', null) == null
+        && d.email == request.auth.token.email
+        && optString(d.get('name', null), 200)
+        && optString(d.get('photoURL', null), 2000)
+        && d.get('reminderEnabled', false) == false
+        && d.get('onboarded', false) == false
+        && d.createdAt == request.time;
+    }
+
+    // What a non-admin may change on their own profile. Never role/status/classId.
+    function selfUpdateOk() {
+      let d = request.resource.data;
+      let basic = ['name', 'photoURL', 'lastSeenAt'];
+      let activeOnly = ['reminderEnabled', 'reminderTime', 'onboarded'];
+      return optString(d.get('name', null), 200)
+        && optString(d.get('photoURL', null), 2000)
+        && validTime(d.get('reminderTime', null))
+        && d.get('reminderEnabled', false) is bool
+        && (changed().hasOnly(basic)
+            || (resource.data.status == 'active' && changed().hasOnly(basic.concat(activeOnly))));
+    }
+
+    // Admin editing someone else. Promoting someone to admin is only allowed as
+    // part of a handover, i.e. the same batch must demote the current admin
+    // (checked with getAfter), so there is never more than one admin.
+    function adminUpdateOtherOk() {
+      let d = request.resource.data;
+      let promoting = d.role == 'admin' && resource.data.role != 'admin';
+      return validRole(d.role) && validStatus(d.status)
+        && resource.data.role != 'admin'
+        && (!promoting || (d.status == 'active'
+                           && getAfter(userPath(request.auth.uid)).data.role != 'admin'));
+    }
+
+    // Admin editing their own profile. They can only give up the admin role by
+    // handing it over: `handedOverTo` must name a user who is an active admin
+    // after this batch commits.
+    function adminUpdateSelfOk() {
+      let d = request.resource.data;
+      return validRole(d.role) && validStatus(d.status)
+        && (
+          (d.role == 'admin' && d.status == 'active')
+          || (d.role != 'admin'
+              && d.handedOverTo is string
+              && d.handedOverTo != request.auth.uid
+              && getAfter(userPath(d.handedOverTo)).data.role == 'admin'
+              && getAfter(userPath(d.handedOverTo)).data.status == 'active')
+        );
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid) && validNewProfile(uid);
+      allow update: if (isSelf(uid) && !isAdmin() && selfUpdateOk())
+                    || (isAdmin() && !isSelf(uid) && adminUpdateOtherOk())
+                    || (isAdmin() && isSelf(uid) && adminUpdateSelfOk());
+      allow delete: if isAdmin() && !isSelf(uid);
+
+      // ----- a student's own list of mamoolaat -----
+      function validMamool(d) {
+        return d.keys().hasOnly(['name', 'target', 'unit', 'active', 'order', 'createdBy', 'createdAt',
+                                  'createdDate', 'removedDate', 'updatedBy', 'updatedAt'])
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+          && (d.target is int || d.target is float) && d.target > 0 && d.target <= 1000000
+          && d.unit is string && d.unit.size() <= 40
+          && d.active is bool
+          && d.createdDate is string && validDayId(d.createdDate)
+          && (d.get('removedDate', null) == null || (d.removedDate is string && validDayId(d.removedDate)))
+          && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+      }
+
+      match /mamoolaat/{mid} {
+        allow read: if isActiveSelf(uid) || isAdmin();
+        allow create: if (isActiveSelf(uid) || isAdmin())
+                      && validMamool(request.resource.data)
+                      && request.resource.data.createdBy == request.auth.uid;
+        allow update: if (isActiveSelf(uid) || isAdmin())
+                      && validMamool(request.resource.data)
+                      && request.resource.data.createdBy == resource.data.createdBy
+                      && request.resource.data.createdDate == resource.data.createdDate;
+        allow delete: if isActiveSelf(uid) || isAdmin();
+      }
+
+      // ----- daily logs, id = YYYY-MM-DD in the project timezone -----
+      function validLog(d, day) {
+        return d.keys().hasOnly(['date', 'entries', 'updatedAt'])
+          && d.date == day
+          && d.entries is map
+          && d.entries.size() <= 100
+          && d.updatedAt == request.time;
+      }
+
+      match /logs/{day} {
+        allow read: if isActiveSelf(uid) || isAdmin();
+        // Only the student writes their own logs, and only inside the backfill window.
+        allow create, update: if isActiveSelf(uid) && validDayId(day) && dayEditable(day)
+                              && validLog(request.resource.data, day);
+        allow delete: if (isActiveSelf(uid) && validDayId(day) && dayEditable(day)) || isAdmin();
+      }
+
+      // ----- comments from the admin -----
+      match /comments/{cid} {
+        allow read: if isActiveSelf(uid) || isAdmin();
+        allow create: if isAdmin()
+                      && request.resource.data.keys().hasOnly(['text', 'authorId', 'authorName', 'createdAt', 'readAt'])
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 4000
+                      && request.resource.data.authorId == request.auth.uid
+                      && request.resource.data.createdAt == request.time
+                      && request.resource.data.get('readAt', null) == null;
+        // The student can only mark a comment as read.
+        allow update: if isActiveSelf(uid) && !isAdmin()
+                      && changed().hasOnly(['readAt'])
+                      && request.resource.data.readAt == request.time;
+        allow delete: if isAdmin();
+      }
+
+      // ----- record of changes the admin made to the student's mamoolaat -----
+      match /changes/{chid} {
+        allow read: if isActiveSelf(uid) || isAdmin();
+        allow create: if isAdmin()
+                      && request.resource.data.actorId == request.auth.uid
+                      && request.resource.data.createdAt == request.time
+                      && request.resource.data.get('seenAt', null) == null;
+        allow update: if isActiveSelf(uid) && !isAdmin()
+                      && changed().hasOnly(['seenAt'])
+                      && request.resource.data.seenAt == request.time;
+        allow delete: if isAdmin();
+      }
+
+      // ----- FCM device tokens (doc id = token) -----
+      match /fcmTokens/{token} {
+        allow read: if isActiveSelf(uid);
+        allow create, update: if isActiveSelf(uid)
+                              && request.resource.data.keys().hasOnly(['createdAt', 'lastSeen', 'userAgent']);
+        allow delete: if isActiveSelf(uid) || isAdmin();
+      }
+    }
+
+    // ---------- classes ----------
+    match /classes/{classId} {
+      allow read: if isAdmin() || (isActive() && me().get('classId', null) == classId);
+      allow create, update: if isAdmin()
+                            && request.resource.data.name is string
+                            && request.resource.data.name.size() > 0
+                            && request.resource.data.name.size() <= 100;
+      allow delete: if isAdmin();
+    }
+
+    // ---------- settings ----------
+    match /settings/{docId} {
+      allow read: if isActive();
+      allow write: if isAdmin() && docId == 'app'
+                   && request.resource.data.backfillDays is int
+                   && request.resource.data.backfillDays >= 0
+                   && request.resource.data.backfillDays <= 30
+                   && request.resource.data.weekStart is int
+                   && request.resource.data.weekStart >= 0
+                   && request.resource.data.weekStart <= 6
+                   && request.resource.data.timezone is string
+                   && request.resource.data.utcOffsetMinutes is int
+                   && request.resource.data.attentionThreshold is number
+                   && validTime(request.resource.data.defaultReminderTime);
+    }
+
+    // ---------- audit log (append-only) ----------
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+                    && request.resource.data.actorId == request.auth.uid
+                    && request.resource.data.action is string
+                    && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

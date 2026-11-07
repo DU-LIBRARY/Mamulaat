@@ -1,0 +1,44 @@
+{
+  "name": "mamulaat",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Offline-first PWA for students to track their daily mamoolaat, with a private admin (teacher) review.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json",
+    "emulators": "firebase emulators:start --import=./.emulator-data --export-on-exit",
+    "seed": "node scripts/seed-emulator.mjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-mamulaat \"vitest run --config vitest.rules.config.ts\"",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test": "npm run test:unit && npm run test:rules",
+    "bootstrap-admin": "node scripts/bootstrap-admin.mjs",
+    "deploy": "npm run build && firebase deploy"
+  },
+  "dependencies": {
+    "firebase": "^13.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^15.35.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.1.0",
+    "workbox-core": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-window": "^7.4.1"
+  }
+}
