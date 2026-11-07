@@ -30,11 +30,13 @@ function MamoolRow({
   m,
   entry,
   editable,
+  showPercent,
   onChange,
 }: {
   m: Mamool;
   entry: LogEntry | undefined;
   editable: boolean;
+  showPercent: boolean;
   onChange: (e: LogEntry | null) => void;
 }) {
   const [editingPartial, setEditingPartial] = useState(false);
@@ -64,7 +66,7 @@ function MamoolRow({
 
   return (
     <li className={`relative px-4 py-3.5 before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
-      <div className="mb-3 flex items-baseline justify-between gap-3">
+      <div className="mb-2.5 flex items-baseline justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[17px] leading-snug font-medium break-words text-slate-900" dir="auto">
             {m.name}
@@ -79,7 +81,7 @@ function MamoolRow({
             )}
           </div>
         </div>
-        {entry && <div className="num shrink-0 text-sm font-medium text-slate-500">{Math.round(f * 100)}%</div>}
+        {showPercent && entry && <div className="num shrink-0 text-sm font-medium text-slate-500">{Math.round(f * 100)}%</div>}
       </div>
       <div className="grid grid-cols-3 gap-2" role="group" aria-label={`${m.name} status`}>
         {(Object.keys(STATUS) as EntryStatus[]).map((s) => (
@@ -122,9 +124,6 @@ function MamoolRow({
           <button type="button" className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl" aria-label="More" onClick={() => setAmount(String((Number(amount) || 0) + 1))}>
             +
           </button>
-          <span className="shrink-0 text-sm text-slate-500" dir="auto">
-            of {targetLabel(m)}
-          </span>
           <button type="button" className="btn-primary shrink-0" onClick={savePartial}>
             Save
           </button>
@@ -158,6 +157,7 @@ export function Checklist({
           m={m}
           entry={log?.entries?.[m.id]}
           editable={editable}
+          showPercent={!!asAdmin}
           onChange={(e) => (asAdmin ? adminSaveEntry(uid, day, m, e, asAdmin) : saveEntry(uid, day, m.id, e))}
         />
       ))}

@@ -62,6 +62,44 @@ export function Home() {
 
       <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
 
+      <section>
+        <div className="mb-2.5 flex items-baseline justify-between">
+          <h2 className="section-title mb-0">Today</h2>
+          <Link to="/mamoolaat" className="link">
+            Edit list
+          </Link>
+        </div>
+        {todays.length ? (
+          <Checklist uid={profile.id} day={today} mamoolaat={todays} log={todayLog} editable />
+        ) : (
+          <EmptyState>No mamoolaat yet. Add your first one below.</EmptyState>
+        )}
+
+        {adding ? (
+          <div className="card mt-3">
+            <h3 className="section-title">Add a mamool</h3>
+            <MamoolForm
+              submitLabel="Add to my list"
+              onCancel={() => setAdding(false)}
+              onSubmit={(v) => {
+                const next = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
+                addMamool(profile.id, v, next, today, actor);
+                setAdding(false);
+              }}
+            />
+            <p className="mt-2 text-xs text-slate-500">It appears on today's checklist straight away. Past days are not changed.</p>
+          </div>
+        ) : (
+          <button
+            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 text-[15px] font-medium text-slate-600 hover:border-brand-500 hover:text-brand-700"
+            onClick={() => setAdding(true)}
+          >
+            <IconPlus size={18} />
+            Add a mamool
+          </button>
+        )}
+      </section>
+
       <StatRow>
         <Stat label="Streak" value={`${stats.streak} day${stats.streak === 1 ? '' : 's'}`} sub={`Best ${stats.best}`} />
         <Stat label="This week" value={pct(stats.weekCompletion)} sub="complete" />
@@ -124,43 +162,6 @@ export function Home() {
         </section>
       )}
 
-      <section>
-        <div className="mb-2.5 flex items-baseline justify-between">
-          <h2 className="section-title mb-0">Today's checklist</h2>
-          <Link to="/mamoolaat" className="link">
-            Edit list
-          </Link>
-        </div>
-        {todays.length ? (
-          <Checklist uid={profile.id} day={today} mamoolaat={todays} log={todayLog} editable />
-        ) : (
-          <EmptyState>No mamoolaat yet. Add your first one below.</EmptyState>
-        )}
-
-        {adding ? (
-          <div className="card mt-3">
-            <h3 className="section-title">Add a mamool</h3>
-            <MamoolForm
-              submitLabel="Add to my list"
-              onCancel={() => setAdding(false)}
-              onSubmit={(v) => {
-                const next = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
-                addMamool(profile.id, v, next, today, actor);
-                setAdding(false);
-              }}
-            />
-            <p className="mt-2 text-xs text-slate-500">It appears on today's checklist straight away. Past days are not changed.</p>
-          </div>
-        ) : (
-          <button
-            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 text-[15px] font-medium text-slate-600 hover:border-brand-500 hover:text-brand-700"
-            onClick={() => setAdding(true)}
-          >
-            <IconPlus size={18} />
-            Add a mamool
-          </button>
-        )}
-      </section>
     </div>
   );
 }

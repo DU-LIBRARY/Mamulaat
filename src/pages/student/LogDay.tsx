@@ -41,16 +41,11 @@ export function LogDay() {
       </div>
 
       {!editable && (
-        <Notice icon={<IconLock size={18} />}>
-          This day is locked. You can fill in up to {settings.backfillDays} day{settings.backfillDays === 1 ? '' : 's'} back.
-        </Notice>
-      )}
-      {editable && day !== today && (
-        <Notice tone="info">You're filling in a past day. It locks after {settings.backfillDays} day{settings.backfillDays === 1 ? '' : 's'}.</Notice>
+        <Notice icon={<IconLock size={18} />}>This day is locked.</Notice>
       )}
 
       {logs.get(day)?.editedBy && (
-        <Notice tone="teacher" icon={<IconPencil size={18} />}>Your teacher{logs.get(day)?.editedByName ? ` (${logs.get(day)?.editedByName})` : ''} edited this day. Your next change here removes this note.</Notice>
+        <Notice tone="teacher" icon={<IconPencil size={18} />}>Your teacher{logs.get(day)?.editedByName ? ` (${logs.get(day)?.editedByName})` : ''} edited this day.</Notice>
       )}
 
       {mams.length ? (
@@ -58,7 +53,7 @@ export function LogDay() {
       ) : (
         <EmptyState>No mamoolaat were set for this day.</EmptyState>
       )}
-      <p className="text-center text-xs text-slate-500">Tap a choice again to clear it. Changes save instantly, even offline.</p>
+      {editable && <p className="text-center text-xs text-slate-500">Saves automatically. Tap again to undo.</p>}
     </div>
   );
 }
