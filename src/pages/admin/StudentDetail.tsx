@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses } from '../../hooks/useAdminData';
-import { useStudentLive } from '../../hooks/useStudentData';
+import { sortMamoolaat, useStudentLive } from '../../hooks/useStudentData';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
-import { MamoolEditor } from '../../components/MamoolEditor';
+import { MamoolEditor, MamoolForm } from '../../components/MamoolEditor';
 import { EmptyState, Spinner, StatCard } from '../../components/ui';
-import { Checklist } from '../../components/Checklist';
+import { Checklist, targetLabel } from '../../components/Checklist';
 import { DateLine } from '../../components/DateLine';
 import { useDialog } from '../../components/Dialog';
-import { addComment, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, renameUser, setPending } from '../../lib/db';
+import { addComment, addMamool, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
+import type { Mamool } from '../../types';
 import { addDays, formatGregorian, isValidYmd, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
 import { bestStreak, currentStreak, dayStats, pct, scheduledFor } from '../../lib/scoring';
@@ -18,6 +19,90 @@ import { describeChange } from '../student/Messages';
 
 function when(ts?: { toDate(): Date } | null) {
   return ts ? ts.toDate().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'pending sync';
+}
+
+/** Quick add / remove / restore of a student's mamoolaat, shown under the weekly grid. */
+function WeekMamoolaat({ uid, all, today, actor }: { uid: string; all: Mamool[]; today: string; actor: Actor }) {
+  const { confirm } = useDialog();
+  const [adding, setAdding] = useState(false);
+  const active = sortMamoolaat(all.filter((m) => m.active));
+  const removed = sortMamoolaat(all.filter((m) => !m.active));
+  const nextOrder = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
+
+  return (
+    <section className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="section-title mb-0">Mamoolaat</div>
+        {!adding && (
+          <button className="btn-secondary min-h-11 px-3" onClick={() => setAdding(true)}>
+            + Add
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-slate-500">Changes apply from today; past days keep their history. Each change is recorded and shown to the student.</p>
+      {adding && (
+        <MamoolForm
+          submitLabel="+ Add"
+          onCancel={() => setAdding(false)}
+          onSubmit={(v) => {
+            addMamool(uid, v, nextOrder, today, actor);
+            setAdding(false);
+          }}
+        />
+      )}
+      {active.length === 0 ? (
+        <EmptyState>No active mamoolaat.</EmptyState>
+      ) : (
+        <ul className="flex flex-col divide-y divide-slate-100">
+          {active.map((m) => (
+            <li key={m.id} className="flex items-center gap-2 py-1">
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold break-words" dir="auto">
+                  {m.name}
+                </div>
+                <div className="text-sm text-slate-500" dir="auto">
+                  {targetLabel(m)}
+                </div>
+              </div>
+              <button
+                className="btn-ghost min-h-11 px-3 text-red-600"
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: `Remove "${m.name}"?`,
+                      message: 'It stops counting from today. Past logs are kept, and you can restore it later.',
+                      confirmLabel: 'Remove',
+                      danger: true,
+                    })
+                  )
+                    removeMamool(uid, m, today, actor);
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {removed.length > 0 && (
+        <details>
+          <summary className="cursor-pointer text-sm font-semibold text-slate-600">Removed ({removed.length})</summary>
+          <ul className="mt-2 flex flex-col gap-1">
+            {removed.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0 break-words text-slate-500 line-through" dir="auto">
+                  {m.name} – {targetLabel(m)}
+                </span>
+                <button className="btn-ghost min-h-11 shrink-0 px-3 text-sm" onClick={() => restoreMamool(uid, m, today, actor)}>
+                  Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
 }
 
 export function StudentDetail() {
@@ -111,6 +196,7 @@ export function StudentDetail() {
             </button>
           </div>
           <div className="card p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
+          <WeekMamoolaat uid={uid} all={data.all} today={today} actor={actor} />
         </>
       )}
 
