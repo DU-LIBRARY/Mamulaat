@@ -8,6 +8,7 @@ import { EmptyState, Spinner, StatCard, cellClass } from '../../components/ui';
 import { addDays, dayNumber, formatGregorian, shortDay, weekDays, weekStartOf } from '../../lib/dates';
 import { needsAttention, studentWeek, type StudentWeek } from '../../lib/reports';
 import { pct } from '../../lib/scoring';
+import { displayName } from '../../lib/display';
 
 export function Overview() {
   const { today, settings } = useActiveSession();
@@ -74,7 +75,7 @@ export function Overview() {
                   <span className={`chip min-w-12 justify-center py-1 text-sm ${cellClass(a.completion)}`}>{pct(a.completion)}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold" dir="auto">
-                      {a.student.name ?? a.student.email}
+                      {displayName(a.student)}
                     </span>
                     <span className="block text-sm text-slate-500">
                       {classes.data.find((c) => c.id === a.student.classId)?.name ?? 'No class'} · {a.reasons.join(' · ')}
@@ -190,7 +191,7 @@ function Register({ days, today, groups, weeks }: { days: string[]; today: strin
                   <tr key={s.id}>
                     <th className="sticky left-0 z-10 max-w-32 truncate bg-white pr-2 text-left text-sm font-medium" dir="auto">
                       <Link to={`/admin/student/${s.id}?date=${days[0]}`} className="text-brand-700 underline-offset-2 hover:underline">
-                        {s.name ?? s.email}
+                        {displayName(s)}
                       </Link>
                     </th>
                     {days.map((d, i) => {

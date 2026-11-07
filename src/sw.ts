@@ -16,8 +16,8 @@ import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
 
 declare let self: ServiceWorkerGlobalScope;
 
-// A new worker waits until the user taps "update" (the page sends SKIP_WAITING), so the page
-// is never swapped under someone mid-edit. clientsClaim only matters on the very first install.
+// A new worker waits until the page sends SKIP_WAITING: automatically when the app is opened or
+// in the background (nobody mid-edit), otherwise when the user taps "update". clientsClaim only matters on the very first install.
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });

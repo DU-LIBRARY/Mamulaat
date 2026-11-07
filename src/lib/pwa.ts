@@ -17,26 +17,51 @@ export function applyUpdate() {
 }
 const waiters: Array<(r: ServiceWorkerRegistration | undefined) => void> = [];
 
+// Has the person started using the page since it was opened / brought back to the front?
+// Until they have, a new version can be swapped in without interrupting anything.
+let interacted = false;
+const markInteracted = () => (interacted = true);
+const CHECK_EVERY_MS = 5 * 60 * 1000;
+
+/** Swap in a downloaded update now if nobody is mid-task, otherwise show the prompt. */
+function applyIfIdle() {
+  if (!updateReady) return;
+  if (!interacted || document.visibilityState === 'hidden') {
+    void applyUpdate();
+  } else {
+    updateListeners.forEach((l) => l());
+  }
+}
+
 /** Register the single app service worker (PWA shell + FCM). */
 export function initPwa() {
   if (!('serviceWorker' in navigator)) {
     waiters.splice(0).forEach((w) => w(undefined));
     return;
   }
+  for (const ev of ['pointerdown', 'keydown', 'input']) window.addEventListener(ev, markInteracted, { capture: true, passive: true });
   updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
       updateReady = true;
-      updateListeners.forEach((l) => l());
+      applyIfIdle();
     },
     onRegisteredSW(_url, r) {
       registration = r;
-      // Look for a new version when the app is reopened and every hour, so installed
-      // PWAs notice a deploy without needing a manual reload.
+      // Look for a new version on open, whenever the app comes back to the front or online,
+      // and every few minutes while it's open, so a deploy reaches everyone quickly.
       if (r) {
         const check = () => navigator.onLine && r.update().catch(() => undefined);
-        setInterval(check, 60 * 60 * 1000);
-        document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check());
+        setInterval(check, CHECK_EVERY_MS);
+        window.addEventListener('online', check);
+        window.addEventListener('focus', check);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            interacted = false; // freshly reopened: safe to update until they tap something
+            check();
+          }
+          applyIfIdle();
+        });
       }
       waiters.splice(0).forEach((w) => w(r));
     },

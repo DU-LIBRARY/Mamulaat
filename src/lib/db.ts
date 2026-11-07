@@ -384,7 +384,7 @@ export async function bulkUpdateUsers(uids: string[], action: BulkAction, actor:
 }
 
 /** Delete a student and ALL their data (mamoolaat, logs, comments, changes, tokens). Must be online. */
-export async function deleteStudent(uid: string, actor: Actor, email: string) {
+export async function deleteStudent(uid: string, actor: Actor, name: string) {
   const subs = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens'];
   const failed: string[] = [];
   // Delete every sub-collection; keep going if one fails so we never leave a half-deleted student,
@@ -404,7 +404,7 @@ export async function deleteStudent(uid: string, actor: Actor, email: string) {
   if (failed.length) throw new Error(`Could not delete everything (${failed.join('; ')}). The student was NOT removed; try again.`);
   const batch = writeBatch(db);
   batch.delete(userRef(uid));
-  addAudit(batch, actor, 'user.delete', { userId: uid, email });
+  addAudit(batch, actor, 'user.delete', { userId: uid, name });
   await track(batch.commit());
 }
 
@@ -417,7 +417,7 @@ export async function transferAdmin(me: Actor, target: UserProfile) {
   const batch = writeBatch(db);
   batch.update(userRef(target.id), { role: 'admin', status: 'active', classId: null });
   batch.update(userRef(me.uid), { role: 'student', status: 'inactive', classId: null, handedOverTo: target.id });
-  addAudit(batch, me, 'admin.transfer', { from: me.uid, to: target.id, toEmail: target.email });
+  addAudit(batch, me, 'admin.transfer', { from: me.uid, to: target.id, toName: target.name });
   await track(batch.commit());
 }
 
