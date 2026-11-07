@@ -6,7 +6,7 @@ import { DateLine } from '../../components/DateLine';
 import { Checklist } from '../../components/Checklist';
 import { ReminderBanner } from '../../components/ReminderBanner';
 import { ProgressRing, StatCard, Spinner, Badge, cellClass, EmptyState } from '../../components/ui';
-import { currentStreak, bestStreak, dayStats, totalPoints, scheduledFor, periodCompletion, pct } from '../../lib/scoring';
+import { currentStreak, bestStreak, dayStats, scheduledFor, periodCompletion, pct } from '../../lib/scoring';
 import { shortDay, weekDays, weekStartOf } from '../../lib/dates';
 import { markCommentRead } from '../../lib/db';
 
@@ -23,11 +23,10 @@ export function Home() {
       days,
       todayS,
       week,
-      weekPoints: week.reduce((s, d) => (d.day <= today ? s + d.points : s), 0),
+      fullDays: week.filter((d) => d.day <= today && d.scheduled > 0 && d.done === d.scheduled).length,
       weekCompletion: periodCompletion(days, logs, all, today),
       streak: currentStreak(today, logs, all),
       best: bestStreak(today, logs, all),
-      total: totalPoints(logs, all),
     };
   }, [logs, all, today, settings.weekStart]);
 
@@ -50,9 +49,9 @@ export function Home() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon="🔥" label="Streak" value={`${stats.streak} day${stats.streak === 1 ? '' : 's'}`} sub={`Best: ${stats.best}`} />
-        <StatCard icon="⭐" label="Today" value={`${stats.todayS.points} pts`} sub={`${stats.todayS.done}/${stats.todayS.scheduled} done`} />
-        <StatCard icon="📅" label="This week" value={`${stats.weekPoints} pts`} sub={`${pct(stats.weekCompletion)} complete`} />
-        <StatCard icon="🏆" label="All time" value={`${stats.total}`} sub="points" />
+        <StatCard icon="✅" label="Today" value={`${stats.todayS.done}/${stats.todayS.scheduled}`} sub="done" />
+        <StatCard icon="📅" label="This week" value={pct(stats.weekCompletion)} sub="complete" />
+        <StatCard icon="💯" label="Full days" value={stats.fullDays} sub="this week" />
       </div>
 
       <section className="card">

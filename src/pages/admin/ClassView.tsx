@@ -54,10 +54,10 @@ export function ClassView() {
   if (!cls) return <EmptyState>Class not found.</EmptyState>;
 
   const exportCsv = () => {
-    const header = ['Student', 'Email', 'Mamool', 'Target', ...days, 'Week %', 'Week points'];
+    const header = ['Student', 'Email', 'Mamool', 'Target', ...days, 'Week %', 'Full days'];
     const rows: (string | number | null)[][] = [header];
     for (const w of weeks) {
-      rows.push([w.student.name ?? '', w.student.email, 'ALL', '', ...w.days.map((d) => (d.completion == null ? '' : Math.round(d.completion * 100))), w.completion == null ? '' : Math.round(w.completion * 100), w.points]);
+      rows.push([w.student.name ?? '', w.student.email, 'ALL', '', ...w.days.map((d) => (d.completion == null ? '' : Math.round(d.completion * 100))), w.completion == null ? '' : Math.round(w.completion * 100), w.fullDays]);
       for (const pm of w.perMamool) {
         rows.push([w.student.name ?? '', w.student.email, pm.mamool.name, targetLabel(pm.mamool), ...pm.cells.map((c) => (c == null ? '' : Math.round(c * 100))), pm.completion == null ? '' : Math.round(pm.completion * 100), '']);
       }

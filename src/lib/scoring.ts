@@ -1,10 +1,6 @@
 import type { DayLog, LogEntry, Mamool } from '../types';
 import { addDays, diffDays } from './dates';
 
-/** Points for a fully done mamool. Partial gets a proportional share. */
-export const POINTS_PER_MAMOOL = 10;
-/** Bonus for completing every mamool on a day. */
-export const FULL_DAY_BONUS = 5;
 /** A day keeps the streak alive if overall completion is at least this. */
 export const STREAK_MIN_COMPLETION = 0.5;
 
@@ -29,7 +25,6 @@ export interface DayStats {
   logged: number; // entries with any status
   done: number;
   completion: number; // 0..1
-  points: number;
   hasLog: boolean;
 }
 
@@ -39,18 +34,15 @@ export function dayStats(day: string, log: DayLog | undefined, mamoolaat: Mamool
   let sum = 0;
   let done = 0;
   let logged = 0;
-  let points = 0;
   for (const m of sched) {
     const e = entries[m.id];
     if (e) logged++;
     const f = entryFraction(e);
     sum += f;
     if (f >= 1) done++;
-    points += Math.round(POINTS_PER_MAMOOL * f);
   }
   const completion = sched.length ? sum / sched.length : 0;
-  if (sched.length && done === sched.length) points += FULL_DAY_BONUS;
-  return { day, scheduled: sched.length, logged, done, completion, points, hasLog: logged > 0 };
+  return { day, scheduled: sched.length, logged, done, completion, hasLog: logged > 0 };
 }
 
 export function logsByDay(logs: DayLog[]): Map<string, DayLog> {
@@ -96,12 +88,6 @@ export function bestStreak(today: string, logs: Map<string, DayLog>, mamoolaat: 
     prev = d;
   }
   return best;
-}
-
-export function totalPoints(logs: Map<string, DayLog>, mamoolaat: Mamool[]): number {
-  let t = 0;
-  for (const [d, l] of logs) t += dayStats(d, l, mamoolaat).points;
-  return t;
 }
 
 /** Per-mamool completion over a set of days (only days where the mamool was scheduled). */

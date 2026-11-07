@@ -9,7 +9,7 @@ import { EmptyState, Spinner, StatCard } from '../../components/ui';
 import { addComment, deleteComment, moveUser } from '../../lib/db';
 import { addDays, formatGregorian, isValidYmd, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
-import { bestStreak, currentStreak, pct, totalPoints } from '../../lib/scoring';
+import { bestStreak, currentStreak, pct } from '../../lib/scoring';
 import { ClassSelect, confirmDelete } from './Students';
 import { describeChange } from '../student/Messages';
 
@@ -68,8 +68,8 @@ export function StudentDetail() {
 
       <div className="grid grid-cols-3 gap-3">
         <StatCard icon="🔥" label="Streak" value={currentStreak(today, data.logs, data.all)} sub={`Best ${bestStreak(today, data.logs, data.all)}`} />
-        <StatCard icon="📅" label="Week" value={pct(week?.completion)} sub={`${week?.points ?? 0} pts`} />
-        <StatCard icon="🏆" label="Total" value={totalPoints(data.logs, data.all)} sub="points" />
+        <StatCard icon="📅" label="Week" value={pct(week?.completion)} sub={`${week?.fullDays ?? 0} full days`} />
+        <StatCard icon="✅" label="Logged" value={[...data.logs.keys()].filter((d) => d <= today).length} sub="days in total" />
       </div>
 
       <div className="flex rounded-xl bg-white p-1 ring-1 ring-slate-200">

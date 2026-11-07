@@ -44,17 +44,16 @@ describe('scoring', () => {
     expect(scheduledFor('2026-11-02', ms).map((x) => x.id)).toEqual(['a', 'c']);
     expect(scheduledFor('2026-11-06', ms).map((x) => x.id)).toEqual(['a', 'b']);
   });
-  it('computes completion and points', () => {
+  it('computes completion', () => {
     const s = dayStats('2026-11-06', log('2026-11-06', {
       a: { status: 'done', amount: 10, target: 10 },
       b: { status: 'partial', amount: 5, target: 10 },
     }), ms);
     expect(s.completion).toBeCloseTo(0.75);
-    expect(s.points).toBe(15);
     const full = dayStats('2026-11-06', log('2026-11-06', {
       a: { status: 'done', amount: 10, target: 10 }, b: { status: 'done', amount: 10, target: 10 },
     }), ms);
-    expect(full.points).toBe(25);
+    expect(full.done).toBe(2);
   });
   it('computes streaks', () => {
     const logs = logsByDay([

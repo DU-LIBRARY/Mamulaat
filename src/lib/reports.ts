@@ -4,24 +4,24 @@ import { dayStats, entryFraction, mamoolCompletion, periodCompletion, scheduledF
 
 export interface StudentWeek {
   student: UserProfile;
-  days: { day: string; completion: number | null; points: number; hasLog: boolean }[];
+  days: { day: string; completion: number | null; hasLog: boolean }[];
   completion: number | null;
-  points: number;
+  fullDays: number;
   perMamool: { mamool: Mamool; cells: (number | null)[]; completion: number | null }[];
 }
 
 export function studentWeek(student: UserProfile, days: string[], mamoolaat: Mamool[], logs: Map<string, DayLog>, today: string): StudentWeek {
   const ds = days.map((d) => {
-    if (d > today) return { day: d, completion: null, points: 0, hasLog: false };
+    if (d > today) return { day: d, completion: null, hasLog: false };
     const s = dayStats(d, logs.get(d), mamoolaat);
-    return { day: d, completion: s.scheduled ? s.completion : null, points: s.points, hasLog: s.hasLog };
+    return { day: d, completion: s.scheduled ? s.completion : null, hasLog: s.hasLog };
   });
   const inWeek = mamoolaat.filter((m) => days.some((d) => scheduledFor(d, [m]).length));
   return {
     student,
     days: ds,
     completion: periodCompletion(days, logs, mamoolaat, today),
-    points: ds.reduce((s, d) => s + d.points, 0),
+    fullDays: ds.filter((d) => d.completion === 1).length,
     perMamool: inWeek.map((m) => ({
       mamool: m,
       cells: days.map((d) => (d <= today && scheduledFor(d, [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),

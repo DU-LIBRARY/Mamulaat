@@ -13,7 +13,7 @@ export function Week() {
   const start = addDays(weekStartOf(today, settings.weekStart), offset * 7);
   const days = weekDays(start);
 
-  const { rows, points, completion, fullDays } = useMemo(() => {
+  const { rows, completion, fullDays } = useMemo(() => {
     const inWeek = all.filter((m) => days.some((d) => scheduledFor(d, [m]).length));
     const rows: GridRow[] = inWeek.map((m) => ({
       key: m.id,
@@ -33,7 +33,6 @@ export function Week() {
     });
     return {
       rows,
-      points: stats.reduce((s, d) => s + d.points, 0),
       completion: periodCompletion(days, logs, all, today),
       fullDays: stats.filter((s) => s.scheduled && s.done === s.scheduled).length,
     };
@@ -55,8 +54,7 @@ export function Week() {
           →
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard icon="⭐" label="Points" value={points} />
+      <div className="grid grid-cols-2 gap-3">
         <StatCard icon="✅" label="Complete" value={pct(completion)} />
         <StatCard icon="💯" label="Full days" value={fullDays} />
       </div>
@@ -64,7 +62,7 @@ export function Week() {
         <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" />
       </div>
       <p className="text-xs text-slate-500">
-        Points: 10 per mamool done (partial = proportional), +5 for a full day. A day counts toward your streak at 50%+
+        A day counts toward your streak at 50%+
         completion. Only you and your teacher can see this.
       </p>
     </div>

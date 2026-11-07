@@ -2,8 +2,8 @@
 
 Mamulaat is an offline-first PWA for students to track their daily **mamoolaat** (daily routines and practices), with one **admin** (the teacher) who reviews them.
 
-- Each student types in their own list once. After that the app is a daily checklist with points, streaks and weekly summaries.
-- Points and streaks are private: only the student and the admin can see them. There are no leaderboards.
+- Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
+- Progress and streaks are private: only the student and the admin can see them. There are no leaderboards.
 - Stack: React + Vite + TypeScript, Tailwind v4, vite-plugin-pwa, Firebase JS SDK (modular), Firestore with a persistent offline cache, Google sign-in, FCM web push, and Cloud Functions (TypeScript) for reminders.
 - **Access control lives entirely in `firestore.rules`.** The UI is never trusted. The rules are tested with the Emulator Suite (`tests/rules`).
 
@@ -182,7 +182,7 @@ There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists
 
 **Offline.** The Firestore persistent multi-tab cache serves reads offline and queues writes. The header indicator shows *Offline / Syncing / Synced*. Note: a log written offline is checked by the rules **when it syncs**, so it must reach the server before that day locks. With the default 2-day window, a device has to come online within about 2 days.
 
-**Scoring.** 10 points per mamool done (partial = proportional), +5 for completing every mamool that day. A day keeps the streak alive at ≥50% completion. If today isn't logged yet, the streak counts back from yesterday. Removing a mamool is a soft delete, so past percentages stay correct.
+**Progress.** Each mamool counts as 100% when done, a proportional share when partly done, and 0% when missed. A day keeps the streak alive at ≥50% completion. If today isn't logged yet, the streak counts back from yesterday. Removing a mamool is a soft delete, so past percentages stay correct.
 
 **Deleting a student** (Admin → student → Delete) removes their mamoolaat, logs, comments, changes and tokens, then the profile. The `cleanupDeletedUser` function also deletes any leftovers and their Firebase Auth account.
 
