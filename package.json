@@ -9,13 +9,16 @@
     "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sw.json",
-    "emulators": "firebase emulators:start --import=./.emulator-data --export-on-exit",
+    "emulators": "firebase emulators:start --only auth,firestore,functions --project demo-mamulaat",
     "seed": "node scripts/seed-emulator.mjs",
     "test:rules": "firebase emulators:exec --only firestore --project demo-mamulaat \"vitest run --config vitest.rules.config.ts\"",
     "test:unit": "vitest run --config vitest.unit.config.ts",
-    "test": "npm run test:unit && npm run test:rules",
+    "test": "npm run test:unit && npm run test:rules && npm run test:functions",
     "bootstrap-admin": "node scripts/bootstrap-admin.mjs",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm run build && firebase deploy",
+    "dev:emulators": "cp -n .env.emulator.example .env.local || true; vite",
+    "test:functions": "npm --prefix functions test",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "firebase": "^13.2.0",
