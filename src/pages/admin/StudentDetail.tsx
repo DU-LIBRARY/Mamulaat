@@ -5,7 +5,8 @@ import { useAllUsers, useClasses } from '../../hooks/useAdminData';
 import { useStudentLive } from '../../hooks/useStudentData';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { MamoolEditor } from '../../components/MamoolEditor';
-import { EmptyState, Spinner, StatCard } from '../../components/ui';
+import { EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
+import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { Checklist } from '../../components/Checklist';
 import { DateLine } from '../../components/DateLine';
 import { useDialog } from '../../components/Dialog';
@@ -65,7 +66,7 @@ export function StudentDetail() {
         <div className="flex items-center gap-3">
           {student.photoURL && <img src={student.photoURL} alt="" className="h-12 w-12 rounded-full" referrerPolicy="no-referrer" />}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-lg font-bold" dir="auto">
+            <div className="truncate text-lg font-semibold text-slate-900" dir="auto">
               {displayName(student)}
             </div>
             <div className="truncate text-sm text-slate-500">
@@ -76,13 +77,13 @@ export function StudentDetail() {
       </div>
       {err && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{err}</div>}
 
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard icon="🔥" label="Streak" value={currentStreak(today, data.logs, data.all)} sub={`Best ${bestStreak(today, data.logs, data.all)}`} />
-        <StatCard icon="📅" label="Week" value={pct(week?.completion)} sub={`${week?.fullDays ?? 0} full days`} />
-        <StatCard icon="✅" label="Logged" value={[...data.logs.keys()].filter((d) => d <= today).length} sub="days in total" />
-      </div>
+      <StatRow>
+        <Stat label="Streak" value={currentStreak(today, data.logs, data.all)} sub={`Best ${bestStreak(today, data.logs, data.all)}`} />
+        <Stat label="This week" value={pct(week?.completion)} sub={`${week?.fullDays ?? 0} full days`} />
+        <Stat label="Logged" value={[...data.logs.keys()].filter((d) => d <= today).length} sub="days in total" />
+      </StatRow>
 
-      <div className="flex rounded-xl bg-white p-1 ring-1 ring-slate-200">
+      <div className="-mx-4 flex overflow-x-auto border-b border-slate-200 px-4">
         {(
           [
             ['week', 'Weekly'],
@@ -92,7 +93,7 @@ export function StudentDetail() {
             ['profile', 'Profile'],
           ] as const
         ).map(([k, l]) => (
-          <button key={k} className={`btn min-h-11 flex-1 px-1 text-xs sm:text-sm ${tab === k ? 'bg-brand-700 text-white' : 'text-slate-600'}`} onClick={() => setTab(k)}>
+          <button key={k} className={`-mb-px min-h-11 shrink-0 border-b-2 px-3 text-sm font-medium whitespace-nowrap ${tab === k ? 'border-brand-700 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={() => setTab(k)}>
             {l}
           </button>
         ))}
@@ -101,17 +102,17 @@ export function StudentDetail() {
       {tab === 'week' && (
         <>
           <div className="flex items-center justify-between">
-            <button className="btn-secondary px-3" onClick={() => setAnchor(addDays(days[0], -7))}>
-              ←
+            <button className="btn-secondary w-11 shrink-0 px-0" onClick={() => setAnchor(addDays(days[0], -7))}>
+              <IconChevronLeft size={20} />
             </button>
-            <div className="text-sm font-semibold">
+            <div className="num text-sm font-medium text-slate-800">
               {formatGregorian(days[0], { year: undefined })} – {formatGregorian(days[6])}
             </div>
-            <button className="btn-secondary px-3" disabled={days[6] >= today} onClick={() => setAnchor([addDays(days[0], 7), today].sort()[0])}>
-              →
+            <button className="btn-secondary w-11 shrink-0 px-0" disabled={days[6] >= today} onClick={() => setAnchor([addDays(days[0], 7), today].sort()[0])}>
+              <IconChevronRight size={20} />
             </button>
           </div>
-          <div className="card p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
+          <div className="rounded-lg border border-slate-200 bg-white p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
         </>
       )}
 
@@ -124,17 +125,17 @@ export function StudentDetail() {
           <>
             <p className="text-sm text-slate-500">Edit this student's log for any day, even locked ones. Each change is stamped with your name, recorded in the audit log, and shown to the student.</p>
             <div className="flex items-center gap-2">
-              <button className="btn-secondary px-3" aria-label="Previous day" onClick={() => setAnchor(addDays(dayId, -1))}>
-                ←
+              <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Previous day" onClick={() => setAnchor(addDays(dayId, -1))}>
+                <IconChevronLeft size={20} />
               </button>
               <input type="date" className="input text-center" value={dayId} max={today} onChange={(e) => e.target.value && setAnchor(e.target.value)} />
-              <button className="btn-secondary px-3" aria-label="Next day" disabled={dayId >= today} onClick={() => setAnchor(addDays(dayId, 1))}>
-                →
+              <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Next day" disabled={dayId >= today} onClick={() => setAnchor(addDays(dayId, 1))}>
+                <IconChevronRight size={20} />
               </button>
             </div>
             <div className="flex items-center justify-between">
               <DateLine day={dayId} />
-              <span className="chip bg-slate-100 px-3 py-1 text-sm">{st.hasLog ? pct(st.completion) : 'No log'}</span>
+              <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.hasLog ? pct(st.completion) : 'No log'}</span>
             </div>
             {log?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {log.editedByName ?? 'the teacher'}.</div>}
             {mams.length ? (
@@ -144,7 +145,7 @@ export function StudentDetail() {
             )}
             {log && (
               <button
-                className="btn-ghost text-red-600"
+                className="btn-ghost text-red-700"
                 onClick={async () => (await confirm({ title: 'Clear this whole day?', message: 'Deletes every entry logged on this day for this student.', confirmLabel: 'Clear day', danger: true })) && adminDeleteLog(uid, dayId, actor)}
               >
                 Clear this day's log
@@ -160,7 +161,7 @@ export function StudentDetail() {
           <MamoolEditor uid={uid} all={data.all} today={today} actor={actor} />
           {data.changes.length > 0 && (
             <section className="card">
-              <div className="section-title">Change history</div>
+              <h2 className="section-title">Change history</h2>
               <ul className="flex flex-col gap-2 text-sm">
                 {data.changes.map((c) => (
                   <li key={c.id} className="border-b border-slate-100 pb-2 last:border-0">
@@ -169,7 +170,7 @@ export function StudentDetail() {
                       <span>
                         {c.actorName} · {when(c.createdAt)} · {c.seenAt ? 'seen by student' : 'not seen yet'}
                       </span>
-                      <button className="btn-ghost min-h-11 px-3 text-xs text-red-600" onClick={async () => (await confirm({ title: 'Delete this history entry?', confirmLabel: 'Delete', danger: true })) && deleteChange(uid, c.id, actor)}>
+                      <button className="btn-ghost min-h-11 px-3 text-xs text-red-700" onClick={async () => (await confirm({ title: 'Delete this history entry?', confirmLabel: 'Delete', danger: true })) && deleteChange(uid, c.id, actor)}>
                         Delete
                       </button>
                     </div>
@@ -210,7 +211,7 @@ export function StudentDetail() {
                     <span>
                       {when(c.createdAt)} · {c.readAt ? `read ${when(c.readAt)}` : 'unread'}
                     </span>
-                    <button className="btn-ghost min-h-8 px-2 text-xs text-red-600" onClick={async () => (await confirm({ title: 'Delete this comment?', confirmLabel: 'Delete', danger: true })) && deleteComment(uid, c.id, actor)}>
+                    <button className="btn-ghost min-h-8 px-2 text-xs text-red-700" onClick={async () => (await confirm({ title: 'Delete this comment?', confirmLabel: 'Delete', danger: true })) && deleteComment(uid, c.id, actor)}>
                       Delete
                     </button>
                   </div>

@@ -27,13 +27,14 @@ import { Audit } from './pages/admin/Audit';
 import { DialogProvider } from './components/Dialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { onForegroundMessage, refreshToken } from './lib/messaging';
+import { IconInbox, IconLog, IconPerson, IconToday, IconWeek, IconX } from './components/icons';
 
 function Toast({ text, onClose }: { text: string; onClose: () => void }) {
   return (
-    <div className="fixed inset-x-4 top-16 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-brand-900 p-4 text-white shadow-lg">
+    <div className="fixed inset-x-4 top-16 z-50 mx-auto flex max-w-md items-center gap-3 rounded-lg bg-slate-900 py-3 pr-2 pl-4 text-sm text-white shadow-lg">
       <span className="flex-1">{text}</span>
-      <button className="btn-ghost min-h-8 px-2 text-white" onClick={onClose} aria-label="Dismiss">
-        ✕
+      <button className="btn min-h-9 px-2 text-white/80 hover:bg-white/10 hover:text-white" onClick={onClose} aria-label="Dismiss">
+        <IconX size={18} />
       </button>
     </div>
   );
@@ -57,13 +58,12 @@ function StudentRoutes() {
 
   return (
     <Layout
-      title="Mamulaat"
       nav={[
-        { to: '/', label: 'Today', icon: '🏠', end: true },
-        { to: '/log', label: 'Log', icon: '📝' },
-        { to: '/week', label: 'Week', icon: '📅' },
-        { to: '/messages', label: 'Inbox', icon: '💬', badge: data.unreadComments + data.unseenChanges },
-        { to: '/me', label: 'Me', icon: '👤' },
+        { to: '/', label: 'Today', icon: <IconToday />, end: true },
+        { to: '/log', label: 'Log', icon: <IconLog /> },
+        { to: '/week', label: 'Week', icon: <IconWeek /> },
+        { to: '/messages', label: 'Inbox', icon: <IconInbox />, badge: data.unreadComments + data.unseenChanges },
+        { to: '/me', label: 'Me', icon: <IconPerson /> },
       ]}
     >
       {toast && <Toast text={toast} onClose={() => setToast(null)} />}
@@ -105,7 +105,7 @@ function Gate() {
   if (removed) {
     return (
       <FullScreen>
-        <h1 className="text-2xl font-extrabold text-brand-900">Your account was removed</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.015em] text-slate-900">Your account was removed</h1>
         <p className="mt-3 max-w-sm text-slate-600">
           Your teacher removed your Mamulaat account and its data, and you have been signed out. If you think this is a mistake, please talk to your teacher.
         </p>
@@ -123,7 +123,7 @@ function Gate() {
       <FullScreen>
         {profileError ? (
           <>
-            <p className="mb-4 text-red-600">Could not load your account: {profileError.message}</p>
+            <p className="mb-4 text-red-700">Could not load your account: {profileError.message}</p>
             <button className="btn-secondary" onClick={() => signOut()}>
               Sign out
             </button>

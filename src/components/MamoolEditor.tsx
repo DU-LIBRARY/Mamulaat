@@ -4,6 +4,7 @@ import type { Mamool } from '../types';
 import { targetLabel } from './Checklist';
 import { EmptyState } from './ui';
 import { useDialog } from './Dialog';
+import { IconPlus } from './icons';
 
 export const SUGGESTIONS: Array<{ name: string; target: number; unit: string }> = [
   { name: 'Quran tilawat', target: 1, unit: 'juz' },
@@ -42,7 +43,7 @@ export function MamoolForm({
     }
   };
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
+    <form onSubmit={submit} className="flex flex-col gap-3">
       <div>
         <label className="label">Name</label>
         <input className="input" dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Quran, Tasbeeh, تسبیح" maxLength={120} required />
@@ -92,9 +93,9 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
       {active.length === 0 ? (
         <EmptyState>No mamoolaat yet. Add the first one below.</EmptyState>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="sheet">
           {active.map((m, i) => (
-            <li key={m.id} className="card p-3">
+            <li key={m.id} className="px-3 py-2.5">
               {editing === m.id ? (
                 <MamoolForm
                   initial={m}
@@ -108,15 +109,15 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="flex flex-col">
-                    <button className="btn-ghost min-h-11 px-3 py-0 text-sm" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
-                      ▲
+                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
+                      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="M2 8l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
-                    <button className="btn-ghost min-h-11 px-3 py-0 text-sm" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label="Move down">
-                      ▼
+                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label="Move down">
+                      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold break-words" dir="auto">
+                    <div className="font-medium break-words text-slate-900" dir="auto">
                       {m.name}
                     </div>
                     <div className="text-sm text-slate-500" dir="auto">
@@ -127,7 +128,7 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                     Edit
                   </button>
                   <button
-                    className="btn-ghost px-3 text-red-600"
+                    className="btn-ghost px-3 text-red-700 hover:bg-red-50 hover:text-red-800"
                     onClick={async () => {
                       if (await confirm({ title: `Remove "${m.name}"?`, message: 'Past logs are kept. You can restore it later.', confirmLabel: 'Remove', danger: true })) removeMamool(uid, m, today, actor);
                     }}
@@ -142,15 +143,15 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
       )}
 
       <div className="card">
-        <div className="section-title">Add a mamool</div>
-        <MamoolForm submitLabel="+ Add" onSubmit={(v) => addMamool(uid, v, nextOrder, today, actor)} />
+        <h2 className="section-title">Add a mamool</h2>
+        <MamoolForm submitLabel="Add" onSubmit={(v) => addMamool(uid, v, nextOrder, today, actor)} />
         {showSuggestions && (
           <div className="mt-3">
-            <div className="mb-1 text-xs text-slate-500">Quick add:</div>
+            <div className="mb-2 text-xs text-slate-500">Common mamoolaat</div>
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.filter((s) => !active.some((m) => m.name === s.name)).map((s, i) => (
-                <button key={s.name} className="chip min-h-9 bg-brand-50 px-3 text-sm text-brand-700 ring-1 ring-brand-200" dir="auto" onClick={() => addMamool(uid, s, nextOrder + i, today, actor)}>
-                  + {s.name} {s.unit || s.target !== 1 ? `– ${targetLabel(s)}` : ''}
+                <button key={s.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 hover:border-brand-500 hover:text-brand-800" dir="auto" onClick={() => addMamool(uid, s, nextOrder + i, today, actor)}>
+                  <IconPlus size={14} className="text-slate-400" />{s.name} {s.unit || s.target !== 1 ? <span className="text-slate-500">{targetLabel(s)}</span> : ''}
                 </button>
               ))}
             </div>
@@ -160,7 +161,7 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
 
       {removed.length > 0 && (
         <details className="card">
-          <summary className="cursor-pointer font-semibold text-slate-600">Removed ({removed.length})</summary>
+          <summary className="cursor-pointer text-sm font-medium text-slate-600">Removed ({removed.length})</summary>
           <ul className="mt-2 flex flex-col gap-2">
             {removed.map((m) => (
               <li key={m.id} className="flex items-center justify-between gap-2">
@@ -173,7 +174,7 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                   </button>
                   {byAdmin && (
                     <button
-                      className="btn-ghost text-sm text-red-600"
+                      className="btn-ghost text-sm text-red-700 hover:bg-red-50"
                       onClick={async () => {
                         if (await confirm({ title: `Delete "${m.name}" forever?`, message: 'It disappears completely (it can no longer be restored). Entries already logged for it stop showing in the history.', confirmLabel: 'Delete forever', danger: true })) deleteMamoolForever(uid, m, actor);
                       }}

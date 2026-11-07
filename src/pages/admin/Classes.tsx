@@ -149,7 +149,7 @@ export function Classes() {
                       Move all…
                     </button>
                   )}
-                  <button className="btn-ghost px-3 text-red-600" onClick={() => setDeleting(deleting === c.id ? null : c.id)}>
+                  <button className="btn-ghost px-3 text-red-700" onClick={() => setDeleting(deleting === c.id ? null : c.id)}>
                     Delete
                   </button>
                 </div>

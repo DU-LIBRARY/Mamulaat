@@ -95,9 +95,9 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-4 sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && close(false)}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="dlg-title" className="card pb-safe w-full max-w-md shadow-xl">
-        <h2 id="dlg-title" className="text-lg font-bold" dir="auto">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 p-4 sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && close(false)}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="dlg-title" className="pb-safe w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+        <h2 id="dlg-title" className="text-lg font-semibold text-slate-900" dir="auto">
           {req.title}
         </h2>
         {req.message && (
@@ -113,7 +113,7 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
             <input id="dlg-type" className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoCapitalize="off" autoCorrect="off" autoComplete="off" />
           </div>
         )}
-        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {req.kind === 'confirm' && (
             <button className="btn-secondary" onClick={() => close(false)}>
               {req.cancelLabel ?? 'Cancel'}

@@ -4,7 +4,7 @@ import type { UserProfile } from '../../types';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
 import { DateLine } from '../../components/DateLine';
-import { EmptyState, Spinner, StatCard, cellClass } from '../../components/ui';
+import { EmptyState, Spinner, Stat, StatRow, cellClass } from '../../components/ui';
 import { addDays, dayNumber, formatGregorian, shortDay, weekDays, weekStartOf } from '../../lib/dates';
 import { needsAttention, studentWeek, type StudentWeek } from '../../lib/reports';
 import { pct } from '../../lib/scoring';
@@ -45,28 +45,28 @@ export function Overview() {
 
   return (
     <div className="flex flex-col gap-5">
-      <DateLine day={today} />
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard icon="👥" label="Students" value={students.length} />
-        <StatCard icon="✅" label="Logged today" value={`${loggedToday}/${students.length}`} />
-        <StatCard icon="⏳" label="Pending" value={pending.length} />
-      </div>
+      <DateLine day={today} size="lg" />
+      <StatRow>
+        <Stat label="Students" value={students.length} />
+        <Stat label="Logged today" value={`${loggedToday}/${students.length}`} />
+        <Stat label="Pending" value={pending.length} />
+      </StatRow>
 
       {pending.length > 0 && (
-        <Link to="/admin/students" className="card flex items-center justify-between ring-2 ring-gold-400/60">
+        <Link to="/admin/students" className="flex items-center justify-between rounded-lg border border-gold-400/50 bg-[#fbf6e9] px-4 py-3 text-[#5b4512]">
           <span>
-            <b>{pending.length}</b> sign-up{pending.length > 1 ? 's' : ''} waiting for approval
+            <b className="font-semibold">{pending.length}</b> sign-up{pending.length > 1 ? 's' : ''} waiting for approval
           </span>
-          <span className="font-semibold text-brand-700">Review →</span>
+          <span className="text-sm font-medium underline decoration-gold-400 underline-offset-4">Review</span>
         </Link>
       )}
 
       <section>
         <div className="section-title">
-          Needs attention <span className="font-normal normal-case">(below {settings.attentionThreshold}% this week or no logs for {settings.attentionNoLogDays} days)</span>
+          Needs attention <span className="block text-xs font-normal text-slate-500">Below {settings.attentionThreshold}% this week or no logs for {settings.attentionNoLogDays} days</span>
         </div>
         {attention.length === 0 ? (
-          <EmptyState>Everyone is on track. 🎉</EmptyState>
+          <EmptyState>Everyone is on track.</EmptyState>
         ) : (
           <ul className="flex flex-col gap-2">
             {attention.map((a) => (
@@ -106,11 +106,11 @@ export function Overview() {
             weeks={weeks}
           />
         )}
-        <p className="mt-2 text-xs text-slate-500">✓ = every mamool completed that day · number = % completed · ✕ = nothing logged · – = no mamoolaat set. Tap a student for details.</p>
+        <p className="mt-2 text-xs text-slate-500">✓ every mamool completed · number = % completed · ✕ nothing logged · – no mamoolaat set. Tap a student for details.</p>
       </section>
 
       <section>
-        <div className="section-title">Classes this week</div>
+        <h2 className="section-title">Classes this week</h2>
         {classes.data.length === 0 ? (
           <EmptyState>
             No classes yet. <Link className="font-semibold text-brand-700 underline" to="/admin/classes">Create one</Link>.
@@ -154,7 +154,7 @@ interface RegisterGroup {
 function Register({ days, today, groups, weeks }: { days: string[]; today: string; groups: RegisterGroup[]; weeks: Map<string, StudentWeek> }) {
   const cols = days.length + 3;
   return (
-    <div className="card overflow-x-auto p-2">
+    <div className="num overflow-x-auto rounded-lg border border-slate-200 bg-white p-2">
       <table className="w-full border-separate border-spacing-0.5 text-center text-[11px]">
         <thead>
           <tr>
@@ -173,7 +173,7 @@ function Register({ days, today, groups, weeks }: { days: string[]; today: strin
           {groups.map((g) => (
             <Fragment key={g.id || 'none'}>
               <tr>
-                <th colSpan={cols} className="bg-brand-50 px-2 py-1.5 text-left text-xs font-bold tracking-wide text-brand-900 uppercase" dir="auto">
+                <th colSpan={cols} className="bg-slate-50 px-2 py-1.5 text-left text-xs font-semibold text-slate-700" dir="auto">
                   {g.id ? (
                     <Link to={`/admin/class/${g.id}?view=week`} className="hover:underline">
                       {g.name}
@@ -207,7 +207,7 @@ function Register({ days, today, groups, weeks }: { days: string[]; today: strin
                       );
                     })}
                     <td className="font-semibold text-slate-700">{w ? `${w.fullDays}/${elapsed}` : ''}</td>
-                    <td className={`rounded-md font-bold ${cellClass(w?.completion)}`}>{w ? pct(w.completion) : ''}</td>
+                    <td className={`rounded font-semibold ${cellClass(w?.completion)}`}>{w ? pct(w.completion) : ''}</td>
                   </tr>
                 );
               })}

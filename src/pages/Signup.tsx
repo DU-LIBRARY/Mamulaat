@@ -42,8 +42,8 @@ export function Signup({ profile }: { profile: UserProfile }) {
   return (
     <FullScreen>
       <div className="w-full max-w-sm text-left">
-        <h1 className="text-center text-2xl font-extrabold text-brand-900">Welcome to Mamulaat</h1>
-        <p className="mt-1 mb-5 text-center text-slate-600">Tell us who you are. Your teacher will approve your request.</p>
+        <h1 className="text-2xl font-semibold tracking-[-0.015em] text-slate-900">Request access</h1>
+        <p className="mt-2 mb-6 leading-relaxed text-slate-600">Tell us who you are. Your teacher will approve your request.</p>
         <form onSubmit={submit} className="card flex flex-col gap-4">
           <div>
             <label className="label" htmlFor="name">
@@ -60,7 +60,7 @@ export function Signup({ profile }: { profile: UserProfile }) {
               autoComplete="name"
               required
             />
-            <p className="mt-1 text-xs text-slate-500">This is the name your teacher will see. Please use your real name.</p>
+            <p className="mt-1.5 text-xs text-slate-500">This is the name your teacher will see. Please use your real name.</p>
           </div>
           <div>
             <label className="label" htmlFor="class">
@@ -69,9 +69,9 @@ export function Signup({ profile }: { profile: UserProfile }) {
             {classes.loading ? (
               <Spinner label="Loading classes…" />
             ) : classes.error ? (
-              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Could not load the class list: {classes.error.message}</p>
+              <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">Could not load the class list: {classes.error.message}</p>
             ) : classes.data.length === 0 ? (
-              <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">No classes have been set up yet. Please ask your teacher, then try again.</p>
+              <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">No classes have been set up yet. Please ask your teacher, then try again.</p>
             ) : (
               <select id="class" className="input" value={classId} onChange={(e) => setClassId(e.target.value)} required>
                 <option value="">Choose your class…</option>
@@ -83,7 +83,7 @@ export function Signup({ profile }: { profile: UserProfile }) {
               </select>
             )}
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <button className="btn-primary" type="submit" disabled={busy || !name.trim() || !classId}>
             {busy ? 'Saving…' : 'Request access'}
           </button>

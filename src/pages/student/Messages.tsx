@@ -27,14 +27,14 @@ export function Messages() {
   return (
     <div className="flex flex-col gap-6">
       <section>
-        <div className="section-title">Comments from your teacher</div>
+        <h2 className="section-title">Comments from your teacher</h2>
         {comments.length === 0 ? (
           <EmptyState>No comments yet.</EmptyState>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="sheet">
             {comments.map((c) => (
-              <li key={c.id} className={`card ${c.readAt ? '' : 'ring-2 ring-gold-400/60'}`}>
-                <p className="whitespace-pre-wrap" dir="auto">
+              <li key={c.id} className={`px-4 py-3.5 ${c.readAt ? '' : 'bg-[#fbf6e9]'}`}>
+                <p className="whitespace-pre-wrap text-slate-800" dir="auto">
                   {c.text}
                 </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
@@ -42,7 +42,7 @@ export function Messages() {
                     {c.authorName} · {when(c.createdAt)}
                   </span>
                   {c.readAt ? (
-                    <span>✓ Read</span>
+                    <span>Read</span>
                   ) : (
                     <button className="btn-secondary min-h-9 px-3 text-sm" onClick={() => markCommentRead(profile.id, c.id)}>
                       Mark as read
@@ -55,20 +55,20 @@ export function Messages() {
         )}
       </section>
       <section>
-        <div className="section-title">Changes to your mamoolaat</div>
+        <h2 className="section-title">Changes to your mamoolaat</h2>
         {changes.length === 0 ? (
           <EmptyState>Your teacher hasn't changed your list.</EmptyState>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="sheet">
             {changes.map((c) => (
-              <li key={c.id} className={`card ${c.seenAt ? '' : 'ring-2 ring-gold-400/60'}`}>
+              <li key={c.id} className={`px-4 py-3.5 ${c.seenAt ? '' : 'bg-[#fbf6e9]'}`}>
                 <div dir="auto">{describeChange(c)}</div>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
                   <span>
                     by {c.actorName} · {when(c.createdAt)}
                   </span>
                   {c.seenAt ? (
-                    <span>✓ Seen</span>
+                    <span>Seen</span>
                   ) : (
                     <button className="btn-secondary min-h-9 px-3 text-sm" onClick={() => markChangeSeen(profile.id, c.id)}>
                       Got it

@@ -8,6 +8,8 @@ import { PrivacyNote } from '../../components/PrivacyNote';
 import { pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
 import { isIOS, isStandalone } from '../../lib/pwa';
 import type { ClassDoc } from '../../types';
+import { IconChevronRight } from '../../components/icons';
+import { Notice } from '../../components/ui';
 
 export function Me() {
   const { profile, settings, signOut } = useActiveSession();
@@ -51,14 +53,14 @@ export function Me() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="card flex items-center gap-3">
+      <div className="flex items-center gap-3 pb-1">
         {profile.photoURL ? (
-          <img src={profile.photoURL} alt="" className="h-14 w-14 rounded-full" referrerPolicy="no-referrer" />
+          <img src={profile.photoURL} alt="" className="h-12 w-12 rounded-full" referrerPolicy="no-referrer" />
         ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 text-2xl">🙂</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-lg font-semibold text-brand-800" aria-hidden>{(profile.name ?? '?').trim().charAt(0).toUpperCase()}</div>
         )}
         <div className="min-w-0">
-          <div className="text-lg font-bold" dir="auto">
+          <div className="text-lg font-semibold text-slate-900" dir="auto">
             {profile.name}
           </div>
           <div className="truncate text-sm text-slate-500">{profile.email}</div>
@@ -67,28 +69,28 @@ export function Me() {
       </div>
 
       <section className="card">
-        <div className="section-title">My name</div>
+        <h2 className="section-title">My name</h2>
         <form onSubmit={saveName} className="flex gap-2">
           <input className="input" dir="auto" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} aria-label="Your name" />
           <button className="btn-secondary" type="submit" disabled={!name.trim() || name.trim() === profile.name}>
-            {nameSaved ? 'Saved ✓' : 'Save'}
+            {nameSaved ? 'Saved' : 'Save'}
           </button>
         </form>
       </section>
 
       <Link to="/mamoolaat" className="card flex items-center justify-between">
         <span>
-          <span className="block font-semibold">My mamoolaat</span>
+          <span className="block font-medium text-slate-900">My mamoolaat</span>
           <span className="text-sm text-slate-500">Add, edit, reorder or remove</span>
         </span>
-        <span aria-hidden>›</span>
+        <IconChevronRight size={18} className="text-slate-400" />
       </Link>
 
       <section className="card">
-        <div className="section-title">Daily reminder</div>
+        <h2 className="section-title">Daily reminder</h2>
         <label className="flex min-h-12 items-center justify-between gap-3">
           <span>
-            <span className="font-semibold">Remind me if I haven't logged</span>
+            <span className="font-medium text-slate-900">Remind me if I haven't logged</span>
             <span className="block text-sm text-slate-500">Time zone: {settings.timezone}</span>
           </span>
           <button
@@ -96,9 +98,9 @@ export function Me() {
             aria-checked={profile.reminderEnabled}
             disabled={busy}
             onClick={toggle}
-            className={`relative h-8 w-14 shrink-0 rounded-full transition ${profile.reminderEnabled ? 'bg-brand-600' : 'bg-slate-300'}`}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${profile.reminderEnabled ? 'bg-brand-700' : 'bg-slate-300'}`}
           >
-            <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${profile.reminderEnabled ? 'left-7' : 'left-1'}`} />
+            <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-[left] ${profile.reminderEnabled ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
         </label>
         <div className="mt-3">
@@ -113,15 +115,15 @@ export function Me() {
             onChange={(e) => e.target.value && updateOwnProfile(profile.id, { reminderTime: e.target.value })}
           />
         </div>
-        {msg && <p className="mt-3 rounded-xl bg-sand-50 p-3 text-sm text-slate-700">{msg}</p>}
+        {msg && <div className="mt-3"><Notice>{msg}</Notice></div>}
         {support && !support.ok && !msg && profile.reminderEnabled && (
-          <p className="mt-3 rounded-xl bg-sand-50 p-3 text-sm text-slate-700">{pushSupportMessage[support.reason]}</p>
+          <div className="mt-3"><Notice>{pushSupportMessage[support.reason]}</Notice></div>
         )}
         {isIOS() && (
-          <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
-            📱 <b>iPhone / iPad:</b> push reminders only work after you add Mamulaat to your Home Screen (tap Share →{' '}
+          <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <b className="font-medium text-slate-900">iPhone / iPad:</b> push reminders only work after you add Mamulaat to your Home Screen (tap Share →{' '}
             <i>Add to Home Screen</i>) on iOS 16.4 or later, then open it from the Home Screen icon and turn reminders on
-            there.{isStandalone() ? ' ✓ You are using the Home Screen app.' : ''}
+            there.{isStandalone() ? ' You are using the Home Screen app.' : ''}
           </p>
         )}
         <p className="mt-3 text-xs text-slate-500">
@@ -134,7 +136,7 @@ export function Me() {
       <button className="btn-secondary" onClick={() => signOut()}>
         Sign out
       </button>
-      <p className="text-center text-xs text-slate-400">
+      <p className="text-center text-xs text-slate-500">
         Signing out on this device removes offline access until you sign in again.
       </p>
     </div>

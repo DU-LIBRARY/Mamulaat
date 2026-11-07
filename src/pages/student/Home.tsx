@@ -5,8 +5,9 @@ import { useMyData } from '../../hooks/useStudentData';
 import { DateLine } from '../../components/DateLine';
 import { Checklist } from '../../components/Checklist';
 import { ReminderBanner } from '../../components/ReminderBanner';
-import { ProgressRing, StatCard, Spinner, Badge, cellClass, EmptyState } from '../../components/ui';
-import { currentStreak, bestStreak, dayStats, scheduledFor, periodCompletion, pct } from '../../lib/scoring';
+import { Spinner, Badge, cellClass, EmptyState, SegmentBar, StatRow, Stat } from '../../components/ui';
+import { IconPlus } from '../../components/icons';
+import { currentStreak, bestStreak, dayStats, scheduledFor, periodCompletion, pct, entryFraction } from '../../lib/scoring';
 import { shortDay, weekDays, weekStartOf } from '../../lib/dates';
 import { addMamool, markCommentRead } from '../../lib/db';
 import { MamoolForm } from '../../components/MamoolEditor';
@@ -34,43 +35,54 @@ export function Home() {
 
   if (data.loading && !all.length) return <Spinner />;
   const todays = scheduledFor(today, all).filter((m) => m.active);
+  const todayLog = logs.get(today);
   const unread = data.comments.filter((c) => !c.readAt);
   const first = profile.name?.split(' ')[0];
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm text-slate-500">Assalamu alaykum{first ? `, ${first}` : ''}</div>
-          <DateLine day={today} />
+    <div className="flex flex-col gap-6">
+      <header>
+        <div className="text-sm text-slate-500" dir="auto">
+          Assalamu alaykum{first ? `, ${first}` : ''}
         </div>
-        <ProgressRing value={stats.todayS.completion} size={72} />
-      </div>
+        <div className="mt-1 flex items-end justify-between gap-4">
+          <DateLine day={today} size="lg" />
+          {todays.length > 0 && (
+            <div className="shrink-0 text-right">
+              <div className="num text-2xl leading-none font-semibold text-slate-900">
+                {stats.todayS.done}
+                <span className="text-slate-400">/{stats.todayS.scheduled}</span>
+              </div>
+              <div className="mt-1 text-xs text-slate-500">done today</div>
+            </div>
+          )}
+        </div>
+        <SegmentBar className="mt-4" fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />
+      </header>
 
       <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard icon="🔥" label="Streak" value={`${stats.streak} day${stats.streak === 1 ? '' : 's'}`} sub={`Best: ${stats.best}`} />
-        <StatCard icon="✅" label="Today" value={`${stats.todayS.done}/${stats.todayS.scheduled}`} sub="done" />
-        <StatCard icon="📅" label="This week" value={pct(stats.weekCompletion)} sub="complete" />
-        <StatCard icon="💯" label="Full days" value={stats.fullDays} sub="this week" />
-      </div>
+      <StatRow>
+        <Stat label="Streak" value={`${stats.streak} day${stats.streak === 1 ? '' : 's'}`} sub={`Best ${stats.best}`} />
+        <Stat label="This week" value={pct(stats.weekCompletion)} sub="complete" />
+        <Stat label="Full days" value={stats.fullDays} sub="this week" />
+      </StatRow>
 
-      <section className="card">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="section-title mb-0">This week</div>
-          <Link to="/week" className="text-sm font-semibold text-brand-700">
-            Details →
+      <section>
+        <div className="mb-2.5 flex items-baseline justify-between">
+          <h2 className="section-title mb-0">This week</h2>
+          <Link to="/week" className="link">
+            Details
           </Link>
         </div>
         <div className="grid grid-cols-7 gap-1.5 text-center">
           {stats.week.map((d) => (
-            <Link to={`/log/${d.day}`} key={d.day} className="flex flex-col items-center gap-1">
-              <span className={`text-xs font-semibold ${d.day === today ? 'text-brand-700' : 'text-slate-500'}`}>{shortDay(d.day)}</span>
+            <Link to={`/log/${d.day}`} key={d.day} className="group flex flex-col items-center gap-1.5">
+              <span className={`text-xs ${d.day === today ? 'font-semibold text-brand-700' : 'text-slate-500'}`}>{shortDay(d.day)}</span>
               <span
-                className={`flex h-10 w-full items-center justify-center rounded-lg text-xs font-bold ${
-                  d.day > today ? 'bg-slate-50 text-slate-300' : cellClass(d.scheduled ? d.completion : null)
-                } ${d.day === today ? 'ring-2 ring-brand-500' : ''}`}
+                className={`num flex h-10 w-full items-center justify-center rounded-md text-xs font-medium ${
+                  d.day > today ? 'border border-dashed border-slate-300 text-slate-300' : cellClass(d.scheduled ? d.completion : null)
+                } ${d.day === today ? 'outline-2 outline-offset-2 outline-brand-700' : ''}`}
               >
                 {d.day > today ? '' : d.scheduled ? Math.round(d.completion * 100) : '–'}
               </span>
@@ -80,30 +92,30 @@ export function Home() {
       </section>
 
       {(unread.length > 0 || data.unseenChanges > 0) && (
-        <section className="card ring-2 ring-gold-400/60">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="section-title mb-0">
+        <section className="rounded-lg border border-gold-400/50 bg-[#fbf6e9]">
+          <div className="flex items-baseline justify-between px-4 pt-3.5">
+            <h2 className="section-title mb-0 text-[#5b4512]">
               From your teacher <Badge n={unread.length + data.unseenChanges} />
-            </div>
-            <Link to="/messages" className="text-sm font-semibold text-brand-700">
-              All →
+            </h2>
+            <Link to="/messages" className="link text-[#5b4512] decoration-gold-400">
+              View all
             </Link>
           </div>
-          <ul className="flex flex-col gap-2">
+          <ul className="divide-y divide-gold-400/30 px-4 pb-1">
             {unread.slice(0, 3).map((c) => (
-              <li key={c.id} className="flex items-start gap-2 rounded-xl bg-sand-50 p-3">
-                <p className="flex-1 whitespace-pre-wrap" dir="auto">
+              <li key={c.id} className="flex items-start gap-3 py-3">
+                <p className="flex-1 whitespace-pre-wrap text-slate-800" dir="auto">
                   {c.text}
                 </p>
-                <button className="btn-ghost min-h-9 px-2 text-sm" onClick={() => markCommentRead(profile.id, c.id)}>
+                <button className="shrink-0 text-sm font-medium text-[#5b4512] underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
                   Mark read
                 </button>
               </li>
             ))}
             {data.unseenChanges > 0 && (
-              <li className="text-sm text-slate-600">
+              <li className="py-3 text-sm text-slate-700">
                 Your teacher changed your mamoolaat ({data.unseenChanges} change{data.unseenChanges > 1 ? 's' : ''}).{' '}
-                <Link className="font-semibold text-brand-700 underline" to="/messages">
+                <Link className="font-medium text-[#5b4512] underline decoration-gold-400 underline-offset-4" to="/messages">
                   See what changed
                 </Link>
               </li>
@@ -113,23 +125,23 @@ export function Home() {
       )}
 
       <section>
-        <div className="mb-2 flex items-center justify-between">
-          <div className="section-title mb-0">Today's checklist</div>
-          <Link to="/mamoolaat" className="text-sm font-semibold text-brand-700">
+        <div className="mb-2.5 flex items-baseline justify-between">
+          <h2 className="section-title mb-0">Today's checklist</h2>
+          <Link to="/mamoolaat" className="link">
             Edit list
           </Link>
         </div>
         {todays.length ? (
-          <Checklist uid={profile.id} day={today} mamoolaat={todays} log={logs.get(today)} editable />
+          <Checklist uid={profile.id} day={today} mamoolaat={todays} log={todayLog} editable />
         ) : (
           <EmptyState>No mamoolaat yet. Add your first one below.</EmptyState>
         )}
 
         {adding ? (
           <div className="card mt-3">
-            <div className="section-title">Add a mamool</div>
+            <h3 className="section-title">Add a mamool</h3>
             <MamoolForm
-              submitLabel="+ Add to my list"
+              submitLabel="Add to my list"
               onCancel={() => setAdding(false)}
               onSubmit={(v) => {
                 const next = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
@@ -140,8 +152,12 @@ export function Home() {
             <p className="mt-2 text-xs text-slate-500">It appears on today's checklist straight away. Past days are not changed.</p>
           </div>
         ) : (
-          <button className="btn-secondary mt-3 w-full" onClick={() => setAdding(true)}>
-            ＋ Add a mamool
+          <button
+            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 text-[15px] font-medium text-slate-600 hover:border-brand-500 hover:text-brand-700"
+            onClick={() => setAdding(true)}
+          >
+            <IconPlus size={18} />
+            Add a mamool
           </button>
         )}
       </section>

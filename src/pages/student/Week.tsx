@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
-import { StatCard } from '../../components/ui';
+import { Stat, StatRow } from '../../components/ui';
+import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { addDays, formatGregorian, weekDays, weekStartOf } from '../../lib/dates';
 import { dayStats, entryFraction, mamoolCompletion, periodCompletion, pct, scheduledFor } from '../../lib/scoring';
 
@@ -41,24 +42,24 @@ export function Week() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <button className="btn-secondary px-3" onClick={() => setOffset(offset - 1)} aria-label="Previous week">
-          ←
+        <button className="btn-secondary w-11 px-0" onClick={() => setOffset(offset - 1)} aria-label="Previous week">
+          <IconChevronLeft size={20} />
         </button>
         <div className="text-center">
-          <div className="font-bold">{offset === 0 ? 'This week' : offset === -1 ? 'Last week' : 'Week of'}</div>
+          <div className="font-semibold text-slate-900">{offset === 0 ? 'This week' : offset === -1 ? 'Last week' : 'Week of'}</div>
           <div className="text-sm text-slate-500">
             {formatGregorian(days[0], { weekday: undefined, year: undefined })} – {formatGregorian(days[6], { weekday: undefined })}
           </div>
         </div>
-        <button className="btn-secondary px-3" onClick={() => setOffset(offset + 1)} disabled={offset >= 0} aria-label="Next week">
-          →
+        <button className="btn-secondary w-11 px-0" onClick={() => setOffset(offset + 1)} disabled={offset >= 0} aria-label="Next week">
+          <IconChevronRight size={20} />
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard icon="✅" label="Complete" value={pct(completion)} />
-        <StatCard icon="💯" label="Full days" value={fullDays} />
-      </div>
-      <div className="card p-2">
+      <StatRow>
+        <Stat label="Complete" value={pct(completion)} />
+        <Stat label="Full days" value={fullDays} />
+      </StatRow>
+      <div className="rounded-lg border border-slate-200 bg-white p-2">
         <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" />
       </div>
       <p className="text-xs text-slate-500">

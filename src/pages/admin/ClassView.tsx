@@ -1,3 +1,4 @@
+import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
@@ -79,12 +80,12 @@ export function ClassView() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xl font-bold" dir="auto">
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-slate-900" dir="auto">
           {cls.name}
-        </h2>
-        <div className="flex rounded-xl bg-white p-1 ring-1 ring-slate-200">
+        </h1>
+        <div className="flex rounded-md border border-slate-200 bg-white p-0.5">
           {(['day', 'week'] as const).map((v) => (
-            <button key={v} className={`btn min-h-9 px-4 text-sm ${view === v ? 'bg-brand-700 text-white' : 'text-slate-600'}`} onClick={() => setParam('view', v)}>
+            <button key={v} className={`btn min-h-9 rounded px-4 text-sm ${view === v ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
               {v === 'day' ? 'Day' : 'Week'}
             </button>
           ))}
@@ -92,12 +93,12 @@ export function ClassView() {
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="btn-secondary px-3" aria-label={view === 'week' ? 'Previous week' : 'Previous day'} onClick={() => setParam('date', addDays(date, view === 'week' ? -7 : -1))}>
-          ←
+        <button className="btn-secondary w-11 shrink-0 px-0" aria-label={view === 'week' ? 'Previous week' : 'Previous day'} onClick={() => setParam('date', addDays(date, view === 'week' ? -7 : -1))}>
+          <IconChevronLeft size={20} />
         </button>
         <input type="date" className="input text-center" value={date} max={today} onChange={(e) => e.target.value && setParam('date', e.target.value)} />
-        <button className="btn-secondary px-3" aria-label={view === 'week' ? 'Next week' : 'Next day'} disabled={nextDisabled} onClick={() => setParam('date', [addDays(date, view === 'week' ? 7 : 1), today].sort()[0])}>
-          →
+        <button className="btn-secondary w-11 shrink-0 px-0" aria-label={view === 'week' ? 'Next week' : 'Next day'} disabled={nextDisabled} onClick={() => setParam('date', [addDays(date, view === 'week' ? 7 : 1), today].sort()[0])}>
+          <IconChevronRight size={20} />
         </button>
       </div>
 
@@ -153,7 +154,7 @@ export function ClassView() {
             </button>
           </div>
           {students.length > 0 && (
-            <div className="card p-2">
+            <div className="rounded-lg border border-slate-200 bg-white p-2">
               <WeekGrid days={days} rows={gridRows} today={today} firstHeader="Student" />
             </div>
           )}

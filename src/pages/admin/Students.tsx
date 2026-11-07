@@ -27,7 +27,7 @@ function Avatar({ u }: { u: UserProfile }) {
   return u.photoURL ? (
     <img src={u.photoURL} alt="" className="h-10 w-10 shrink-0 rounded-full" referrerPolicy="no-referrer" />
   ) : (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700">{(displayName(u))[0]?.toUpperCase()}</div>
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-800">{(displayName(u))[0]?.toUpperCase()}</div>
   );
 }
 
@@ -83,7 +83,7 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
   const run = (p: Promise<unknown>) => p.catch((e) => setErr((e as Error).message));
   const requestedName = classes.find((c) => c.id === u.requestedClassId)?.name;
   return (
-    <li className={`card flex flex-col gap-2 p-3 ${selected ? 'ring-2 ring-brand-500' : ''}`}>
+    <li className={`card flex flex-col gap-2 p-3 ${selected ? 'border-brand-500 ring-1 ring-brand-500' : ''}`}>
       <div className="flex items-center gap-3">
         <label className="flex h-11 w-8 shrink-0 cursor-pointer items-center justify-center">
           <input type="checkbox" className="h-5 w-5 accent-brand-700" checked={selected} onChange={onToggle} aria-label={`Select ${displayName(u)}`} />
@@ -109,7 +109,7 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
             Approve
           </button>
           <button
-            className="btn-ghost text-red-600"
+            className="btn-ghost text-red-700"
             onClick={async () => (await confirm({ title: `Reject ${displayName(u)}?`, message: 'They stay blocked until you approve them.', confirmLabel: 'Reject', danger: true })) && run(rejectUser(u.id, actor))}
           >
             Reject
@@ -149,12 +149,12 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
         </div>
       )}
       <div>
-        <button className="btn-ghost min-h-11 px-2 text-sm text-red-600" onClick={() => del([u])}>
+        <button className="btn-ghost min-h-11 px-2 text-sm text-red-700" onClick={() => del([u])}>
           Delete {u.status === 'active' ? 'student' : 'user'} and all data…
         </button>
       </div>
       {u.handedOverTo && <div className="text-xs text-slate-500">Former admin (handed over).</div>}
-      {err && <div className="text-sm text-red-600">{err}</div>}
+      {err && <div className="text-sm text-red-700">{err}</div>}
     </li>
   );
 }
@@ -187,7 +187,7 @@ function BulkBar({ selected, users, classes, actor, clear }: { selected: UserPro
 
   return (
     <div className="pb-safe fixed inset-x-0 bottom-[4.5rem] z-30 mx-auto max-w-3xl px-3">
-      <div className="card flex flex-col gap-2 shadow-lg ring-2 ring-brand-500">
+      <div className="card flex flex-col gap-2 border-slate-300 shadow-lg">
         <div className="flex items-center justify-between">
           <b>{selected.length} selected</b>
           <button className="btn-ghost min-h-11 px-3" onClick={clear}>

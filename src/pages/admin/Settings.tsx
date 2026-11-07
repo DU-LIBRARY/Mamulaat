@@ -42,7 +42,7 @@ function PasswordSignIn() {
   };
   return (
     <section className="card">
-      <div className="section-title">Password sign-in for this admin account</div>
+      <h2 className="section-title">Password sign-in for this admin account</h2>
       <p className="mb-3 text-sm text-slate-600">
         Lets someone (e.g. the teacher) open this admin account without Google: on the sign-in screen they tap “Sign in with email &amp; password” and use{' '}
         <b>{profile.email}</b> with the password below. Anyone with it has full admin access — remove it when no longer needed.
@@ -67,7 +67,7 @@ function PasswordSignIn() {
           Remove password sign-in
         </button>
       )}
-      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-brand-700' : 'text-red-600'}`}>{msg.text}</p>}
+      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-brand-700' : 'text-red-700'}`}>{msg.text}</p>}
     </section>
   );
 }
@@ -83,8 +83,8 @@ function TransferAdmin() {
   const t = candidates.find((u) => u.id === target);
 
   return (
-    <section className="card ring-2 ring-red-200">
-      <div className="section-title text-red-700">Transfer admin</div>
+    <section className="card border-red-200">
+      <h2 className="section-title text-red-800">Transfer admin</h2>
       <p className="mb-3 text-sm text-slate-600">
         Hand the admin role to another approved user (e.g. the teacher). After transferring, <b>you will immediately lose access</b> to all
         student data in the app. This is recorded in the audit log and cannot be undone by you. See the README handover checklist — you
@@ -124,7 +124,7 @@ function TransferAdmin() {
           {!navigator.onLine && <p className="mt-2 text-sm text-amber-700">You must be online to transfer admin.</p>}
         </>
       )}
-      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      {err && <p className="mt-2 text-sm text-red-700">{err}</p>}
     </section>
   );
 }
@@ -147,12 +147,12 @@ export function AdminSettings() {
           if (!tzOk) return;
           setSaved('Saving…');
           saveSettings(s, actor)
-            .then(() => setSaved('Saved ✓'))
+            .then(() => setSaved('Saved'))
             .catch((err) => setSaved(`Error: ${(err as Error).message}`));
           if (!navigator.onLine) setSaved('Saved offline — will sync when online.');
         }}
       >
-        <div className="section-title">App settings</div>
+        <h2 className="section-title">App settings</h2>
         <div>
           <label className="label">Project timezone (days run midnight-to-midnight here)</label>
           <input className="input" list="tzlist" value={s.timezone} onChange={(e) => set('timezone', e.target.value)} />
@@ -161,7 +161,7 @@ export function AdminSettings() {
               <option key={z} value={z} />
             ))}
           </datalist>
-          <p className={`mt-1 text-xs ${tzOk ? 'text-slate-500' : 'text-red-600'}`}>
+          <p className={`mt-1 text-xs ${tzOk ? 'text-slate-500' : 'text-red-700'}`}>
             {tzOk ? `${offsetLabel(s.timezone)} now. Changing this shifts which date "today" is for everyone.` : 'Unknown timezone'}
           </p>
         </div>

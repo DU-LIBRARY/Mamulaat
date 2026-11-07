@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { adminSaveEntry, saveEntry, type Actor } from '../lib/db';
 import type { DayLog, EntryStatus, LogEntry, Mamool } from '../types';
 import { entryFraction } from '../lib/scoring';
+import { IconCheck, IconHalf, IconX } from './icons';
 
 function fmt(n: number) {
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
@@ -9,6 +10,20 @@ function fmt(n: number) {
 
 export function targetLabel(m: Pick<Mamool, 'target' | 'unit'>) {
   return `${fmt(m.target)}${m.unit ? ` ${m.unit}` : ''}`;
+}
+
+const STATUS: Record<EntryStatus, { label: string; icon: ReactNode; on: string }> = {
+  done: { label: 'Done', icon: <IconCheck size={18} />, on: 'bg-brand-700 text-white border-brand-700' },
+  partial: { label: 'Partly', icon: <IconHalf size={16} />, on: 'bg-amber-100 text-amber-900 border-amber-300' },
+  missed: { label: 'Missed', icon: <IconX size={16} />, on: 'bg-red-50 text-red-800 border-red-200' },
+};
+
+/** Left-edge mark showing the row's state at a glance. */
+function edge(status: EntryStatus | undefined) {
+  if (status === 'done') return 'before:bg-brand-700';
+  if (status === 'partial') return 'before:bg-amber-500';
+  if (status === 'missed') return 'before:bg-red-400';
+  return 'before:bg-transparent';
 }
 
 function MamoolRow({
@@ -47,48 +62,54 @@ function MamoolRow({
     else onChange({ status: 'partial', amount: a, target: m.target });
   };
 
-  const btn = (s: EntryStatus, label: string, active: string) => (
-    <button
-      type="button"
-      disabled={!editable}
-      onClick={() => set(s)}
-      aria-pressed={status === s}
-      className={`btn min-h-12 flex-1 px-2 text-sm ${status === s ? active : 'bg-slate-100 text-slate-600'}`}
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <li className="card p-3">
-      <div className="mb-2 flex items-start justify-between gap-3">
+    <li className={`relative px-4 py-3.5 before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
+      <div className="mb-3 flex items-baseline justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-lg leading-tight font-semibold break-words" dir="auto">
+          <div className="text-[17px] leading-snug font-medium break-words text-slate-900" dir="auto">
             {m.name}
           </div>
-          <div className="text-sm text-slate-500" dir="auto">
-            Target: {targetLabel(m)}
-            {status === 'partial' && entry && (
-              <span className="ml-2 font-semibold text-amber-700">
-                · {fmt(entry.amount)}/{fmt(entry.target)}
-              </span>
+          <div className="num mt-0.5 text-sm text-slate-500" dir="auto">
+            {status === 'partial' && entry ? (
+              <>
+                <span className="font-medium text-amber-800">{fmt(entry.amount)}</span> of {targetLabel(m)}
+              </>
+            ) : (
+              targetLabel(m)
             )}
           </div>
         </div>
-        <div className="shrink-0 text-right text-xs font-bold text-slate-400">{entry ? `${Math.round(f * 100)}%` : ''}</div>
+        {entry && <div className="num shrink-0 text-sm font-medium text-slate-500">{Math.round(f * 100)}%</div>}
       </div>
-      <div className="flex gap-2">
-        {btn('done', '✓ Done', 'bg-brand-600 text-white')}
-        {btn('partial', '½ Partly', 'bg-amber-400 text-amber-950')}
-        {btn('missed', '✕ Missed', 'bg-red-500 text-white')}
+      <div className="grid grid-cols-3 gap-2" role="group" aria-label={`${m.name} status`}>
+        {(Object.keys(STATUS) as EntryStatus[]).map((s) => (
+          <button
+            key={s}
+            type="button"
+            disabled={!editable}
+            onClick={() => set(s)}
+            aria-pressed={status === s}
+            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              status === s ? STATUS[s].on : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            {STATUS[s].icon}
+            {STATUS[s].label}
+          </button>
+        ))}
       </div>
       {editingPartial && (
         <div className="mt-3 flex items-center gap-2">
-          <button type="button" className="btn-secondary h-12 w-12 text-xl" onClick={() => setAmount(String(Math.max(0, (Number(amount) || 0) - 1)))}>
+          <button
+            type="button"
+            className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl"
+            aria-label="Less"
+            onClick={() => setAmount(String(Math.max(0, (Number(amount) || 0) - 1)))}
+          >
             −
           </button>
           <input
-            className="input text-center text-lg"
+            className="input num text-center text-lg"
             type="number"
             inputMode="decimal"
             min={0}
@@ -98,13 +119,13 @@ function MamoolRow({
             aria-label={`Amount of ${m.name}`}
             autoFocus
           />
-          <button type="button" className="btn-secondary h-12 w-12 text-xl" onClick={() => setAmount(String((Number(amount) || 0) + 1))}>
+          <button type="button" className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl" aria-label="More" onClick={() => setAmount(String((Number(amount) || 0) + 1))}>
             +
           </button>
           <span className="shrink-0 text-sm text-slate-500" dir="auto">
-            / {targetLabel(m)}
+            of {targetLabel(m)}
           </span>
-          <button type="button" className="btn-primary" onClick={savePartial}>
+          <button type="button" className="btn-primary shrink-0" onClick={savePartial}>
             Save
           </button>
         </div>
@@ -130,7 +151,7 @@ export function Checklist({
   asAdmin?: Actor;
 }) {
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="sheet">
       {mamoolaat.map((m) => (
         <MamoolRow
           key={m.id + day}

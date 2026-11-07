@@ -30,7 +30,7 @@ export function Audit() {
             </div>
             <div className="text-slate-600">
               by {e.actorName ?? name(e.actorId)}
-              {subject ? ` → ${name(subject)}` : ''}
+              {subject ? ` · ${name(subject)}` : ''}
             </div>
             <details className="mt-1 text-xs text-slate-500">
               <summary className="cursor-pointer">details</summary>

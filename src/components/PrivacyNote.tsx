@@ -1,11 +1,15 @@
+import { IconLock } from './icons';
+
 export function PrivacyNote({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`rounded-xl bg-brand-50 text-sm text-brand-900 ring-1 ring-brand-100 ${compact ? 'p-3' : 'p-4'}`}>
-      <div className="mb-1 font-bold">🔒 Who can see what</div>
-      <ul className="list-disc space-y-1 pl-5">
-        <li>Your mamoolaat, daily logs, progress and streaks are visible only to <b>you</b> and the <b>admin (the asaatidhah)</b>.</li>
-        <li>Other students can never see your data.</li>
-      </ul>
+    <div className={`flex gap-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 ${compact ? 'p-3' : 'p-4'}`}>
+      <IconLock size={18} className="mt-0.5 shrink-0 text-slate-400" />
+      <div>
+        <div className="font-medium text-slate-800">Who can see your data</div>
+        <p className="mt-1 leading-relaxed">
+          Your mamoolaat, daily logs and streaks are visible only to you and the admin (the asaatidhah). Other students can never see them.
+        </p>
+      </div>
     </div>
   );
 }
