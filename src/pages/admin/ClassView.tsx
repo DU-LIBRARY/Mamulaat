@@ -11,6 +11,7 @@ import { dayStats, entryFraction, pct, scheduledFor } from '../../lib/scoring';
 import { studentWeek } from '../../lib/reports';
 import { downloadCsv } from '../../lib/csv';
 import type { LogEntry } from '../../types';
+import { displayName } from '../../lib/display';
 
 function entryText(e: LogEntry | undefined) {
   if (!e) return { icon: '·', cls: 'bg-slate-100 text-slate-500', text: 'not logged' };
@@ -56,12 +57,12 @@ export function ClassView() {
   if (!cls) return <EmptyState>Class not found.</EmptyState>;
 
   const exportCsv = () => {
-    const header = ['Student', 'Email', 'Mamool', 'Target', ...days, 'Week %', 'Full days'];
+    const header = ['Student', 'Mamool', 'Target', ...days, 'Week %', 'Full days'];
     const rows: (string | number | null)[][] = [header];
     for (const w of weeks) {
-      rows.push([w.student.name ?? '', w.student.email, 'ALL', '', ...w.days.map((d) => (d.completion == null ? '' : Math.round(d.completion * 100))), w.completion == null ? '' : Math.round(w.completion * 100), w.fullDays]);
+      rows.push([w.student.name ?? '', 'ALL', '', ...w.days.map((d) => (d.completion == null ? '' : Math.round(d.completion * 100))), w.completion == null ? '' : Math.round(w.completion * 100), w.fullDays]);
       for (const pm of w.perMamool) {
-        rows.push([w.student.name ?? '', w.student.email, pm.mamool.name, targetLabel(pm.mamool), ...pm.cells.map((c) => (c == null ? '' : Math.round(c * 100))), pm.completion == null ? '' : Math.round(pm.completion * 100), '']);
+        rows.push([w.student.name ?? '', pm.mamool.name, targetLabel(pm.mamool), ...pm.cells.map((c) => (c == null ? '' : Math.round(c * 100))), pm.completion == null ? '' : Math.round(pm.completion * 100), '']);
       }
     }
     downloadCsv(`mamulaat-${cls.name.replace(/\W+/g, '_')}-${days[0]}.csv`, rows);
@@ -69,7 +70,7 @@ export function ClassView() {
 
   const gridRows: GridRow[] = weeks.map((w) => ({
     key: w.student.id,
-    label: w.student.name ?? w.student.email,
+    label: displayName(w.student),
     to: `/admin/student/${w.student.id}?date=${days[0]}`,
     cells: w.days.map((d) => d.completion),
     total: w.completion,
@@ -115,7 +116,7 @@ export function ClassView() {
                 <li key={s.id} className="card p-3">
                   <Link to={`/admin/student/${s.id}?date=${date}`} className="mb-2 flex items-center justify-between gap-2">
                     <span className="truncate font-semibold" dir="auto">
-                      {s.name ?? s.email}
+                      {displayName(s)}
                     </span>
                     <span className={`chip px-3 py-1 text-sm ${cellClass(st.scheduled ? (st.hasLog ? st.completion : 0) : null)}`}>{st.hasLog ? pct(st.completion) : 'No log'}</span>
                   </Link>

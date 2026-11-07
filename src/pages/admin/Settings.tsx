@@ -5,6 +5,7 @@ import { useAllUsers } from '../../hooks/useAdminData';
 import { saveSettings, transferAdmin } from '../../lib/db';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
 import type { AppSettings } from '../../types';
+import { displayName } from '../../lib/display';
 
 const TIMEZONES: string[] = (() => {
   try {
@@ -93,19 +94,19 @@ function TransferAdmin() {
         <option value="">Choose an approved user…</option>
         {candidates.map((u) => (
           <option key={u.id} value={u.id}>
-            {u.name ?? u.email} ({u.email})
+            {displayName(u)}
           </option>
         ))}
       </select>
       {t && (
         <>
           <label className="label">
-            Type the new admin's email (<b>{t.email}</b>) to confirm
+            Type <b>TRANSFER</b> to confirm
           </label>
           <input className="input mb-2" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoCapitalize="off" autoCorrect="off" />
           <button
             className="btn-danger w-full"
-            disabled={busy || confirmText.trim().toLowerCase() !== t.email.toLowerCase() || !navigator.onLine}
+            disabled={busy || confirmText.trim().toUpperCase() !== 'TRANSFER' || !navigator.onLine}
             onClick={async () => {
               setBusy(true);
               setErr(null);
@@ -118,7 +119,7 @@ function TransferAdmin() {
               }
             }}
           >
-            {busy ? 'Transferring…' : `Make ${t.name ?? t.email} the admin and remove my access`}
+            {busy ? 'Transferring…' : `Make ${displayName(t)} the admin and remove my access`}
           </button>
           {!navigator.onLine && <p className="mt-2 text-sm text-amber-700">You must be online to transfer admin.</p>}
         </>

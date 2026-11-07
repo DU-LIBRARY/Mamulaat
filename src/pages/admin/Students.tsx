@@ -6,6 +6,7 @@ import { approveUser, bulkUpdateUsers, deactivateUser, deleteStudent, moveUser, 
 import { EmptyState, Spinner } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
 import type { ClassDoc, UserProfile } from '../../types';
+import { displayName } from '../../lib/display';
 
 export function ClassSelect({ classes, value, onChange, placeholder = 'Choose class…', label }: { classes: ClassDoc[]; value: string; onChange: (v: string) => void; placeholder?: string; label?: string }) {
   // A stale id (class deleted) must show as "no class", not as a silent invalid value.
@@ -26,7 +27,7 @@ function Avatar({ u }: { u: UserProfile }) {
   return u.photoURL ? (
     <img src={u.photoURL} alt="" className="h-10 w-10 shrink-0 rounded-full" referrerPolicy="no-referrer" />
   ) : (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700">{(u.name ?? u.email)[0]?.toUpperCase()}</div>
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700">{(displayName(u))[0]?.toUpperCase()}</div>
   );
 }
 
@@ -36,7 +37,7 @@ export function useDeleteUsers(actor: Actor) {
   return async (users: UserProfile[]) => {
     if (!users.length) return false;
     const many = users.length > 1;
-    const who = many ? `${users.length} people` : users[0].name ?? users[0].email;
+    const who = many ? `${users.length} people` : displayName(users[0]);
     const ok = await confirm({
       title: `Delete ${who} and all their data?`,
       message: (
@@ -60,9 +61,9 @@ export function useDeleteUsers(actor: Actor) {
     const failed: string[] = [];
     for (const u of users) {
       try {
-        await deleteStudent(u.id, actor, u.email);
+        await deleteStudent(u.id, actor, displayName(u));
       } catch (e) {
-        failed.push(`${u.name ?? u.email}: ${(e as Error).message}`);
+        failed.push(`${displayName(u)}: ${(e as Error).message}`);
       }
     }
     if (failed.length) {
@@ -85,14 +86,13 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
     <li className={`card flex flex-col gap-2 p-3 ${selected ? 'ring-2 ring-brand-500' : ''}`}>
       <div className="flex items-center gap-3">
         <label className="flex h-11 w-8 shrink-0 cursor-pointer items-center justify-center">
-          <input type="checkbox" className="h-5 w-5 accent-brand-700" checked={selected} onChange={onToggle} aria-label={`Select ${u.name ?? u.email}`} />
+          <input type="checkbox" className="h-5 w-5 accent-brand-700" checked={selected} onChange={onToggle} aria-label={`Select ${displayName(u)}`} />
         </label>
         <Avatar u={u} />
         <div className="min-w-0 flex-1">
           <Link to={`/admin/student/${u.id}`} className="block truncate font-semibold text-brand-700" dir="auto">
-            {u.name ?? u.email}
+            {displayName(u)}
           </Link>
-          <div className="truncate text-sm text-slate-500">{u.email}</div>
           {u.status === 'pending' && (
             <div className="text-sm text-slate-600" dir="auto">
               {u.signupComplete ? (requestedName ? `Requested: ${requestedName}` : 'Their requested class no longer exists. Pick one below.') : 'Has not entered their name/class yet'}
@@ -110,7 +110,7 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
           </button>
           <button
             className="btn-ghost text-red-600"
-            onClick={async () => (await confirm({ title: `Reject ${u.name ?? u.email}?`, message: 'They stay blocked until you approve them.', confirmLabel: 'Reject', danger: true })) && run(rejectUser(u.id, actor))}
+            onClick={async () => (await confirm({ title: `Reject ${displayName(u)}?`, message: 'They stay blocked until you approve them.', confirmLabel: 'Reject', danger: true })) && run(rejectUser(u.id, actor))}
           >
             Reject
           </button>
@@ -123,7 +123,7 @@ function UserRow({ u, classes, actor, selected, onToggle }: { u: UserProfile; cl
           </div>
           <button
             className="btn-ghost"
-            onClick={async () => (await confirm({ title: `Deactivate ${u.name ?? u.email}?`, message: 'They lose access until you reactivate them. Their data is kept.', confirmLabel: 'Deactivate', danger: true })) && run(deactivateUser(u.id, actor))}
+            onClick={async () => (await confirm({ title: `Deactivate ${displayName(u)}?`, message: 'They lose access until you reactivate them. Their data is kept.', confirmLabel: 'Deactivate', danger: true })) && run(deactivateUser(u.id, actor))}
           >
             Deactivate
           </button>
@@ -237,7 +237,7 @@ export function Students() {
   const everyone = useMemo(() => users.data.filter((u) => u.id !== profile.id), [users.data, profile.id]);
   if (users.loading || classes.loading) return <Spinner />;
   const q = filter.trim().toLowerCase();
-  const list = everyone.filter((u) => !q || `${u.name ?? ''} ${u.email}`.toLowerCase().includes(q));
+  const list = everyone.filter((u) => !q || (u.name ?? '').toLowerCase().includes(q));
   const pending = list.filter((u) => u.status === 'pending');
   const active = list.filter((u) => u.status === 'active');
   const other = list.filter((u) => u.status === 'inactive' || u.status === 'rejected');
@@ -281,7 +281,7 @@ export function Students() {
 
   return (
     <div className={`flex flex-col gap-5 ${selected.length ? 'pb-56' : ''}`}>
-      <input className="input" placeholder="Search name or email" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <input className="input" placeholder="Search name" value={filter} onChange={(e) => setFilter(e.target.value)} />
       {users.error && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Could not load students: {users.error.message}</div>}
       {classes.data.length === 0 && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">

@@ -15,6 +15,7 @@ import { studentWeek } from '../../lib/reports';
 import { bestStreak, currentStreak, dayStats, pct, scheduledFor } from '../../lib/scoring';
 import { ClassSelect, useDeleteUsers } from './Students';
 import { describeChange } from '../student/Messages';
+import { displayName } from '../../lib/display';
 
 function when(ts?: { toDate(): Date } | null) {
   return ts ? ts.toDate().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'pending sync';
@@ -65,10 +66,10 @@ export function StudentDetail() {
           {student.photoURL && <img src={student.photoURL} alt="" className="h-12 w-12 rounded-full" referrerPolicy="no-referrer" />}
           <div className="min-w-0 flex-1">
             <div className="truncate text-lg font-bold" dir="auto">
-              {student.name ?? student.email}
+              {displayName(student)}
             </div>
             <div className="truncate text-sm text-slate-500">
-              {student.email} · {student.status}
+              {student.status}
             </div>
           </div>
         </div>
