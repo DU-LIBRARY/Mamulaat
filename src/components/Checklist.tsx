@@ -125,22 +125,28 @@ function MamoolRow({
       <span className="sr-only" aria-live="polite">
         {m.name}: {statusText(entry, m)}
       </span>
-      <div className="grid grid-cols-3 gap-2" role="group" aria-label={`${m.name} status`}>
-        {(Object.keys(STATUS) as EntryStatus[]).map((s) => (
-          <button
-            key={s}
-            type="button"
-            disabled={!editable}
-            onClick={() => set(s)}
-            aria-pressed={status === s}
-            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-              status === s ? STATUS[s].on : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            {STATUS[s].icon}
-            {STATUS[s].label}
-          </button>
-        ))}
+      <div className="grid grid-cols-[2fr_1fr_1fr] gap-2" role="group" aria-label={`${m.name} status`}>
+        {(Object.keys(STATUS) as EntryStatus[]).map((s) => {
+          const main = s === 'done';
+          const idle = main
+            ? 'border-brand-700 bg-white text-brand-800 hover:bg-brand-50'
+            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50';
+          return (
+            <button
+              key={s}
+              type="button"
+              disabled={!editable}
+              onClick={() => set(s)}
+              aria-pressed={status === s}
+              className={`inline-flex min-h-11 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                main ? 'gap-1.5 text-[15px] font-semibold' : 'gap-1 text-xs font-medium'
+              } ${status === s ? STATUS[s].on : idle}`}
+            >
+              {STATUS[s].icon}
+              {STATUS[s].label}
+            </button>
+          );
+        })}
       </div>
       {editingPartial && (
         <div className="mt-3 flex items-center gap-2">
