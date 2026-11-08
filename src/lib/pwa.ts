@@ -147,3 +147,44 @@ export function isStandalone(): boolean {
     (navigator as Navigator & { standalone?: boolean }).standalone === true
   );
 }
+
+// ---------- Install ("Add to Home screen") ----------
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+let installEvent: BeforeInstallPromptEvent | null = null;
+const installListeners = new Set<() => void>();
+const notifyInstall = () => installListeners.forEach((l) => l());
+
+if (typeof window !== 'undefined') {
+  // Chrome / Edge / Samsung Internet on Android fire this when the app can be installed.
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installEvent = e as BeforeInstallPromptEvent;
+    notifyInstall();
+  });
+  window.addEventListener('appinstalled', () => {
+    installEvent = null;
+    notifyInstall();
+  });
+}
+
+export const canPromptInstall = () => installEvent !== null;
+export function subscribeInstall(l: () => void) {
+  installListeners.add(l);
+  return () => installListeners.delete(l);
+}
+/** Show the browser's own install dialog. Resolves true if the person accepted. */
+export async function promptInstall(): Promise<boolean> {
+  const e = installEvent;
+  if (!e) return false;
+  installEvent = null; // the event can only be used once
+  notifyInstall();
+  await e.prompt();
+  return (await e.userChoice).outcome === 'accepted';
+}
+
+export function isAndroid(): boolean {
+  return /Android/i.test(navigator.userAgent);
+}
