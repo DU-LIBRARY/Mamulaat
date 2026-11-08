@@ -59,7 +59,7 @@ export function MyMamool() {
       <section aria-labelledby="my-today">
         <h2 id="my-today" className="section-title">My mamool today</h2>
         {todays.length ? (
-          <Checklist uid={profile.id} day={today} mamoolaat={todays} log={todayLog} editable self={actor} />
+          <Checklist uid={profile.id} day={today} mamoolaat={todays} log={todayLog} editable self={actor} compact />
         ) : (
           <EmptyState>{all.length ? 'Nothing is set for today.' : 'You have no mamool yet. Add your first one below.'}</EmptyState>
         )}

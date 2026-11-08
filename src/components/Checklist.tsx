@@ -42,12 +42,14 @@ function MamoolRow({
   entry,
   editable,
   showPercent,
+  compact,
   onChange,
 }: {
   m: Mamool;
   entry: LogEntry | undefined;
   editable: boolean;
   showPercent: boolean;
+  compact?: boolean;
   onChange: (e: LogEntry | null) => void;
 }) {
   const undo = useUndo();
@@ -90,6 +92,96 @@ function MamoolRow({
     else if (a <= 0) onChange({ status: 'missed', amount: 0, target: m.target });
     else onChange({ status: 'partial', amount: a, target: m.target });
   };
+
+  if (compact) {
+    return (
+      <li className={`relative px-3 py-2 before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[15px] leading-tight font-medium text-slate-900" dir="auto" title={m.name}>
+              {m.name}
+            </div>
+            <div className="num truncate text-xs text-slate-500" dir="auto">
+              {status === 'partial' && entry ? (
+                <>
+                  <span className="font-medium text-amber-800">{fmt(entry.amount)}</span> of {targetLabel(m)}
+                </>
+              ) : (
+                targetLabel(m)
+              )}
+            </div>
+          </div>
+          <span className="sr-only" aria-live="polite">
+            {m.name}: {statusText(entry, m)}
+          </span>
+          <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label={`${m.name} status`}>
+            {editable && isCounted(m) && status !== 'done' && (
+              <button
+                type="button"
+                onClick={bump}
+                className="num inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-brand-200 bg-brand-50 px-2 text-sm font-semibold text-brand-800 hover:border-brand-500"
+                aria-label={`Add 1 to ${m.name} (now ${entry ? fmt(entry.status === 'done' ? m.target : entry.amount) : 0} of ${targetLabel(m)})`}
+              >
+                +1
+              </button>
+            )}
+            {(Object.keys(STATUS) as EntryStatus[]).map((s) => {
+              const main = s === 'done';
+              const idle = main
+                ? 'border-brand-700 bg-white text-brand-800 hover:bg-brand-50'
+                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50';
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={!editable}
+                  onClick={() => set(s)}
+                  aria-pressed={status === s}
+                  aria-label={STATUS[s].label}
+                  title={STATUS[s].label}
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                    status === s ? STATUS[s].on : idle
+                  }`}
+                >
+                  {STATUS[s].icon}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      {editingPartial && (
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl"
+            aria-label={`Less ${m.name}`}
+            onClick={() => setAmount(String(Math.max(0, (Number(amount) || 0) - 1)))}
+          >
+            −
+          </button>
+          <input
+            id={amountId}
+            className="input num text-center text-lg"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            aria-label={`Amount of ${m.name}`}
+            autoFocus
+          />
+          <button type="button" className="btn-secondary h-11 w-11 shrink-0 px-0 text-xl" aria-label={`More ${m.name}`} onClick={() => setAmount(String((Number(amount) || 0) + 1))}>
+            +
+          </button>
+          <button type="button" className="btn-primary shrink-0" onClick={savePartial}>
+            Save
+          </button>
+        </div>
+      )}
+      </li>
+    );
+  }
 
   return (
     <li className={`relative px-4 py-3.5 before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
@@ -190,6 +282,7 @@ export function Checklist({
   editable,
   asAdmin,
   self,
+  compact,
 }: {
   uid: string;
   day: string;
@@ -200,6 +293,8 @@ export function Checklist({
   asAdmin?: Actor;
   /** When the admin logs their OWN mamool (stamped as themselves, not audited). */
   self?: Actor;
+  /** One line per mamool: name on the left, status buttons on the right. */
+  compact?: boolean;
 }) {
   const undo = useUndo();
   const remaining = mamoolaat.filter((m) => !log?.entries?.[m.id]);
@@ -233,6 +328,7 @@ export function Checklist({
             entry={log?.entries?.[m.id]}
             editable={editable}
             showPercent={!!asAdmin}
+            compact={compact}
             onChange={(e) => (asAdmin ? adminSaveEntry(uid, day, m, e, asAdmin) : saveEntry(uid, day, m.id, e, self))}
           />
         ))}
