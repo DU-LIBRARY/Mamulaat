@@ -238,6 +238,8 @@ There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists
 
 **Class mamoolaat (templates).** Admin → Classes → *Mamoolaat* sets a standard list for a class. It is **added** to each student's own list, never replacing it: automatically when a student is approved into that class, or for the whole class with *Add to all students now*. Anything a student already has with the same name is skipped; the rest are recorded as changes the student sees in their Inbox. Students keep their own items and can remove, rename or reorder anything that overlaps (likely doubles are pointed out under *My mamoolaat*).
 
+**The admin's own mamool.** The admin's landing page (**Mine**, `/admin`) is their own mamool: today's checklist at the top to mark it, and a small **Add / edit** tab underneath to add, edit, reorder or remove items. It's stored under the admin's own `users/{uid}` like a student's. The admin's own log writes carry their `editedBy` stamp (the rules require it for every admin log write) and are not audited. The class overview moved to **Overview** (`/admin/overview`).
+
 **Exports.** Week CSV, Month CSV and a print-friendly page are on Overview (whole madrassah), each class's week view, and each student's Weekly tab.
 
 **Undo.** Small, reversible actions (removing a mamool, clearing an entry, *Mark all done*, deleting a comment/history entry/day log) show an Undo bar instead of an "Are you sure?" dialog. Big ones (deleting a student, deactivating, transferring admin) still ask first.

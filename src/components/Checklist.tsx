@@ -189,6 +189,7 @@ export function Checklist({
   log,
   editable,
   asAdmin,
+  self,
 }: {
   uid: string;
   day: string;
@@ -197,6 +198,8 @@ export function Checklist({
   editable: boolean;
   /** When the admin edits a student's day: the edit is stamped and audited. */
   asAdmin?: Actor;
+  /** When the admin logs their OWN mamool (stamped as themselves, not audited). */
+  self?: Actor;
 }) {
   const undo = useUndo();
   const remaining = mamoolaat.filter((m) => !log?.entries?.[m.id]);
@@ -207,8 +210,8 @@ export function Checklist({
       prev[m.id] = undefined;
       next[m.id] = { status: 'done', amount: m.target, target: m.target };
     }
-    saveEntries(uid, day, next);
-    undo.undoable(`Marked ${remaining.length} done`, () => restoreEntries(uid, day, prev));
+    saveEntries(uid, day, next, self);
+    undo.undoable(`Marked ${remaining.length} done`, () => restoreEntries(uid, day, prev, self));
   };
   return (
     <div className="flex flex-col gap-2">
@@ -230,7 +233,7 @@ export function Checklist({
             entry={log?.entries?.[m.id]}
             editable={editable}
             showPercent={!!asAdmin}
-            onChange={(e) => (asAdmin ? adminSaveEntry(uid, day, m, e, asAdmin) : saveEntry(uid, day, m.id, e))}
+            onChange={(e) => (asAdmin ? adminSaveEntry(uid, day, m, e, asAdmin) : saveEntry(uid, day, m.id, e, self))}
           />
         ))}
       </ul>

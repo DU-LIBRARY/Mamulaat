@@ -109,7 +109,16 @@ export function touchLastSeen(uid: string) {
 /** Student writes clear any "edited by the teacher" stamp (the rules require it). */
 const CLEAR_STAMP = { editedBy: deleteField(), editedByName: deleteField() };
 
-export function saveEntry(uid: string, day: string, mamoolId: string, entry: LogEntry | null) {
+/**
+ * The stamp for a log write. Students clear it. The admin logging their OWN mamool
+ * passes `self` (their Actor): the rules require every admin log write to carry the
+ * admin's own `editedBy`, so it is stamped, but nothing is audited.
+ */
+function stamp(self?: Actor) {
+  return self ? { editedBy: self.uid, editedByName: self.name.slice(0, 200) } : CLEAR_STAMP;
+}
+
+export function saveEntry(uid: string, day: string, mamoolId: string, entry: LogEntry | null, self?: Actor) {
   fire(
     setDoc(
       logRef(uid, day),
@@ -117,25 +126,25 @@ export function saveEntry(uid: string, day: string, mamoolId: string, entry: Log
         date: day,
         entries: { [mamoolId]: entry ?? deleteField() },
         updatedAt: serverTimestamp(),
-        ...CLEAR_STAMP,
+        ...stamp(self),
       },
       { merge: true },
     ),
   );
 }
 
-export function saveEntries(uid: string, day: string, entries: Record<string, LogEntry>) {
-  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true }));
+export function saveEntries(uid: string, day: string, entries: Record<string, LogEntry>, self?: Actor) {
+  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...stamp(self) }, { merge: true }));
 }
 
 /**
  * Put a day's entries back to exactly `prev` for the given mamoolaat (used by Undo):
  * entries that did not exist before are removed again.
  */
-export function restoreEntries(uid: string, day: string, prev: Record<string, LogEntry | undefined>) {
+export function restoreEntries(uid: string, day: string, prev: Record<string, LogEntry | undefined>, self?: Actor) {
   const entries: Record<string, unknown> = {};
   for (const [id, e] of Object.entries(prev)) entries[id] = e ?? deleteField();
-  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true }));
+  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...stamp(self) }, { merge: true }));
 }
 
 /** Admin edits one entry of any student's log for ANY day. The log is stamped with who edited it, and audited. */

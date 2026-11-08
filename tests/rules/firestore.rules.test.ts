@@ -404,6 +404,30 @@ describe('admin edits student logs (any day)', () => {
   });
 });
 
+describe("admin's own mamool", () => {
+  it('admin can add their own mamool and log it (stamped as themselves, merge write like the app)', async () => {
+    const f = db(ADMIN);
+    await assertSucceeds(
+      setDoc(doc(f, `users/${ADMIN}/mamoolaat/mine`), {
+        name: 'Quran', target: 1, unit: 'juz', active: true, order: 0,
+        createdBy: ADMIN, createdAt: serverTimestamp(), createdDate: today,
+        removedDate: null, updatedBy: ADMIN, updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(f, `users/${ADMIN}/logs/${today}`),
+        { date: today, entries: { mine: { status: 'done', amount: 1, target: 1 } }, updatedAt: serverTimestamp(), editedBy: ADMIN, editedByName: 'Admin' },
+        { merge: true },
+      ),
+    );
+  });
+
+  it('a student-style (unstamped) write from the admin is still refused', async () => {
+    await assertFails(setDoc(doc(db(ADMIN), `users/${ADMIN}/logs/${today}`), logDoc(today)));
+  });
+});
+
 describe('admin edits profiles and classes', () => {
   it('admin can rename, move, deactivate and put a student back to pending', async () => {
     const f = db(ADMIN);

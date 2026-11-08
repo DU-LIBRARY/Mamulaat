@@ -18,6 +18,7 @@ import { Messages } from './pages/student/Messages';
 import { ManageMamoolaat } from './pages/student/ManageMamoolaat';
 import { Me } from './pages/student/Me';
 import { Overview } from './pages/admin/Overview';
+import { MyMamool } from './pages/admin/MyMamool';
 import { Classes } from './pages/admin/Classes';
 import { ClassView } from './pages/admin/ClassView';
 import { Students } from './pages/admin/Students';
@@ -110,7 +111,8 @@ function AdminRoutes() {
     <AdminLayout pending={pending}>
       {toast && <Toast text={toast} onClose={() => setToast(null)} />}
       <Routes>
-        <Route path="/admin" element={<Overview />} />
+        <Route path="/admin" element={<MyMamool />} />
+        <Route path="/admin/overview" element={<Overview />} />
         <Route path="/admin/classes" element={<Classes />} />
         <Route path="/admin/class/:classId" element={<ClassView />} />
         <Route path="/admin/students" element={<Students />} />
