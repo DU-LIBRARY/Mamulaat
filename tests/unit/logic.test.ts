@@ -161,3 +161,29 @@ describe('exports', () => {
     expect(rows.at(-1)).toEqual(['ALL', '', 100, 25, '', 63]);
   });
 });
+
+describe('cleared / unlogged days are not shown as 0', () => {
+  it('does not count today in the week until something is logged', async () => {
+    const { periodCompletion, mamoolCompletion } = await import('../../src/lib/scoring');
+    const { studentWeek } = await import('../../src/lib/reports');
+    const q = m('q', '2026-11-01');
+    const days = ['2026-11-06', '2026-11-07'];
+    const logs = logsByDay([log('2026-11-06', { q: { status: 'done', amount: 10, target: 10 } })]);
+    // today (11-07) has nothing logged: week stays 100%, not 50%
+    expect(periodCompletion(days, logs, [q], '2026-11-07')).toBe(1);
+    expect(mamoolCompletion(q, days, logs, '2026-11-07', [q])).toBe(1);
+    // a cleared day (log doc with no entries) behaves the same as no log
+    const cleared = logsByDay([...logs.values(), log('2026-11-07', {})]);
+    expect(periodCompletion(days, cleared, [q], '2026-11-07')).toBe(1);
+    const w = studentWeek({ id: 's' } as UserProfile, days, [q], cleared, '2026-11-07');
+    expect(w.days.map((d) => d.hasLog)).toEqual([true, false]);
+    expect(w.perMamool[0].logged).toEqual([true, false]);
+    // past days with nothing logged still count as 0
+    expect(periodCompletion(days, logsByDay([]), [q], '2026-11-08')).toBe(0);
+  });
+  it('a mamool added and removed the same day never counts', () => {
+    const x = m('x', '2026-11-07', { active: false, removedDate: '2026-11-07' });
+    expect(scheduledFor('2026-11-07', [x])).toEqual([]);
+    expect(dayStats('2026-11-07', undefined, [x]).scheduled).toBe(0);
+  });
+});

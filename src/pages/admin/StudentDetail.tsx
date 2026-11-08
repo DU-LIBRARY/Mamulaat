@@ -149,8 +149,8 @@ export function StudentDetail() {
 
   const rows: GridRow[] = week
     ? [
-        ...week.perMamool.map((pm) => ({ key: pm.mamool.id, label: pm.mamool.name, cells: pm.cells, total: pm.completion })),
-        { key: '__all', label: <b>All</b>, cells: week.days.map((x) => x.completion), total: week.completion },
+        ...week.perMamool.map((pm) => ({ key: pm.mamool.id, label: pm.mamool.name, cells: pm.cells, logged: pm.logged, total: pm.completion })),
+        { key: '__all', label: <b>All</b>, cells: week.days.map((x) => x.completion), logged: week.days.map((x) => x.hasLog), total: week.completion },
       ]
     : [];
   const setAnchor = (v: string) => {
@@ -179,7 +179,7 @@ export function StudentDetail() {
       <StatRow>
         <Stat label="Streak" value={currentStreak(today, data.logs, data.all)} sub={`Best ${bestStreak(today, data.logs, data.all)}`} />
         <Stat label="This week" value={pct(week?.completion)} sub={`${week?.fullDays ?? 0} full days`} />
-        <Stat label="Logged" value={[...data.logs.keys()].filter((d) => d <= today).length} sub="days in total" />
+        <Stat label="Logged" value={[...data.logs.entries()].filter(([d, l]) => d <= today && dayStats(d, l, data.all).hasLog).length} sub="days in total" />
       </StatRow>
 
       <div className="no-print -mx-4 flex overflow-x-auto border-b border-slate-200 px-4" role="tablist" aria-label="Student sections">
@@ -258,7 +258,7 @@ export function StudentDetail() {
             ) : (
               <EmptyState>No mamoolaat were set for this day.</EmptyState>
             )}
-            {log && !hidden.has(`log:${dayId}`) && (
+            {log && Object.keys(log.entries ?? {}).length > 0 && !hidden.has(`log:${dayId}`) && (
               <button className="btn-ghost text-red-700" onClick={() => later(`log:${dayId}`, `Cleared ${formatGregorian(dayId, { year: undefined })}`, () => adminDeleteLog(uid, dayId, actor))}>
                 Clear this day's log
               </button>
