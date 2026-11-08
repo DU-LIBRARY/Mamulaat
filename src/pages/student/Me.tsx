@@ -11,6 +11,7 @@ import type { ClassDoc } from '../../types';
 import { IconChevronRight } from '../../components/icons';
 import { Notice } from '../../components/ui';
 import { ThemePicker } from '../../components/ThemePicker';
+import { InstallApp } from '../../components/InstallApp';
 
 export function Me() {
   const { profile, settings, signOut } = useActiveSession();
@@ -131,6 +132,8 @@ export function Me() {
           If notifications aren't available, you'll still see a reminder banner when you open the app and haven't logged.
         </p>
       </section>
+
+      <InstallApp />
 
       <ThemePicker />
 

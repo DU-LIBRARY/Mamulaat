@@ -8,6 +8,7 @@ import { Notice } from '../../components/ui';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
 import type { AppSettings } from '../../types';
 import { ThemePicker } from '../../components/ThemePicker';
+import { InstallApp } from '../../components/InstallApp';
 import { displayName } from '../../lib/display';
 
 const TIMEZONES: string[] = (() => {
@@ -270,6 +271,8 @@ export function AdminSettings() {
         <span className="font-semibold">Audit log</span>
         <span aria-hidden>›</span>
       </Link>
+
+      <InstallApp />
 
       <ThemePicker />
       <AdminNotifications />
