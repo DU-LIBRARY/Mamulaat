@@ -61,7 +61,7 @@ export function SegmentBar({ fractions, className = '' }: { fractions: number[];
       {fractions.map((f, i) => (
         <span key={i} className="relative h-1.5 flex-1 overflow-hidden rounded-[2px] bg-slate-200">
           <span
-            className={`absolute inset-y-0 left-0 ${f >= 1 ? 'bg-brand-700' : 'bg-amber-600'} transition-[width] duration-300`}
+            className={`absolute inset-y-0 left-0 ${f >= 1 ? 'bg-primary' : 'bg-amber-600'} transition-[width] duration-300`}
             style={{ width: `${Math.max(0, Math.min(1, f)) * 100}%` }}
           />
         </span>
@@ -72,7 +72,7 @@ export function SegmentBar({ fractions, className = '' }: { fractions: number[];
 
 /** A row of figures divided by hairlines — one surface, not a grid of cards. */
 export function StatRow({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`flex divide-x divide-slate-200 rounded-lg border border-slate-200 bg-white ${className}`}>{children}</div>;
+  return <div className={`flex divide-x divide-slate-200 rounded-lg border border-slate-200 bg-surface ${className}`}>{children}</div>;
 }
 
 export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
@@ -88,7 +88,7 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 /** Kept for existing call sites; renders as a single flat figure. */
 export function StatCard({ label, value, sub }: { icon?: string; label: string; value: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white">
+    <div className="rounded-lg border border-slate-200 bg-surface">
       <Stat label={label} value={value} sub={sub} />
     </div>
   );
@@ -97,7 +97,7 @@ export function StatCard({ label, value, sub }: { icon?: string; label: string; 
 /** Colour scale for completion cells. */
 export function cellClass(f: number | null | undefined): string {
   if (f == null) return 'bg-slate-100 text-slate-500';
-  if (f >= 1) return 'bg-brand-700 text-white';
+  if (f >= 1) return 'bg-primary text-white';
   if (f >= 0.75) return 'bg-brand-300 text-brand-900';
   if (f >= 0.5) return 'bg-brand-100 text-brand-900';
   if (f > 0) return 'bg-amber-100 text-amber-900';
@@ -124,7 +124,7 @@ export function Notice({
     neutral: 'border-slate-200 bg-slate-50 text-slate-700',
     info: 'border-brand-100 bg-brand-50 text-brand-900',
     warn: 'border-amber-200 bg-amber-50 text-amber-900',
-    teacher: 'border-gold-400/50 bg-[#fbf6e9] text-[#5b4512]',
+    teacher: 'border-gold-400/50 bg-gold-50 text-gold-900',
   }[tone];
   return (
     <div className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm ${cls}`}>

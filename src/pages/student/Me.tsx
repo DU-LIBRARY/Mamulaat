@@ -10,6 +10,7 @@ import { isIOS, isStandalone } from '../../lib/pwa';
 import type { ClassDoc } from '../../types';
 import { IconChevronRight } from '../../components/icons';
 import { Notice } from '../../components/ui';
+import { ThemePicker } from '../../components/ThemePicker';
 
 export function Me() {
   const { profile, settings, signOut } = useActiveSession();
@@ -98,7 +99,7 @@ export function Me() {
             aria-checked={profile.reminderEnabled}
             disabled={busy}
             onClick={toggle}
-            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${profile.reminderEnabled ? 'bg-brand-700' : 'bg-slate-300'}`}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${profile.reminderEnabled ? 'bg-primary' : 'bg-slate-300'}`}
           >
             <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-[left] ${profile.reminderEnabled ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
@@ -130,6 +131,8 @@ export function Me() {
           If notifications aren't available, you'll still see a reminder banner when you open the app and haven't logged.
         </p>
       </section>
+
+      <ThemePicker />
 
       <PrivacyNote />
 

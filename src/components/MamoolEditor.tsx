@@ -133,7 +133,7 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                     </div>
                     <div className="text-sm text-slate-500" dir="auto">
                       {targetLabel(m)}
-                      {m.createdBy !== uid && <span className="chip ml-2 bg-[#fbf6e9] text-[#5b4512]">Added by {byAdmin ? 'admin' : 'your teacher'}</span>}
+                      {m.createdBy !== uid && <span className="chip ml-2 bg-gold-50 text-gold-900">Added by {byAdmin ? 'admin' : 'your teacher'}</span>}
                     </div>
                     {overlaps.has(m.id) && (
                       <div className="mt-1 text-xs text-amber-800" dir="auto">
@@ -169,7 +169,7 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
             <div className="mb-2 text-xs text-slate-500">Common mamoolaat</div>
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.filter((s) => !active.some((m) => m.name === s.name)).map((s, i) => (
-                <button key={s.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 hover:border-brand-500 hover:text-brand-800" dir="auto" onClick={() => addMamool(uid, s, nextOrder + i, today, actor)}>
+                <button key={s.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-3 text-sm text-slate-700 hover:border-brand-500 hover:text-brand-800" dir="auto" onClick={() => addMamool(uid, s, nextOrder + i, today, actor)}>
                   <IconPlus size={14} className="text-slate-400" />{s.name} {s.unit || s.target !== 1 ? <span className="text-slate-500">{targetLabel(s)}</span> : ''}
                 </button>
               ))}

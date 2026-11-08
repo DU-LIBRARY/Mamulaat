@@ -7,6 +7,7 @@ import { pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type
 import { Notice } from '../../components/ui';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
 import type { AppSettings } from '../../types';
+import { ThemePicker } from '../../components/ThemePicker';
 import { displayName } from '../../lib/display';
 
 const TIMEZONES: string[] = (() => {
@@ -114,7 +115,7 @@ function AdminNotifications() {
           aria-labelledby="admin-notif-label"
           disabled={busy}
           onClick={toggle}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-brand-700' : 'bg-slate-300'}`}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-primary' : 'bg-slate-300'}`}
         >
           <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-[left] ${on ? 'left-[22px]' : 'left-0.5'}`} />
         </button>
@@ -270,6 +271,7 @@ export function AdminSettings() {
         <span aria-hidden>›</span>
       </Link>
 
+      <ThemePicker />
       <AdminNotifications />
       <PasswordSignIn />
       <TransferAdmin />

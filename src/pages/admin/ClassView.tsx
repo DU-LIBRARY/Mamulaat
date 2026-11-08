@@ -86,9 +86,9 @@ export function ClassView() {
         <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-slate-900" dir="auto">
           {cls.name}
         </h1>
-        <div className="no-print flex rounded-md border border-slate-200 bg-white p-0.5" role="group" aria-label="View">
+        <div className="no-print flex rounded-md border border-slate-200 bg-surface p-0.5" role="group" aria-label="View">
           {(['day', 'week'] as const).map((v) => (
-            <button key={v} aria-pressed={view === v} className={`btn min-h-9 rounded px-4 text-sm ${view === v ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
+            <button key={v} aria-pressed={view === v} className={`btn min-h-9 rounded px-4 text-sm ${view === v ? 'bg-ink text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
               {v === 'day' ? 'Day' : 'Week'}
             </button>
           ))}
@@ -158,7 +158,7 @@ export function ClassView() {
             {students.length > 0 && <ExportBar week={exportWeek} month={exportMonth} monthLabel={formatMonth(date)} />}
           </div>
           {students.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-2">
+            <div className="rounded-lg border border-slate-200 bg-surface p-2">
               <WeekGrid days={days} rows={gridRows} today={today} firstHeader="Student" />
             </div>
           )}

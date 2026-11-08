@@ -83,7 +83,7 @@ export function Waiting({ profile }: { profile: UserProfile }) {
       <Wordmark className="mb-10" />
       <h1 className="text-2xl font-semibold tracking-[-0.015em] text-slate-900">{c.title}</h1>
       <p className="mt-2 max-w-sm leading-relaxed text-slate-600">{c.body}</p>
-      <div className="mt-6 flex w-full max-w-sm items-center gap-3 rounded-lg border border-slate-200 bg-white p-3">
+      <div className="mt-6 flex w-full max-w-sm items-center gap-3 rounded-lg border border-slate-200 bg-surface p-3">
         {profile.photoURL && <img src={profile.photoURL} alt="" className="h-10 w-10 rounded-full" referrerPolicy="no-referrer" />}
         <div className="text-left">
           <div className="font-medium text-slate-900">{profile.name}</div>

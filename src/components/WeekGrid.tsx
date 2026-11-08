@@ -22,7 +22,7 @@ export function WeekGrid({ days, rows, today, firstHeader }: { days: string[]; r
         </caption>
         <thead>
           <tr>
-            <th scope="col" className="sticky left-0 z-10 bg-white text-left font-medium text-slate-500">{firstHeader}</th>
+            <th scope="col" className="sticky left-0 z-10 bg-surface text-left font-medium text-slate-500">{firstHeader}</th>
             {days.map((d) => (
               <th scope="col" key={d} className={`min-w-7 font-medium ${d === today ? 'text-brand-700' : 'text-slate-500'}`}>
                 <div>{shortDay(d)}</div>
@@ -35,7 +35,7 @@ export function WeekGrid({ days, rows, today, firstHeader }: { days: string[]; r
         <tbody>
           {rows.map((r) => (
             <tr key={r.key}>
-              <th scope="row" className="sticky left-0 z-10 max-w-24 truncate bg-white pr-2 text-left text-sm font-normal text-slate-800" dir="auto">
+              <th scope="row" className="sticky left-0 z-10 max-w-24 truncate bg-surface pr-2 text-left text-sm font-normal text-slate-800" dir="auto">
                 {r.to ? (
                   <Link to={r.to} className="text-brand-700 underline-offset-2 hover:underline">
                     {r.label}

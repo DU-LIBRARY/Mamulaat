@@ -59,7 +59,7 @@ export function Week() {
         <Stat label="Complete" value={pct(completion)} />
         <Stat label="Full days" value={fullDays} />
       </StatRow>
-      <div className="rounded-lg border border-slate-200 bg-white p-2">
+      <div className="rounded-lg border border-slate-200 bg-surface p-2">
         <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" />
       </div>
       <p className="text-xs text-slate-500">

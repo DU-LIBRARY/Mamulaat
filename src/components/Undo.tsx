@@ -75,7 +75,7 @@ export function UndoProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="update-prompt fixed inset-x-3 z-[65] mx-auto max-w-md" role="status" aria-live="polite">
         {toast && (
-          <div key={toast.id} className="flex items-center gap-3 rounded-lg bg-slate-900 py-2 pr-2 pl-4 text-white shadow-lg">
+          <div key={toast.id} className="flex items-center gap-3 rounded-lg bg-ink py-2 pr-2 pl-4 text-white shadow-lg">
             <span className="flex-1 text-sm" dir="auto">
               {toast.message}
             </span>

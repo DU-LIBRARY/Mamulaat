@@ -19,7 +19,7 @@ export function SignIn() {
         <DateLine day={today} className="mt-6 border-t border-slate-200 pt-4 text-slate-700" />
 
         <button
-          className="btn mt-8 w-full border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+          className="btn mt-8 w-full border border-slate-300 bg-surface text-slate-800 hover:bg-slate-50"
           disabled={busy}
           onClick={async () => {
             setBusy(true);

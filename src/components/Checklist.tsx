@@ -24,7 +24,7 @@ function statusText(e: LogEntry | undefined, m: Pick<Mamool, 'target' | 'unit'>)
 const isCounted = (m: Pick<Mamool, 'target'>) => m.target > 1;
 
 const STATUS: Record<EntryStatus, { label: string; icon: ReactNode; on: string }> = {
-  done: { label: 'Done', icon: <IconCheck size={18} />, on: 'bg-brand-700 text-white border-brand-700' },
+  done: { label: 'Done', icon: <IconCheck size={18} />, on: 'bg-primary text-white border-primary' },
   partial: { label: 'Partly', icon: <IconHalf size={16} />, on: 'bg-amber-100 text-amber-900 border-amber-300' },
   missed: { label: 'Missed', icon: <IconX size={16} />, on: 'bg-red-50 text-red-800 border-red-200' },
 };
@@ -38,7 +38,7 @@ const COMPACT_ICON: Record<EntryStatus, ReactNode> = {
 
 /** Left-edge mark showing the row's state at a glance. */
 function edge(status: EntryStatus | undefined) {
-  if (status === 'done') return 'before:bg-brand-700';
+  if (status === 'done') return 'before:bg-primary';
   if (status === 'partial') return 'before:bg-amber-500';
   if (status === 'missed') return 'before:bg-red-400';
   return 'before:bg-transparent';
@@ -125,8 +125,8 @@ function MamoolRow({
             {(Object.keys(STATUS) as EntryStatus[]).map((s) => {
               const main = s === 'done';
               const idle = main
-                ? 'border-brand-700 bg-white text-brand-800 hover:bg-brand-50'
-                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50';
+                ? 'border-brand-700 bg-surface text-brand-800 hover:bg-brand-50'
+                : 'border-slate-200 bg-surface text-slate-500 hover:border-slate-300 hover:bg-slate-50';
               return (
                 <button
                   key={s}
@@ -221,8 +221,8 @@ function MamoolRow({
         {(Object.keys(STATUS) as EntryStatus[]).map((s) => {
           const main = s === 'done';
           const idle = main
-            ? 'border-brand-700 bg-white text-brand-800 hover:bg-brand-50'
-            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50';
+            ? 'border-brand-700 bg-surface text-brand-800 hover:bg-brand-50'
+            : 'border-slate-200 bg-surface text-slate-500 hover:border-slate-300 hover:bg-slate-50';
           return (
             <button
               key={s}
@@ -314,7 +314,7 @@ export function Checklist({
         <button
           type="button"
           onClick={markRest}
-          className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-md border border-brand-200 bg-white px-3 text-sm font-medium text-brand-800 hover:border-brand-500 hover:bg-brand-50"
+          className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-md border border-brand-200 bg-surface px-3 text-sm font-medium text-brand-800 hover:border-brand-500 hover:bg-brand-50"
         >
           <IconCheck size={16} />
           {remaining.length === mamoolaat.length ? 'Mark all done' : `Mark the other ${remaining.length} done`}

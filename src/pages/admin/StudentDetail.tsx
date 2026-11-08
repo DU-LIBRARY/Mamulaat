@@ -222,7 +222,7 @@ export function StudentDetail() {
               downloadCsv(`mamulaat-${fileSafe(displayName(student))}-${anchor.slice(0, 7)}.csv`, studentDetailRows(data.all, data.logs, md, today));
             }}
           />
-          <div className="rounded-lg border border-slate-200 bg-white p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
+          <div className="rounded-lg border border-slate-200 bg-surface p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
           <div className="no-print">
             <WeekMamoolaat uid={uid} all={data.all} today={today} actor={actor} />
           </div>

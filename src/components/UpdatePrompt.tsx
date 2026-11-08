@@ -10,9 +10,9 @@ export function UpdatePrompt() {
     // status-bar area (clock, notch/Dynamic Island and its blur) swallows taps, so a
     // banner pinned to the top could be impossible to press.
     <div role="status" className="update-prompt fixed inset-x-3 z-[70] mx-auto max-w-md">
-      <div className="flex items-center gap-3 rounded-lg bg-slate-900 py-2 pr-2 pl-4 text-white shadow-lg">
+      <div className="flex items-center gap-3 rounded-lg bg-ink py-2 pr-2 pl-4 text-white shadow-lg">
         <span className="flex-1 text-sm">A new version of Mamulaat is ready.</span>
-        <button className="btn min-h-9 bg-white px-3 text-sm text-slate-900 hover:bg-slate-100" onClick={() => applyUpdate()}>
+        <button className="btn min-h-9 bg-white px-3 text-sm text-ink hover:bg-white/90" onClick={() => applyUpdate()}>
           Update
         </button>
       </div>

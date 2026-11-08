@@ -37,7 +37,7 @@ export function Messages() {
         ) : (
           <ul className="sheet">
             {comments.map((c) => (
-              <li key={c.id} className={`px-4 py-3.5 ${c.readAt ? '' : 'bg-[#fbf6e9]'}`}>
+              <li key={c.id} className={`px-4 py-3.5 ${c.readAt ? '' : 'bg-gold-50'}`}>
                 <p className="whitespace-pre-wrap text-slate-800" dir="auto">
                   {c.text}
                 </p>
@@ -80,7 +80,7 @@ export function Messages() {
         ) : (
           <ul className="sheet">
             {changes.map((c) => (
-              <li key={c.id} className={`px-4 py-3.5 ${c.seenAt ? '' : 'bg-[#fbf6e9]'}`}>
+              <li key={c.id} className={`px-4 py-3.5 ${c.seenAt ? '' : 'bg-gold-50'}`}>
                 <div dir="auto">{describeChange(c)}</div>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
                   <span>

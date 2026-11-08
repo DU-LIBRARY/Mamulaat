@@ -395,7 +395,7 @@ export function Students() {
             </select>
           </label>
           <button
-            className={`btn min-h-9 border px-3 text-sm ${staleOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+            className={`btn min-h-9 border px-3 text-sm ${staleOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
             aria-pressed={staleOnly}
             onClick={() => setStaleOnly((v) => !v)}
           >

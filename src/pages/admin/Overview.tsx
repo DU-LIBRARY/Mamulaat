@@ -91,12 +91,12 @@ export function Overview() {
       </StatRow>
 
       {pending.length > 0 && (
-        <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gold-400/50 bg-[#fbf6e9] px-4 py-3 text-[#5b4512]">
+        <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gold-400/50 bg-gold-50 px-4 py-3 text-gold-900">
           <Link to="/admin/students" className="underline decoration-gold-400 underline-offset-4">
             <b className="font-semibold">{pending.length}</b> sign-up{pending.length > 1 ? 's' : ''} waiting for approval
           </Link>
           {readyToApprove.length > 0 && (
-            <button className="btn min-h-9 border border-gold-400 bg-white px-3 text-sm text-[#5b4512] hover:bg-[#fffaf0]" onClick={() => approveAll(readyToApprove)}>
+            <button className="btn min-h-9 border border-gold-400 bg-surface px-3 text-sm text-gold-900 hover:bg-gold-50" onClick={() => approveAll(readyToApprove)}>
               <IconCheck size={16} />
               Approve {readyToApprove.length === pending.length ? 'all' : readyToApprove.length} into requested class{readyToApprove.length > 1 ? 'es' : ''}
             </button>
@@ -259,12 +259,12 @@ interface RegisterGroup {
 function Register({ days, today, groups, weeks }: { days: string[]; today: string; groups: RegisterGroup[]; weeks: Map<string, StudentWeek> }) {
   const cols = days.length + 3;
   return (
-    <div className="num overflow-x-auto rounded-lg border border-slate-200 bg-white p-2">
+    <div className="num overflow-x-auto rounded-lg border border-slate-200 bg-surface p-2">
       <table className="w-full border-separate border-spacing-0.5 text-center text-[11px]">
         <caption className="sr-only">Each student's completion per day this week, grouped by class</caption>
         <thead>
           <tr>
-            <th scope="col" className="sticky left-0 z-10 bg-white text-left font-semibold text-slate-500">Student</th>
+            <th scope="col" className="sticky left-0 z-10 bg-surface text-left font-semibold text-slate-500">Student</th>
             {days.map((d) => (
               <th scope="col" key={d} className={`min-w-8 font-semibold ${d === today ? 'text-brand-700' : 'text-slate-500'}`}>
                 <div>{shortDay(d)}</div>
@@ -295,7 +295,7 @@ function Register({ days, today, groups, weeks }: { days: string[]; today: strin
                 const elapsed = days.filter((d) => d <= today && w?.days.find((x) => x.day === d)?.completion != null).length;
                 return (
                   <tr key={s.id}>
-                    <th scope="row" className="sticky left-0 z-10 max-w-32 truncate bg-white pr-2 text-left text-sm font-medium" dir="auto">
+                    <th scope="row" className="sticky left-0 z-10 max-w-32 truncate bg-surface pr-2 text-left text-sm font-medium" dir="auto">
                       <Link to={`/admin/student/${s.id}?date=${days[0]}`} className="text-brand-700 underline-offset-2 hover:underline">
                         {displayName(s)}
                       </Link>

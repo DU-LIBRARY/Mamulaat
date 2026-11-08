@@ -159,12 +159,12 @@ export function Home() {
       </section>
 
       {(unread.length > 0 || data.unseenChanges > 0) && (
-        <section className="rounded-lg border border-gold-400/50 bg-[#fbf6e9]">
+        <section className="rounded-lg border border-gold-400/50 bg-gold-50">
           <div className="flex items-baseline justify-between px-4 pt-3.5">
-            <h2 className="section-title mb-0 text-[#5b4512]">
+            <h2 className="section-title mb-0 text-gold-900">
               From your teacher <Badge n={unread.length + data.unseenChanges} />
             </h2>
-            <Link to="/messages" className="link text-[#5b4512] decoration-gold-400">
+            <Link to="/messages" className="link text-gold-900 decoration-gold-400">
               View all
             </Link>
           </div>
@@ -174,7 +174,7 @@ export function Home() {
                 <p className="flex-1 whitespace-pre-wrap text-slate-800" dir="auto">
                   {c.text}
                 </p>
-                <button className="min-h-11 shrink-0 text-sm font-medium text-[#5b4512] underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
+                <button className="min-h-11 shrink-0 text-sm font-medium text-gold-900 underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
                   Mark read
                 </button>
               </li>
@@ -182,7 +182,7 @@ export function Home() {
             {data.unseenChanges > 0 && (
               <li className="py-3 text-sm text-slate-700">
                 Your teacher changed your mamoolaat ({data.unseenChanges} change{data.unseenChanges > 1 ? 's' : ''}).{' '}
-                <Link className="font-medium text-[#5b4512] underline decoration-gold-400 underline-offset-4" to="/messages">
+                <Link className="font-medium text-gold-900 underline decoration-gold-400 underline-offset-4" to="/messages">
                   See what changed
                 </Link>
               </li>

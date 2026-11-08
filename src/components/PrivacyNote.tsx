@@ -2,7 +2,7 @@ import { IconLock } from './icons';
 
 export function PrivacyNote({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`flex gap-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 ${compact ? 'p-3' : 'p-4'}`}>
+    <div className={`flex gap-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-600 ${compact ? 'p-3' : 'p-4'}`}>
       <IconLock size={18} className="mt-0.5 shrink-0 text-slate-400" />
       <div>
         <div className="font-medium text-slate-800">Who can see your data</div>
