@@ -8,6 +8,8 @@
  *    "please log today" to that student straight away.
  *  - notifyUserChange: tell the admin when someone finishes signing up, and
  *    tell a student when they are approved.
+ *  - sendTestNotification: callable; pushes a test notification to the caller's
+ *    own devices, so a student/admin can check notifications really arrive.
  *  - cleanupDeletedUser: when the admin deletes users/{uid}, remove any
  *    leftover sub-collections, nudges and the Firebase Auth account.
  */
@@ -17,6 +19,7 @@ import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { logger } from 'firebase-functions';
 import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { DEAD_TOKEN_CODES, hasLogged, isDue, localNow, safeTz, userChangeNotice } from './reminders';
 
@@ -149,6 +152,25 @@ export const notifyUserChange = onDocumentUpdated({ document: 'users/{uid}', reg
       tag: 'signup',
     });
   }
+});
+
+export const sendTestNotification = onCall({ region: 'us-central1' }, async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.');
+  const user = (await db.doc(`users/${uid}`).get()).data();
+  if (!user || (user.status !== 'active' && user.status !== 'pending')) throw new HttpsError('permission-denied', 'Not allowed.');
+  // At most one test every 30 seconds per user.
+  const last = user.lastTestPushAt as Timestamp | undefined;
+  if (last && Date.now() - last.toMillis() < 30_000) throw new HttpsError('resource-exhausted', 'Please wait a few seconds and try again.');
+  await db.doc(`users/${uid}`).update({ lastTestPushAt: FieldValue.serverTimestamp() });
+  const r = await pushToUser(uid, {
+    title: 'Mamulaat',
+    body: 'Notifications are working on this device.',
+    url: user.role === 'admin' ? 'admin/settings' : 'me',
+    tag: 'test',
+  });
+  logger.info('test notification', { uid, ...r });
+  return r;
 });
 
 export const cleanupDeletedUser = onDocumentDeleted({ document: 'users/{uid}', region: 'us-central1' }, async (event) => {

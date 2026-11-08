@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers } from '../../hooks/useAdminData';
 import { saveSettings, transferAdmin, updateOwnProfile } from '../../lib/db';
-import { pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
+import { pushSupportMessage, unregisterDevice } from '../../lib/messaging';
+import { DevicePushStatus, useDevicePush } from '../../components/NotificationSetup';
 import { Notice } from '../../components/ui';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
 import type { AppSettings } from '../../types';
@@ -77,24 +78,19 @@ function PasswordSignIn() {
 /** Lets the admin get a push on this device when someone finishes signing up. */
 function AdminNotifications() {
   const { profile } = useActiveSession();
-  const [support, setSupport] = useState<PushSupport | null>(null);
-  const [busy, setBusy] = useState(false);
+  const push = useDevicePush(profile.id);
+  const { busy } = push;
   const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => {
-    pushSupport().then(setSupport);
-  }, []);
   const on = !!profile.reminderEnabled;
   const toggle = async () => {
     setMsg(null);
     if (on) {
       updateOwnProfile(profile.id, { reminderEnabled: false });
       await unregisterDevice(profile.id);
+      push.setDeviceOn(false);
       return;
     }
-    setBusy(true);
-    const res = await registerDevice(profile.id);
-    setBusy(false);
-    setSupport(res.ok ? { ok: true } : res);
+    const res = await push.enable();
     if (res.ok) {
       updateOwnProfile(profile.id, { reminderEnabled: true });
       setMsg('Notifications are on for this device.');
@@ -124,11 +120,7 @@ function AdminNotifications() {
           <Notice>{msg}</Notice>
         </div>
       )}
-      {support && !support.ok && !msg && on && (
-        <div className="mt-3">
-          <Notice>{pushSupportMessage[support.reason]}</Notice>
-        </div>
-      )}
+      {(!msg || push.deviceOn) && <DevicePushStatus on={on} push={push} />}
       <p className="mt-3 text-xs text-slate-500">Needs the reminder functions to be deployed (see the README). Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
     </section>
   );

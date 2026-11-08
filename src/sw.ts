@@ -3,7 +3,7 @@
  * ONE service worker for both jobs:
  *  1. PWA: precache the app shell (Workbox, manifest injected by vite-plugin-pwa)
  *     and serve index.html for navigations so the app opens fully offline.
- *  2. Firebase Cloud Messaging: receive reminder pushes in the background.
+ *  2. Web push (sent through Firebase Cloud Messaging): show reminder notifications.
  *
  * The page passes this registration to getToken({ serviceWorkerRegistration }),
  * so there is no separate firebase-messaging-sw.js.
@@ -11,8 +11,6 @@
 import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { initializeApp } from 'firebase/app';
-import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -34,36 +32,52 @@ if (manifest.some((e) => (typeof e === 'string' ? e : e.url) === 'index.html')) 
   registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/^\/__\//] }));
 }
 
-// ---------- FCM ----------
-const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
+// ---------- Push (FCM) ----------
+// We handle the `push` event ourselves instead of using firebase/messaging/sw, because the SDK
+//  - does NOT show a notification when any app window is visible (it forwards the message to the
+//    page instead), and
+//  - on iOS/Safari every push MUST show a notification, or Safari silently revokes the push
+//    subscription after a few pushes, so reminders stop arriving with no error anywhere.
+// So: every push always shows a notification. FCM tokens are still created by the page via
+// getToken({ serviceWorkerRegistration }) against this same registration.
+interface PushData {
+  title?: string;
+  body?: string;
+  url?: string;
+  tag?: string;
+}
 
-if (config.apiKey && config.messagingSenderId && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+function readPush(event: PushEvent): PushData {
+  if (!event.data) return {};
   try {
-    const messaging = getMessaging(initializeApp(config));
-    // The reminder function sends data-only messages, so we display the notification ourselves.
-    onBackgroundMessage(messaging, (payload) => {
-      const data = payload.data ?? {};
-      const title = data.title || payload.notification?.title || 'Mamulaat';
-      const body = data.body || payload.notification?.body || "You haven't logged your mamoolaat today.";
-      return self.registration.showNotification(title, {
-        body,
-        icon: new URL('icons/icon-192.png', self.registration.scope).href,
-        badge: new URL('icons/badge-72.png', self.registration.scope).href,
-        tag: data.tag || 'mamulaat-reminder',
-        data: { url: new URL(data.url || '.', self.registration.scope).href },
-      });
-    });
-  } catch (e) {
-    console.warn('[sw] FCM unavailable', e);
+    const json = event.data.json() as { data?: PushData; notification?: PushData } & PushData;
+    // FCM web push wraps data-only messages as { data: {...}, from, fcmMessageId, ... }.
+    return { ...json.notification, ...json.data, ...(json.title ? { title: json.title, body: json.body } : {}) };
+  } catch {
+    return { body: event.data.text() };
   }
 }
+
+self.addEventListener('push', (event) => {
+  const data = readPush(event);
+  const title = data.title || 'Mamulaat';
+  const body = data.body || "You haven't logged your mamoolaat today.";
+  const scope = self.registration.scope;
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(title, {
+        body,
+        icon: new URL('icons/icon-192.png', scope).href,
+        badge: new URL('icons/badge-72.png', scope).href,
+        tag: data.tag || 'mamulaat-reminder',
+        data: { url: new URL(data.url || '.', scope).href },
+      });
+      // Let an open app react too (e.g. refresh a banner); it never replaces the notification.
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of all) c.postMessage({ type: 'mamulaat-push', title, body });
+    })(),
+  );
+});
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

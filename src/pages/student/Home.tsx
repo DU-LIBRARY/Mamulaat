@@ -14,6 +14,7 @@ import { formatGregorian, isDayEditable, shortDay, weekDays, weekStartOf } from 
 import { addMamool, markCommentRead, nudgeRef } from '../../lib/db';
 import type { Nudge } from '../../types';
 import { MamoolForm } from '../../components/MamoolEditor';
+import { NotificationPrompt } from '../../components/NotificationSetup';
 
 export function Home() {
   const { profile, today, settings, actor } = useActiveSession();
@@ -73,6 +74,7 @@ export function Home() {
         <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
       )}
       <LastChanceNotice />
+      <NotificationPrompt uid={profile.id} reminderEnabled={profile.reminderEnabled} reminderTime={profile.reminderTime ?? settings.defaultReminderTime} />
 
       <section>
         <div className="mb-2.5 flex items-baseline justify-between">

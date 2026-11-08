@@ -1,5 +1,6 @@
 import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { deleteToken, getMessaging, getToken, isSupported, onMessage, type Messaging } from 'firebase/messaging';
+import { deleteToken, getMessaging, getToken, isSupported, type Messaging } from 'firebase/messaging';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app, USE_EMULATORS, VAPID_KEY, db } from '../firebase';
 import { getSwRegistration, isIOS, isStandalone } from './pwa';
 import { fire } from './sync';
@@ -100,9 +101,49 @@ export async function unregisterDevice(uid: string) {
   }
 }
 
-/** Foreground messages (app open): hand them to the UI instead of a system notification. */
-export async function onForegroundMessage(cb: (title: string, body: string) => void) {
-  const m = await messaging();
-  if (!m || USE_EMULATORS) return () => undefined;
-  return onMessage(m, (p) => cb(p.data?.title ?? p.notification?.title ?? 'Mamulaat', p.data?.body ?? p.notification?.body ?? ''));
+/** Is THIS device set up to receive pushes (permission granted and a token stored)? */
+export function deviceHasPush(): boolean {
+  try {
+    return 'Notification' in window && Notification.permission === 'granted' && !!localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return false;
+  }
+}
+
+export type TestResult = { ok: true; text: string } | { ok: false; text: string };
+
+/**
+ * Send a real push through FCM to all of my devices (Cloud Function `sendTestNotification`).
+ * If the functions aren't deployed, falls back to a local notification so at least the
+ * device side (permission + service worker) can be checked.
+ */
+export async function sendTestNotification(): Promise<TestResult> {
+  try {
+    const call = httpsCallable<unknown, { sent: number; removed: number }>(getFunctions(app, 'us-central1'), 'sendTestNotification');
+    const { data } = await call({});
+    if (data.sent > 0)
+      return { ok: true, text: `Test sent to ${data.sent} device${data.sent === 1 ? '' : 's'}. It should appear within a few seconds (close or switch away from the app if you don't see it).` };
+    return { ok: false, text: 'No device is registered for notifications. Turn notifications on for this device first.' };
+  } catch (e) {
+    const code = (e as { code?: string }).code ?? '';
+    if (code.endsWith('resource-exhausted')) return { ok: false, text: 'Please wait a few seconds and try again.' };
+    // Function not deployed / no network: check the device side locally instead.
+    try {
+      const reg = await getSwRegistration();
+      if (reg && Notification.permission === 'granted') {
+        await reg.showNotification('Mamulaat', {
+          body: 'This device can show notifications.',
+          icon: new URL('icons/icon-192.png', reg.scope).href,
+          tag: 'test-local',
+        });
+        return {
+          ok: false,
+          text: "This device can show notifications, but the server couldn't send one. The reminder Cloud Functions may not be deployed yet (see the README), or you're offline.",
+        };
+      }
+    } catch {
+      /* fall through */
+    }
+    return { ok: false, text: `Couldn't send a test notification${code ? ` (${code})` : ''}.` };
+  }
 }

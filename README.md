@@ -207,6 +207,8 @@ There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists
   - `sendNudge`: when the admin taps **Remind** on Overview → *Not logged today*, a `nudges/{uid}_{day}` doc is written (one per student per day) and the student gets a push straight away. The student also sees "Your teacher reminded you" in the app.
   - `notifyUserChange`: pushes the admin when someone finishes signing up (turn on **Admin → Settings → Notifications** on the admin's device), and pushes a student when they're approved (they can tap *Notify me when I'm approved* on the waiting screen).
 - The PWA and FCM share **one** service worker (`src/sw.ts`). The page registers it via vite-plugin-pwa and passes it to `getToken({ serviceWorkerRegistration })`, so there's no separate `firebase-messaging-sw.js`.
+- The service worker handles the `push` event itself and **always** shows a notification (even when the app is open). It deliberately doesn't use `firebase/messaging/sw`: that SDK skips the notification whenever an app window is visible, and iOS/Safari revokes the push subscription of a site that receives pushes without showing a notification, which made reminders silently stop.
+- Students are offered **Turn on notifications** on the Today page when this device isn't set up (dismissable). **Me → Daily reminder** and **Admin → Settings → Notifications** show whether *this device* receives notifications, offer **Turn on for this device** (reminders are per account, tokens are per device), and a **Send a test notification** button that calls the `sendTestNotification` function to push a real notification through FCM to all of your devices.
 
 ## 8. How it works
 

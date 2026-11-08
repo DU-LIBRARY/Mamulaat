@@ -1,11 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useDocData } from '../../hooks/useFirestore';
 import { classesCol, updateOwnProfile } from '../../lib/db';
 import { doc } from 'firebase/firestore';
 import { PrivacyNote } from '../../components/PrivacyNote';
-import { pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
+import { pushSupportMessage, unregisterDevice } from '../../lib/messaging';
+import { DevicePushStatus, useDevicePush } from '../../components/NotificationSetup';
 import { isIOS, isStandalone } from '../../lib/pwa';
 import type { ClassDoc } from '../../types';
 import { IconChevronRight } from '../../components/icons';
@@ -14,16 +15,12 @@ import { Notice } from '../../components/ui';
 export function Me() {
   const { profile, settings, signOut } = useActiveSession();
   const cls = useDocData<ClassDoc>(profile.classId ? doc(classesCol(), profile.classId) : null, `class:${profile.classId}`);
-  const [support, setSupport] = useState<PushSupport | null>(null);
-  const [busy, setBusy] = useState(false);
+  const push = useDevicePush(profile.id);
+  const { busy } = push;
   const [msg, setMsg] = useState<string | null>(null);
   const [name, setName] = useState(profile.name ?? '');
   const [nameSaved, setNameSaved] = useState(false);
   const time = profile.reminderTime ?? settings.defaultReminderTime;
-
-  useEffect(() => {
-    pushSupport().then(setSupport);
-  }, []);
 
   const saveName = (e: FormEvent) => {
     e.preventDefault();
@@ -39,12 +36,10 @@ export function Me() {
     if (profile.reminderEnabled) {
       updateOwnProfile(profile.id, { reminderEnabled: false });
       await unregisterDevice(profile.id);
+      push.setDeviceOn(false);
       return;
     }
-    setBusy(true);
-    const res = await registerDevice(profile.id);
-    setBusy(false);
-    setSupport(res.ok ? { ok: true } : res);
+    const res = await push.enable();
     // Even without push, keep the preference so the in-app banner/time are remembered.
     updateOwnProfile(profile.id, { reminderEnabled: true, reminderTime: time });
     if (!res.ok) setMsg(pushSupportMessage[res.reason]);
@@ -116,9 +111,7 @@ export function Me() {
           />
         </div>
         {msg && <div className="mt-3"><Notice>{msg}</Notice></div>}
-        {support && !support.ok && !msg && profile.reminderEnabled && (
-          <div className="mt-3"><Notice>{pushSupportMessage[support.reason]}</Notice></div>
-        )}
+        {(!msg || push.deviceOn) && <DevicePushStatus on={profile.reminderEnabled} push={push} />}
         {isIOS() && (
           <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
             <b className="font-medium text-slate-900">iPhone / iPad:</b> push reminders only work after you add Mamulaat to your Home Screen (tap Share →{' '}
