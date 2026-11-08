@@ -29,6 +29,13 @@ const STATUS: Record<EntryStatus, { label: string; icon: ReactNode; on: string }
   missed: { label: 'Missed', icon: <IconX size={16} />, on: 'bg-red-50 text-red-800 border-red-200' },
 };
 
+/** Bigger icons for the one-line rows, where the icon alone carries the meaning on a phone. */
+const COMPACT_ICON: Record<EntryStatus, ReactNode> = {
+  done: <IconCheck size={24} />,
+  partial: <IconHalf size={22} />,
+  missed: <IconX size={22} />,
+};
+
 /** Left-edge mark showing the row's state at a glance. */
 function edge(status: EntryStatus | undefined) {
   if (status === 'done') return 'before:bg-brand-700';
@@ -95,13 +102,13 @@ function MamoolRow({
 
   if (compact) {
     return (
-      <li className={`relative px-3 py-2 before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
-        <div className="flex items-center gap-2">
+      <li className={`relative px-3 py-2.5 before:absolute before:inset-y-2.5 sm:px-4 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
+        <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] leading-tight font-medium text-slate-900" dir="auto" title={m.name}>
+            <div className="line-clamp-2 text-[15px] leading-snug font-medium break-words text-slate-900 sm:text-base" dir="auto" title={m.name}>
               {m.name}
             </div>
-            <div className="num truncate text-xs text-slate-500" dir="auto">
+            <div className="num mt-0.5 truncate text-xs text-slate-500 sm:text-sm" dir="auto">
               {status === 'partial' && entry ? (
                 <>
                   <span className="font-medium text-amber-800">{fmt(entry.amount)}</span> of {targetLabel(m)}
@@ -114,17 +121,7 @@ function MamoolRow({
           <span className="sr-only" aria-live="polite">
             {m.name}: {statusText(entry, m)}
           </span>
-          <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label={`${m.name} status`}>
-            {editable && isCounted(m) && status !== 'done' && (
-              <button
-                type="button"
-                onClick={bump}
-                className="num inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-brand-200 bg-brand-50 px-2 text-sm font-semibold text-brand-800 hover:border-brand-500"
-                aria-label={`Add 1 to ${m.name} (now ${entry ? fmt(entry.status === 'done' ? m.target : entry.amount) : 0} of ${targetLabel(m)})`}
-              >
-                +1
-              </button>
-            )}
+          <div className="flex shrink-0 items-center gap-2" role="group" aria-label={`${m.name} status`}>
             {(Object.keys(STATUS) as EntryStatus[]).map((s) => {
               const main = s === 'done';
               const idle = main
@@ -139,11 +136,14 @@ function MamoolRow({
                   aria-pressed={status === s}
                   aria-label={STATUS[s].label}
                   title={STATUS[s].label}
-                  className={`inline-flex h-10 w-10 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                    status === s ? STATUS[s].on : idle
-                  }`}
+                  className={`inline-flex h-12 w-12 items-center justify-center gap-1.5 rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-24 sm:px-3 ${
+                    main ? 'font-semibold' : 'font-medium'
+                  } ${status === s ? STATUS[s].on : idle}`}
                 >
-                  {STATUS[s].icon}
+                  {COMPACT_ICON[s]}
+                  <span className="hidden text-sm sm:inline" aria-hidden="true">
+                    {STATUS[s].label}
+                  </span>
                 </button>
               );
             })}
