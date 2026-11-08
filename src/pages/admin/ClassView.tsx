@@ -77,6 +77,7 @@ export function ClassView() {
     label: displayName(w.student),
     to: `/admin/student/${w.student.id}?date=${days[0]}`,
     cells: w.days.map((d) => d.completion),
+    logged: w.days.map((d) => d.hasLog),
     total: w.completion,
   }));
 

@@ -211,7 +211,7 @@ export function Overview() {
             weeks={weeks}
           />
         )}
-        <p className="mt-2 text-xs text-slate-500">✓ every mamool completed · number = % completed · ✕ nothing logged · – no mamoolaat set. Tap a student for details.</p>
+        <p className="mt-2 text-xs text-slate-500">✓ every mamool completed · number = % completed · ✕ nothing logged · · today, not logged yet · – no mamoolaat set. Tap a student for details.</p>
       </section>
 
       <section className="no-print">
@@ -292,7 +292,10 @@ function Register({ days, today, groups, weeks }: { days: string[]; today: strin
               </tr>
               {g.students.map((s) => {
                 const w = weeks.get(s.id);
-                const elapsed = days.filter((d) => d <= today && w?.days.find((x) => x.day === d)?.completion != null).length;
+                const elapsed = days.filter((d) => {
+                  const x = w?.days.find((y) => y.day === d);
+                  return d <= today && x?.completion != null && !(d === today && !x.hasLog);
+                }).length;
                 return (
                   <tr key={s.id}>
                     <th scope="row" className="sticky left-0 z-10 max-w-32 truncate bg-surface pr-2 text-left text-sm font-medium" dir="auto">
@@ -305,10 +308,11 @@ function Register({ days, today, groups, weeks }: { days: string[]; today: strin
                       if (!w) return <td key={d} className="h-9 rounded-md bg-slate-50 text-slate-300">…</td>;
                       const day = w.days[i];
                       const c = day.completion;
-                      const label = c == null ? '–' : c >= 1 ? '✓' : !day.hasLog ? '✕' : Math.round(c * 100);
-                      const spoken = c == null ? 'no mamoolaat' : c >= 1 ? 'all done' : !day.hasLog ? 'nothing logged' : `${Math.round(c * 100)}%`;
+                      const notYet = d === today && c != null && !day.hasLog;
+                      const label = c == null ? '–' : notYet ? '·' : c >= 1 ? '✓' : !day.hasLog ? '✕' : Math.round(c * 100);
+                      const spoken = c == null ? 'no mamoolaat' : notYet ? 'not logged yet' : c >= 1 ? 'all done' : !day.hasLog ? 'nothing logged' : `${Math.round(c * 100)}%`;
                       return (
-                        <td key={d} className={`h-9 rounded-md font-semibold ${cellClass(c)}`} title={spoken}>
+                        <td key={d} className={`h-9 rounded-md font-semibold ${cellClass(notYet ? null : c)}`} title={spoken}>
                           <span aria-hidden>{label}</span>
                           <span className="sr-only">{spoken}</span>
                         </td>
