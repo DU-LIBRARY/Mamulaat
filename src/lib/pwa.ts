@@ -2,7 +2,6 @@ import { registerSW } from 'virtual:pwa-register';
 
 let registration: ServiceWorkerRegistration | undefined;
 let updateReady = false;
-let updateSW: ((reload?: boolean) => Promise<void>) | undefined;
 const updateListeners = new Set<() => void>();
 
 /** Subscribe to "a new version is downloaded and waiting" (for the update prompt). */
@@ -11,9 +10,35 @@ export function subscribeUpdate(l: () => void) {
   return () => updateListeners.delete(l);
 }
 export const getUpdateReady = () => updateReady;
-/** Activate the waiting service worker and reload into the new version. */
-export function applyUpdate() {
-  return updateSW?.(true) ?? Promise.resolve(window.location.reload());
+
+let reloading = false;
+function reloadOnce() {
+  if (reloading) return;
+  reloading = true;
+  window.location.reload();
+}
+
+/**
+ * Activate the waiting service worker and reload into the new version.
+ *
+ * We don't rely on workbox-window here: Safari doesn't always fire `controllerchange` after
+ * skipWaiting (notably in home-screen apps), which left the page stuck on the old version.
+ * So we reload on whichever comes first: the new worker taking control, it reaching
+ * "activated", or a short timeout.
+ */
+export function applyUpdate(): Promise<void> {
+  const waiting = registration?.waiting;
+  if (!waiting) {
+    reloadOnce();
+    return Promise.resolve();
+  }
+  navigator.serviceWorker.addEventListener('controllerchange', reloadOnce, { once: true });
+  waiting.addEventListener('statechange', () => {
+    if (waiting.state === 'activated' || waiting.state === 'redundant') reloadOnce();
+  });
+  setTimeout(reloadOnce, 3000);
+  waiting.postMessage({ type: 'SKIP_WAITING' });
+  return Promise.resolve();
 }
 const waiters: Array<(r: ServiceWorkerRegistration | undefined) => void> = [];
 
@@ -33,6 +58,29 @@ function applyIfIdle() {
   }
 }
 
+function markUpdateReady() {
+  // Only an update if something is already controlling the page (not the very first install).
+  if (!navigator.serviceWorker.controller || !registration?.waiting) return;
+  updateReady = true;
+  applyIfIdle();
+}
+
+/**
+ * Watch the registration ourselves for new versions. workbox-window only reports the first
+ * update found after ~1 minute and then stops listening, so an app left open (which Safari /
+ * iOS does for days, resuming it instead of reloading) never saw later deploys.
+ */
+function watchRegistration(r: ServiceWorkerRegistration) {
+  const track = (sw: ServiceWorker | null) => {
+    if (!sw) return;
+    if (sw.state === 'installed') markUpdateReady();
+    else sw.addEventListener('statechange', () => sw.state === 'installed' && markUpdateReady());
+  };
+  if (r.waiting) markUpdateReady(); // installed during an earlier visit, still waiting
+  track(r.installing);
+  r.addEventListener('updatefound', () => track(r.installing));
+}
+
 /** Register the single app service worker (PWA shell + FCM). */
 export function initPwa() {
   if (!('serviceWorker' in navigator)) {
@@ -40,28 +88,34 @@ export function initPwa() {
     return;
   }
   for (const ev of ['pointerdown', 'keydown', 'input']) window.addEventListener(ev, markInteracted, { capture: true, passive: true });
-  updateSW = registerSW({
+  registerSW({
     immediate: true,
-    onNeedRefresh() {
-      updateReady = true;
-      applyIfIdle();
-    },
+    // Update detection and reloading are handled below (see watchRegistration / applyUpdate).
+    onNeedReload: reloadOnce,
     onRegisteredSW(_url, r) {
       registration = r;
       // Look for a new version on open, whenever the app comes back to the front or online,
       // and every few minutes while it's open, so a deploy reaches everyone quickly.
       if (r) {
-        const check = () => navigator.onLine && r.update().catch(() => undefined);
+        watchRegistration(r);
+        const check = () => {
+          if (navigator.onLine) r.update().catch(() => undefined);
+          applyIfIdle();
+        };
+        const resumed = () => {
+          interacted = false; // freshly reopened: safe to update until they tap something
+          check();
+        };
         setInterval(check, CHECK_EVERY_MS);
         window.addEventListener('online', check);
         window.addEventListener('focus', check);
         document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') {
-            interacted = false; // freshly reopened: safe to update until they tap something
-            check();
-          }
-          applyIfIdle();
+          if (document.visibilityState === 'visible') resumed();
+          else applyIfIdle();
         });
+        // Safari restores pages from its back/forward cache without a visibilitychange.
+        window.addEventListener('pageshow', (e) => e.persisted && resumed());
+        check();
       }
       waiters.splice(0).forEach((w) => w(r));
     },
