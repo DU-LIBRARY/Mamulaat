@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { fade, snap } from '../lib/motion';
 
 /**
  * "Done · Undo" toasts, used instead of "Are you sure?" dialogs for small, reversible actions.
@@ -79,10 +80,10 @@ export function UndoProvider({ children }: { children: ReactNode }) {
           {toast && (
             <motion.div
               key={toast.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, transition: { duration: 0.15 } }}
-              transition={{ duration: 0.28, ease: [0.22, 0.8, 0.25, 1] }}
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98, transition: { default: snap, opacity: fade } }}
+              transition={{ default: snap, opacity: fade }}
               className="relative flex items-center gap-3 overflow-hidden rounded-xl bg-ink py-2 pr-2 pl-4 text-[#f1eee4] shadow-xl"
             >
               <span className="flex-1 text-sm" dir="auto">

@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Dialog as RDialog } from 'radix-ui';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useDragControls, type PanInfo } from 'motion/react';
+import { expand, fade, glide } from '../lib/motion';
 import { CaretDown, CaretRight, X, type Icon } from '@phosphor-icons/react';
 import { cn } from '../lib/cn';
 
@@ -11,7 +12,7 @@ import { cn } from '../lib/cn';
  *  - everything else as a hairline row that either opens somewhere (Row ›)
  *    or expands in place (Disclosure ⌄),
  *  - secondary tasks in a bottom sheet with a grab handle (Sheet).
- * One easing curve everywhere, short durations, nothing bounces.
+ * Motion: shared springs from lib/motion, nothing bounces.
  */
 export const EASE = [0.22, 0.8, 0.25, 1] as const;
 
@@ -23,9 +24,9 @@ export function Hero({ label, children, sub, className = '' }: { label?: ReactNo
       <motion.div
         className="mt-1.5 font-serif text-[44px] leading-[1.05] tracking-[-0.01em] break-words text-slate-900"
         dir="auto"
-        initial={{ opacity: 0, y: 6 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, ease: EASE }}
+        transition={{ y: glide, opacity: fade }}
       >
         {children}
       </motion.div>
@@ -116,10 +117,7 @@ export function Disclosure({
           <motion.div
             key="body"
             className="overflow-hidden"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ height: { duration: 0.24, ease: EASE }, opacity: { duration: 0.17 } }}
+            {...expand}
           >
             <div className="pb-5">{children}</div>
           </motion.div>
@@ -134,7 +132,11 @@ export function Rows({ children, className = '' }: { children: ReactNode; classN
   return <div className={cn('divide-y divide-slate-200 border-y border-slate-200', className)}>{children}</div>;
 }
 
-/** A bottom sheet with a grab handle (Radix Dialog underneath, so focus and Escape just work). */
+/**
+ * A bottom sheet with a grab handle (Radix Dialog underneath, so focus and Escape just work).
+ * It glides up on a spring and can be swiped down from the handle or title to close, like an
+ * iOS sheet; the body keeps scrolling normally.
+ */
 export function Sheet({ open, onOpenChange, title, children }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; children: ReactNode }) {
   return (
     <RDialog.Root open={open} onOpenChange={onOpenChange}>
@@ -142,30 +144,55 @@ export function Sheet({ open, onOpenChange, title, children }: { open: boolean; 
         {open && (
           <RDialog.Portal forceMount>
             <RDialog.Overlay asChild forceMount>
-              <motion.div className="fixed inset-0 z-[60] bg-black/45" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
+              <motion.div className="fixed inset-0 z-[60] bg-black/45" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28 }} />
             </RDialog.Overlay>
-            <RDialog.Content asChild forceMount aria-describedby={undefined}>
-              <motion.div
-                className="pb-safe fixed inset-x-0 bottom-0 z-[61] mx-auto max-h-[88dvh] max-w-3xl overflow-y-auto rounded-t-2xl bg-surface px-5 pt-2.5 shadow-2xl sm:bottom-4 sm:max-w-lg sm:rounded-2xl"
-                initial={{ y: '100%', opacity: 0.6 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: '100%', opacity: 0.6 }}
-                transition={{ y: { duration: 0.26, ease: EASE }, opacity: { duration: 0.16 } }}
-              >
-                <div aria-hidden className="mx-auto h-1 w-9 rounded-full bg-slate-300" />
-                <div className="mt-4 mb-4 flex items-center justify-between gap-3">
-                  <RDialog.Title className="font-serif text-[28px] leading-tight text-slate-900">{title}</RDialog.Title>
-                  <RDialog.Close className="-mr-2 flex h-11 w-11 items-center justify-center rounded-md text-slate-600 hover:text-slate-900" aria-label="Close">
-                    <X size={20} />
-                  </RDialog.Close>
-                </div>
-                <div className="pb-6">{children}</div>
-              </motion.div>
-            </RDialog.Content>
+            <SheetPanel title={title} onClose={() => onOpenChange(false)}>
+              {children}
+            </SheetPanel>
           </RDialog.Portal>
         )}
       </AnimatePresence>
     </RDialog.Root>
+  );
+}
+
+function SheetPanel({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const drag = useDragControls();
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.y > 100 || info.velocity.y > 500) onClose();
+  };
+  return (
+    <RDialog.Content asChild forceMount aria-describedby={undefined}>
+      <motion.div
+        className="pb-safe fixed inset-x-0 bottom-0 z-[61] mx-auto flex max-h-[88dvh] max-w-3xl flex-col rounded-t-2xl bg-surface shadow-2xl will-change-transform sm:bottom-4 sm:max-w-lg sm:rounded-2xl"
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={glide}
+        drag="y"
+        dragListener={false}
+        dragControls={drag}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0.05, bottom: 0.9 }}
+        onDragEnd={onDragEnd}
+      >
+        {/* the handle and title are the grab area */}
+        <div className="shrink-0 cursor-grab touch-none px-5 pt-2.5 active:cursor-grabbing" onPointerDown={(e) => drag.start(e)}>
+          <div aria-hidden className="mx-auto h-1 w-9 rounded-full bg-slate-300" />
+          <div className="mt-4 mb-4 flex items-center justify-between gap-3">
+            <RDialog.Title className="font-serif text-[28px] leading-tight text-slate-900">{title}</RDialog.Title>
+            <RDialog.Close
+              className="-mr-2 flex h-11 w-11 items-center justify-center rounded-md text-slate-600 hover:text-slate-900"
+              aria-label="Close"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <X size={20} />
+            </RDialog.Close>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6">{children}</div>
+      </motion.div>
+    </RDialog.Content>
   );
 }
 

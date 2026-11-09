@@ -1,6 +1,7 @@
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
+import { fade, glide, snap } from '../lib/motion';
 import { SyncIndicator } from './SyncIndicator';
 import { Badge } from './ui';
 import { Sky } from './Sky';
@@ -50,7 +51,7 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
         </header>
         <main id="main" tabIndex={-1} className="flex-1 px-5 pt-4 pb-28 focus:outline-none">
           {/* each screen settles in: a short rise and fade on the shared easing curve */}
-          <motion.div key={pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, ease: [0.22, 0.8, 0.25, 1] }}>
+          <motion.div key={pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ y: glide, opacity: fade }}>
             {children}
           </motion.div>
         </main>
@@ -79,8 +80,10 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
                         )}
                       </span>
                       <span>{n.label}</span>
-                      {/* a short clay rule under the active tab */}
-                      <span aria-hidden className={`h-px w-4 transition-colors duration-200 ${isActive ? 'bg-brand-700' : 'bg-transparent'}`} />
+                      {/* a short clay rule under the active tab; it slides across when the tab changes */}
+                      <span aria-hidden className="relative h-px w-4">
+                        {isActive && <motion.span layoutId="tab-rule" className="absolute inset-0 bg-brand-700" transition={snap} />}
+                      </span>
                     </>
                   )}
                 </NavLink>
