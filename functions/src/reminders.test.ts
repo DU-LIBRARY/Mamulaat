@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hasLogged, isDue, localNow, toMinutes, userChangeNotice } from './reminders';
+import { dueSlots, hasLogged, isDue, localNow, toMinutes, userChangeNotice, weekdayOf } from './reminders';
 
 test('localNow uses the project timezone', () => {
   const t = new Date('2026-11-07T22:30:00Z');
@@ -35,4 +35,18 @@ test('userChangeNotice: sign-up finished tells the admin, approval tells the stu
   assert.equal(userChangeNotice(undefined, { role: 'student', status: 'active' }), null);
   assert.equal(userChangeNotice({ role: 'student', status: 'active' }, { role: 'admin', status: 'active' }), null);
   assert.equal(userChangeNotice({ status: 'pending' }, undefined), null);
+});
+
+test('dueSlots: daily 23:00 and Friday 12:00, each sent once', () => {
+  const slots = [{ time: '23:00', body: 'daily' }, { time: '12:00', weekday: 5, body: 'friday' }];
+  const fri = '2026-11-13';
+  assert.equal(weekdayOf(fri), 5);
+  const keys = (d: string, m: number, sent = {}) => dueSlots(slots, d, m, sent).map((x) => x.key);
+  assert.deepEqual(keys(fri, 11 * 60 + 59), []);
+  assert.deepEqual(keys(fri, 12 * 60 + 4), ['2026-11-13 12:00']);
+  assert.deepEqual(keys(fri, 12 * 60 + 4, { '2026-11-13 12:00': 1 }), []);
+  assert.deepEqual(keys(fri, 13 * 60), []); // too late for that slot
+  assert.deepEqual(keys('2026-11-12', 12 * 60 + 4), []); // Thursday: no noon reminder
+  assert.deepEqual(keys('2026-11-12', 23 * 60 + 4), ['2026-11-12 23:00']);
+  assert.deepEqual(keys('2026-11-12', 23 * 60 + 59), ['2026-11-12 23:00']);
 });

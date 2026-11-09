@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers } from '../../hooks/useAdminData';
 import { saveSettings, transferAdmin, updateOwnProfile } from '../../lib/db';
-import { pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
+import { pushSupport, pushSupportMessage, reminderSchedule, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
 import { Notice } from '../../components/ui';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
 import type { AppSettings } from '../../types';
@@ -138,7 +138,7 @@ function AdminNotifications() {
           <i>Add to Home Screen</i> (iOS 16.4 or later), open Mamulaat from that icon, then turn this on there.
         </p>
       )}
-      <p className="mt-3 text-xs text-slate-500">Sent by the Notifications GitHub Action every 15 minutes (set up once, see README §7). Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
+      <p className="mt-3 text-xs text-slate-500">Students with reminders on are reminded to log: {reminderSchedule().toLowerCase()}. Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
     </section>
   );
 }
@@ -260,10 +260,6 @@ export function AdminSettings() {
           <div>
             <label className="label" htmlFor="set-nolog">Flag after no logs for (days)</label>
             <input id="set-nolog" className="input" type="number" min={1} max={60} value={s.attentionNoLogDays} onChange={(e) => set('attentionNoLogDays', Number(e.target.value))} />
-          </div>
-          <div className="col-span-2">
-            <label className="label" htmlFor="set-reminder">Default reminder time</label>
-            <input id="set-reminder" className="input" type="time" value={s.defaultReminderTime} onChange={(e) => e.target.value && set('defaultReminderTime', e.target.value)} />
           </div>
         </div>
         <button className="btn-primary" type="submit" disabled={!tzOk}>

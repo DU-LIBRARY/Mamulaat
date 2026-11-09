@@ -210,7 +210,7 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 4. **Test it:** turn notifications on on your phone. Then go to **GitHub → Actions → Notifications → Run workflow** and choose *test: admins*.
 
 **What gets sent:**
-- **Daily reminder:** students turn it on in **Me → Daily reminder** and pick a time (the default comes from admin settings, in the project timezone). Once that time has passed, within a 3-hour window, the student gets a push if nothing is logged today. It's sent at most once a day.
+- **Reminders:** a general "please log your mamoolaat" message **every day at 23:00 and on Fridays at 12:00** (project timezone) to every active student who turned reminders on in **Me → Daily reminder**. The times and wording are in `push.config.json` → `reminders` (`weekday`: 0 = Sunday … 5 = Friday). Each one is sent once, by the first run within an hour of its time; `pushState/reminders` records what was sent.
 - **Nudge:** when the admin taps **Remind** on Overview → *Not logged today*, the student is told on the next run, within about 15 minutes.
 - **New sign-up:** every admin with notifications on (**Settings → Notifications**) is told when someone finishes signing up.
 - **Approved:** a student is told when they're approved, if they turned on notifications on the waiting screen.
