@@ -168,3 +168,16 @@ export async function onForegroundMessage(cb: (title: string, body: string) => v
   navigator.serviceWorker.addEventListener('message', handler);
   return () => navigator.serviceWorker.removeEventListener('message', handler);
 }
+
+const DAYS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+function time12(hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''}${h < 12 ? 'am' : 'pm'}`;
+}
+/** "Every day at 11pm, and Fridays at 12pm": the fixed reminder times from push.config.json. */
+export function reminderSchedule(): string {
+  const r: { time: string; weekday?: number }[] = pushConfig.reminders ?? [];
+  const parts = r.map((x) => (x.weekday == null ? `every day at ${time12(x.time)}` : `${DAYS[x.weekday]} at ${time12(x.time)}`));
+  const text = parts.length > 1 ? `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}` : parts[0] ?? '';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

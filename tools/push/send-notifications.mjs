@@ -1,8 +1,8 @@
 // Sends Mamulaat's push notifications. Run every 15 minutes by .github/workflows/notifications.yml,
 // so nothing needs Cloud Functions or the Blaze plan.
 //
-//  - Daily reminder: students with reminders on, once their reminder time has passed (project
-//    timezone), if they haven't logged anything today.
+//  - Reminders: a general "please log" message at the fixed times in push.config.json (every day
+//    at 23:00, and Fridays at 12:00, project timezone) to students who turned reminders on.
 //  - Nudge: when the admin taps "send reminder" (nudges/{uid}_{day}), on the next run.
 //  - New sign-up: tells every admin when a student finishes signing up.
 //  - Approved: tells a student when the admin approves them.
@@ -15,7 +15,9 @@
 import { readFileSync } from 'node:fs';
 import admin from 'firebase-admin';
 import webpush from 'web-push';
-import { hasLogged, isDue, localNow, safeTz, userChangeNotice } from '../../functions/src/reminders.ts';
+import { dueSlots, hasLogged, localNow, safeTz, userChangeNotice } from '../../functions/src/reminders.ts';
+
+const addDaysYmd = (ymd, n) => new Date(Date.parse(`${ymd}T00:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
 
 const CFG = JSON.parse(readFileSync(new URL('../../push.config.json', import.meta.url), 'utf8'));
 const { FIREBASE_SERVICE_ACCOUNT, VAPID_PRIVATE_KEY, TEST = '', DRY_RUN = '' } = process.env;
@@ -80,16 +82,21 @@ const settings = (await db.doc('settings/app').get()).data() ?? {};
 const tz = safeTz(settings.timezone);
 const { date: today, minutes } = localNow(tz);
 
-// 1. Daily reminders
+// 1. Reminders at fixed times (push.config.json → reminders, project timezone): one general
+// message to every active student who has reminders turned on.
+const remindersRef = db.doc('pushState/reminders');
+const sentSlots = (await remindersRef.get()).data()?.sent ?? {};
 let reminded = 0;
-for (const [uid, d] of byId) {
-  if (d.role !== 'student' || d.status !== 'active' || d.reminderEnabled !== true) continue;
-  if (!isDue({ reminderTime: d.reminderTime, defaultTime: settings.defaultReminderTime, nowMinutes: minutes, today, lastReminderDate: d.lastReminderDate })) continue;
-  const ref = db.doc(`users/${uid}`);
-  const log = await ref.collection('logs').doc(today).get();
-  if (!dry) await ref.update({ lastReminderDate: today, ...(hasLogged(log.data()) ? {} : { lastReminderAt: admin.firestore.FieldValue.serverTimestamp() }) });
-  if (hasLogged(log.data())) continue; // already logged today: nothing to send
-  if (await pushToUser(uid, { title: 'Mamulaat', body: "You haven't logged your mamoolaat today.", url: '.', tag: `reminder-${today}` })) reminded++;
+for (const { slot, key } of dueSlots(CFG.reminders ?? [], today, minutes, sentSlots)) {
+  sentSlots[key] = Date.now(); // record first, so a crash can't cause repeated pings
+  if (!dry) await remindersRef.set({ sent: Object.fromEntries(Object.entries(sentSlots).filter(([k]) => k >= addDaysYmd(today, -7))) });
+  let n = 0;
+  for (const [uid, d] of byId) {
+    if (d.role !== 'student' || d.status !== 'active' || d.reminderEnabled !== true) continue;
+    if (await pushToUser(uid, { title: slot.title || 'Mamulaat', body: slot.body, url: '.', tag: `reminder-${key}` })) n++;
+  }
+  reminded += n;
+  console.log(`Reminder ${key}: sent to ${n} student(s)`);
 }
 
 // 2. Nudges from the admin ("please log today")

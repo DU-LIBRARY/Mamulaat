@@ -5,7 +5,7 @@ import { useDocData } from '../../hooks/useFirestore';
 import { classesCol, updateOwnProfile } from '../../lib/db';
 import { doc } from 'firebase/firestore';
 import { PrivacyNote } from '../../components/PrivacyNote';
-import { pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
+import { pushSupport, pushSupportMessage, reminderSchedule, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
 import { isIOS, isStandalone } from '../../lib/pwa';
 import type { ClassDoc } from '../../types';
 import { IconChevronRight } from '../../components/icons';
@@ -21,7 +21,6 @@ export function Me() {
   const [msg, setMsg] = useState<string | null>(null);
   const [name, setName] = useState(profile.name ?? '');
   const [nameSaved, setNameSaved] = useState(false);
-  const time = profile.reminderTime ?? settings.defaultReminderTime;
 
   useEffect(() => {
     pushSupport().then(setSupport);
@@ -48,7 +47,7 @@ export function Me() {
     setBusy(false);
     setSupport(res.ok ? { ok: true } : res);
     // Even without push, keep the preference so the in-app banner/time are remembered.
-    updateOwnProfile(profile.id, { reminderEnabled: true, reminderTime: time });
+    updateOwnProfile(profile.id, { reminderEnabled: true });
     if (!res.ok) setMsg(pushSupportMessage[res.reason]);
     else setMsg('Reminders are on for this device.');
   };
@@ -92,8 +91,8 @@ export function Me() {
         <h2 className="section-title">Daily reminder</h2>
         <label className="flex min-h-12 items-center justify-between gap-3">
           <span>
-            <span className="font-medium text-slate-900">Remind me if I haven't logged</span>
-            <span className="block text-sm text-slate-500">Time zone: {settings.timezone}</span>
+            <span className="font-medium text-slate-900">Remind me to log</span>
+            <span className="block text-sm text-slate-500">{reminderSchedule()} ({settings.timezone} time)</span>
           </span>
           <button
             role="switch"
@@ -105,18 +104,6 @@ export function Me() {
             <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-[left] ${profile.reminderEnabled ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
         </label>
-        <div className="mt-3">
-          <label className="label" htmlFor="rtime">
-            Reminder time
-          </label>
-          <input
-            id="rtime"
-            type="time"
-            className="input"
-            value={time}
-            onChange={(e) => e.target.value && updateOwnProfile(profile.id, { reminderTime: e.target.value })}
-          />
-        </div>
         {msg && <div className="mt-3"><Notice>{msg}</Notice></div>}
         {support && !support.ok && !msg && profile.reminderEnabled && (
           <div className="mt-3"><Notice>{pushSupportMessage[support.reason]}</Notice></div>

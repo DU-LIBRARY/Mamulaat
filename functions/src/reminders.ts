@@ -52,6 +52,36 @@ export function isDue(opts: {
   return delta >= 0 && delta < SEND_WINDOW_MINUTES;
 }
 
+/** A fixed reminder for everyone: daily, or only on one weekday (0 = Sunday … 6 = Saturday). */
+export interface ReminderSlot {
+  time: string; // "HH:MM" in the project timezone
+  weekday?: number;
+  title?: string;
+  body: string;
+}
+
+/** How long after a slot's time a late run may still send it (GitHub can start scheduled jobs late). */
+export const SLOT_WINDOW_MINUTES = 60;
+
+export function weekdayOf(ymd: string): number {
+  return new Date(`${ymd}T00:00:00Z`).getUTCDay();
+}
+
+/**
+ * The reminder slots due now: their time has passed today (within the window, never past midnight)
+ * and they haven't been sent yet. Each send is recorded under the key `${date} ${time}`.
+ */
+export function dueSlots(slots: ReminderSlot[], today: string, nowMinutes: number, sent: Record<string, unknown>) {
+  return slots
+    .map((slot) => ({ slot, key: `${today} ${slot.time}`, at: toMinutes(slot.time) }))
+    .filter(({ slot, key, at }) => {
+      if (at == null || sent[key]) return false;
+      if (slot.weekday != null && slot.weekday !== weekdayOf(today)) return false;
+      const delta = nowMinutes - at;
+      return delta >= 0 && delta < SLOT_WINDOW_MINUTES;
+    });
+}
+
 /** A day counts as logged if the log doc has at least one entry. */
 export function hasLogged(log: { entries?: Record<string, unknown> } | undefined): boolean {
   return !!log && !!log.entries && Object.keys(log.entries).length > 0;
