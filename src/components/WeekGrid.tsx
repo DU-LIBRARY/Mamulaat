@@ -9,6 +9,8 @@ export interface GridRow {
   label: ReactNode;
   to?: string;
   cells: (number | null)[]; // completion 0..1 per day, null = not applicable / future
+  /** Per day: was anything logged? A day with nothing logged shows ✕ (or blank today), never "0". */
+  logged?: boolean[];
   total: number | null;
 }
 
@@ -44,13 +46,33 @@ export function WeekGrid({ days, rows, today, firstHeader }: { days: string[]; r
                   r.label
                 )}
               </th>
-              {r.cells.map((c, i) => (
-                <td key={days[i]} className={`h-9 rounded font-medium ${days[i] > today ? 'bg-transparent text-slate-300' : cellClass(c)}`}>
-                  {days[i] > today ? '' : c == null ? <span title="nothing to do">–</span> : `${Math.round(c * 100)}`}
-                  {days[i] <= today && c != null && <span className="sr-only">%</span>}
-                  {days[i] <= today && c == null && <span className="sr-only">nothing to do</span>}
-                </td>
-              ))}
+              {r.cells.map((c, i) => {
+                const d = days[i];
+                if (d > today) return <td key={d} className="h-9 rounded bg-transparent" />;
+                if (c == null)
+                  return (
+                    <td key={d} className={`h-9 rounded font-medium ${cellClass(null)}`}>
+                      <span aria-hidden>–</span>
+                      <span className="sr-only">nothing to do</span>
+                    </td>
+                  );
+                if (r.logged && !r.logged[i]) {
+                  // Nothing logged (or the day was cleared): not a score of 0.
+                  const isToday = d === today;
+                  return (
+                    <td key={d} className={`h-9 rounded font-medium ${isToday ? cellClass(null) : cellClass(0)}`} title={isToday ? 'not logged yet' : 'nothing logged'}>
+                      <span aria-hidden>{isToday ? '·' : '✕'}</span>
+                      <span className="sr-only">{isToday ? 'not logged yet' : 'nothing logged'}</span>
+                    </td>
+                  );
+                }
+                return (
+                  <td key={d} className={`h-9 rounded font-medium ${cellClass(c)}`}>
+                    {Math.round(c * 100)}
+                    <span className="sr-only">%</span>
+                  </td>
+                );
+              })}
               <td className={`rounded font-semibold ${cellClass(r.total)}`}>{pct(r.total)}</td>
             </tr>
           ))}

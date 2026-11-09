@@ -7,7 +7,7 @@ export interface StudentWeek {
   days: { day: string; completion: number | null; hasLog: boolean }[];
   completion: number | null;
   fullDays: number;
-  perMamool: { mamool: Mamool; cells: (number | null)[]; completion: number | null }[];
+  perMamool: { mamool: Mamool; cells: (number | null)[]; logged: boolean[]; completion: number | null }[];
 }
 
 export function studentWeek(student: UserProfile, days: string[], mamoolaat: Mamool[], logs: Map<string, DayLog>, today: string): StudentWeek {
@@ -25,7 +25,8 @@ export function studentWeek(student: UserProfile, days: string[], mamoolaat: Mam
     perMamool: inWeek.map((m) => ({
       mamool: m,
       cells: days.map((d) => (d <= today && scheduledFor(d, [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
-      completion: mamoolCompletion(m, days, logs, today),
+      logged: days.map((d) => !!logs.get(d)?.entries?.[m.id]),
+      completion: mamoolCompletion(m, days, logs, today, mamoolaat),
     })),
   };
 }

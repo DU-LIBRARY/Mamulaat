@@ -20,7 +20,8 @@ export function Week() {
       key: m.id,
       label: m.name,
       cells: days.map((d) => (scheduledFor(d, [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
-      total: mamoolCompletion(m, days, logs, today),
+      logged: days.map((d) => !!logs.get(d)?.entries?.[m.id]),
+      total: mamoolCompletion(m, days, logs, today, all),
     }));
     const stats = days.filter((d) => d <= today).map((d) => dayStats(d, logs.get(d), all));
     rows.push({
@@ -30,6 +31,7 @@ export function Week() {
         const s = dayStats(d, logs.get(d), all);
         return s.scheduled ? s.completion : null;
       }),
+      logged: days.map((d) => dayStats(d, logs.get(d), all).hasLog),
       total: periodCompletion(days, logs, all, today),
     });
     return {

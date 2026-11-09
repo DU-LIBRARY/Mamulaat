@@ -95,13 +95,22 @@ export function bestStreak(today: string, logs: Map<string, DayLog>, mamoolaat: 
   return best;
 }
 
+/**
+ * Today only counts once something has been logged for it: an empty (or cleared) today
+ * is "not yet", not 0%. Past days with nothing logged still count as 0.
+ */
+export function pendingToday(day: string, upTo: string, log: DayLog | undefined, mamoolaat: Mamool[]): boolean {
+  return day === upTo && !dayStats(day, log, mamoolaat).hasLog;
+}
+
 /** Per-mamool completion over a set of days (only days where the mamool was scheduled). */
-export function mamoolCompletion(m: Mamool, days: string[], logs: Map<string, DayLog>, upTo: string) {
+export function mamoolCompletion(m: Mamool, days: string[], logs: Map<string, DayLog>, upTo: string, mamoolaat: Mamool[] = [m]) {
   let sum = 0;
   let n = 0;
   for (const d of days) {
     if (d > upTo) continue;
     if (scheduledFor(d, [m]).length === 0) continue;
+    if (pendingToday(d, upTo, logs.get(d), mamoolaat)) continue;
     n++;
     sum += entryFraction(logs.get(d)?.entries[m.id]);
   }
@@ -116,6 +125,7 @@ export function periodCompletion(days: string[], logs: Map<string, DayLog>, mamo
     if (d > upTo) continue;
     const s = dayStats(d, logs.get(d), mamoolaat);
     if (!s.scheduled) continue;
+    if (d === upTo && !s.hasLog) continue; // today, nothing logged yet
     n++;
     sum += s.completion;
   }

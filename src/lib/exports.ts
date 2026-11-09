@@ -55,7 +55,7 @@ export function studentDetailRows(mamoolaat: Mamool[], logs: Map<string, DayLog>
         if (e.status === 'missed') return 'missed';
         return `${e.amount}/${e.target} (${Math.round(entryFraction(e) * 100)}%)`;
       }),
-      pctCell(mamoolCompletion(m, days, logs, today)),
+      pctCell(mamoolCompletion(m, days, logs, today, mamoolaat)),
     ]);
   }
   rows.push([
