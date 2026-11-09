@@ -259,7 +259,7 @@ interface RegisterGroup {
 function Register({ days, today, groups, weeks }: { days: string[]; today: string; groups: RegisterGroup[]; weeks: Map<string, StudentWeek> }) {
   const cols = days.length + 3;
   return (
-    <div className="num overflow-x-auto rounded-lg border border-slate-200 bg-surface p-2">
+    <div className="num overflow-x-auto rounded-xl bg-surface p-2">
       <table className="w-full border-separate border-spacing-0.5 text-center text-[11px]">
         <caption className="sr-only">Each student's completion per day this week, grouped by class</caption>
         <thead>

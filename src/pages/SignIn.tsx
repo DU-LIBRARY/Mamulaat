@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSession } from '../hooks/useSession';
 import { PrivacyNote } from '../components/PrivacyNote';
 import { DateLine } from '../components/DateLine';
+import { Sky } from '../components/Sky';
 
 export function SignIn() {
   const { signIn, signInWithPassword, today } = useSession();
@@ -11,15 +12,19 @@ export function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <div className="flex min-h-dvh flex-col px-6 pt-safe">
+    <div className="relative isolate flex min-h-dvh flex-col px-6 pt-safe">
+      <Sky />
+      <div className="mx-auto flex w-full max-w-sm items-center gap-2.5 pt-8">
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-7 w-7 rounded-[6px]" />
+        <span className="font-serif text-[24px] leading-none text-slate-900">Mamūlāt</span>
+      </div>
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-11 w-11 rounded-[9px]" />
-        <h1 className="mt-6 text-[28px] leading-tight font-semibold tracking-[-0.02em] text-slate-900">Mamūlāt</h1>
-        <p className="mt-2 text-[17px] leading-relaxed text-slate-600">Keep your daily mamoolaat, and share your progress privately with your teacher.</p>
-        <DateLine day={today} className="mt-6 border-t border-slate-200 pt-4 text-slate-700" />
+        <h1 className="font-serif text-[44px] leading-[1.05] tracking-[-0.01em] text-slate-900">Your daily mamoolaat, kept.</h1>
+        <p className="mt-5 text-[17px] leading-relaxed text-slate-600">Tick off each one as you go, and share your progress privately with your teacher.</p>
+        <DateLine day={today} className="mt-8 text-slate-700" />
 
         <button
-          className="btn mt-8 w-full border border-slate-300 bg-surface text-slate-800 hover:bg-slate-50"
+          className="btn-primary mt-10 min-h-13 w-full text-[16px]"
           disabled={busy}
           onClick={async () => {
             setBusy(true);
@@ -33,7 +38,7 @@ export function SignIn() {
             }
           }}
         >
-          <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden>
+          <svg viewBox="0 0 48 48" className="h-5 w-5 rounded-full bg-white p-[3px]" aria-hidden>
             <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
             <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
             <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
@@ -43,7 +48,7 @@ export function SignIn() {
         </button>
 
         {!showEmail ? (
-          <button className="mt-4 self-center text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-900" onClick={() => setShowEmail(true)}>
+          <button className="mt-5 self-center text-sm text-brand-700 hover:text-brand-900" onClick={() => setShowEmail(true)}>
             Use email and password instead
           </button>
         ) : (

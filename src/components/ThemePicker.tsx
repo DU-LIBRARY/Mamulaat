@@ -14,14 +14,14 @@ export function ThemePicker() {
       <h2 className="section-title" id="theme-title">
         Appearance
       </h2>
-      <div className="flex rounded-md border border-slate-200 bg-slate-50 p-0.5" role="radiogroup" aria-labelledby="theme-title">
+      <div className="flex rounded-lg bg-slate-100 p-0.5" role="radiogroup" aria-labelledby="theme-title">
         {OPTIONS.map((o) => (
           <button
             key={o.value}
             type="button"
             role="radio"
             aria-checked={pref === o.value}
-            className={`btn min-h-10 flex-1 rounded px-3 text-sm ${pref === o.value ? 'bg-surface text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`btn min-h-10 flex-1 rounded px-3 text-sm ${pref === o.value ? 'bg-surface text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             onClick={() => setPref(o.value)}
           >
             {o.label}

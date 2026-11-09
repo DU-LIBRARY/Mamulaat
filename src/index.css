@@ -1,135 +1,157 @@
 @import "tailwindcss";
 
 /*
- * Mamulaat design direction — "the register".
- * A quiet, ruled-notebook interface: flat paper surfaces divided by hairlines,
- * one deep green for actions and progress, gold only for messages from the teacher.
- * Self-hosted IBM Plex Sans (+ Plex Sans Arabic for Arabic names) so it works offline.
+ * Mamulaat design direction — "after maghrib".
+ * Inspired by the Bilal jama'ah finder: an olive-black night (or warm paper by day),
+ * a sky that follows the time of prayer at the top of each screen, large regular-weight
+ * Prata headlines over Archivo text, almost no chrome, and a single soft clay accent.
+ * No cards-with-shadows: content sits on the page, divided by hairlines.
+ * Fonts are self-hosted (Fontsource) so the app works offline.
  */
-@import "@fontsource/ibm-plex-sans/latin-400.css";
-@import "@fontsource/ibm-plex-sans/latin-500.css";
-@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/prata/400.css";
+@import "@fontsource-variable/archivo/wght.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-400.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-600.css";
 
 @theme {
-  /* Brand green — actions, progress, the active tab. */
-  --color-brand-50: #eef4f0;
-  --color-brand-100: #d7e6dc;
-  --color-brand-200: #b2cfbc;
-  --color-brand-300: #7fae8f;
-  --color-brand-500: #2f7a52;
-  --color-brand-600: #1d6542;
-  --color-brand-700: #0f5132;
-  --color-brand-800: #0b4029;
-  --color-brand-900: #0a2e1e;
+  /* Clay — the one accent: actions, "done", links, the active tab. */
+  --color-brand-50: #efe5dc;
+  --color-brand-100: #e8d6c8;
+  --color-brand-200: #d9bba7;
+  --color-brand-300: #cba38b;
+  --color-brand-500: #a5735a;
+  --color-brand-600: #8d5f47;
+  --color-brand-700: #774f3a;
+  --color-brand-800: #61402f;
+  --color-brand-900: #472e21;
 
   /* Paper. */
-  --color-sand-50: #fbfaf7;
-  --color-sand-100: #f5f4ef;
-  --color-sand-200: #e7e4da;
+  --color-sand-50: #efece6;
+  --color-sand-100: #e9e5dd;
+  --color-sand-200: #dcd7cc;
 
   /* Gold — reserved for the teacher's voice. */
-  --color-gold-400: #d9b25a;
-  --color-gold-500: #b88a2a;
-  --color-gold-50: #fbf6e9;
-  --color-gold-900: #5b4512;
+  --color-gold-400: #c3a464;
+  --color-gold-500: #9c7c38;
+  --color-gold-50: #eee5d2;
+  --color-gold-900: #55421a;
 
-  /* Semantic surfaces. Solid fills that carry white text get their own tokens,
-     so the brand/red scales can turn into light text colours in dark mode. */
-  --color-surface: #ffffff;
-  --color-ink: #171714;
-  --color-primary: #0f5132;
-  --color-primary-strong: #0b4029;
-  --color-danger: #b91c1c;
-  --color-danger-strong: #991b1b;
+  /* Solid fills. Clay buttons carry dark text (on-primary), as in the reference. */
+  --color-surface: #f1eee8;
+  --color-ink: #20251d;
+  --color-primary: #d2a88f;
+  --color-primary-strong: #c49a80;
+  --color-on-primary: #252c21;
+  --color-danger: #9f3a2c;
+  --color-danger-strong: #863024;
 
-  /*
-   * Warm neutrals replace Tailwind's blue-grey slate everywhere in the app,
-   * tuned so that 500 and darker pass WCAG AA on the paper background.
-   */
-  --color-slate-50: #f7f6f2;
-  --color-slate-100: #efede7;
-  --color-slate-200: #e2dfd6;
-  --color-slate-300: #cbc7bc;
-  --color-slate-400: #9a978d;
-  --color-slate-500: #6a6860;
-  --color-slate-600: #55534c;
-  --color-slate-700: #3d3c37;
-  --color-slate-800: #23231f;
-  --color-slate-900: #171714;
+  /* Quieter partial / missed tones that sit with clay and olive. */
+  --color-amber-50: #f1e8d4;
+  --color-amber-100: #ecdcb8;
+  --color-amber-200: #dfc58e;
+  --color-amber-300: #d1ae67;
+  --color-amber-500: #b78c3a;
+  --color-amber-600: #a27a2c;
+  --color-amber-700: #7c5c1e;
+  --color-amber-800: #654a18;
+  --color-amber-900: #4e3912;
+  --color-red-50: #efdcd5;
+  --color-red-100: #e9cbc1;
+  --color-red-200: #dcaea1;
+  --color-red-400: #c27766;
+  --color-red-700: #8e3426;
+  --color-red-800: #772b20;
 
-  /* Small, consistent radii instead of pill-and-blob shapes. */
+  /* Olive neutrals; 500 and darker pass WCAG AA on paper. */
+  --color-slate-50: #ebe8e1;
+  --color-slate-100: #e2ded5;
+  --color-slate-200: #d5d1c6;
+  --color-slate-300: #bfbcb0;
+  --color-slate-400: #8f9387;
+  --color-slate-500: #5f6559;
+  --color-slate-600: #4f554a;
+  --color-slate-700: #3e443a;
+  --color-slate-800: #30372e;
+  --color-slate-900: #20251d;
+
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
-  --radius-xl: 0.5rem;
-  --radius-2xl: 0.625rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
 
-  --font-sans: "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Nastaliq Urdu", sans-serif;
+  --ease-calm: cubic-bezier(0.22, 0.8, 0.25, 1);
+
+  --font-sans: "Archivo Variable", "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Nastaliq Urdu", sans-serif;
+  --font-serif: "Prata", "IBM Plex Sans Arabic", Georgia, serif;
 }
 
 /* `dark:` variant follows the .dark class set from the user's theme choice (src/lib/theme.ts). */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Dark mode: the same register, after lights-out. Paper turns to warm charcoal,
- * the neutral scale flips, and the tint/text ends of brand, amber, red and gold swap
- * so every existing "light tint + dark text" pairing becomes "dark tint + light text".
- * Screen only — printing always uses the light palette.
+ * Night: olive-black ground, raised sheets a step lighter, warm off-white ink, sage-grey
+ * for secondary text, clay for the accent. Tint/text ends of each scale swap so every
+ * "light tint + dark text" pairing becomes "dark tint + light text".
+ * Screen only — printing always uses the paper palette.
  */
 @media screen {
   :root.dark {
     color-scheme: dark;
 
-    --color-surface: #1c1b18;
-    --color-ink: #34332e;
-    --color-primary: #23704a;
-    --color-primary-strong: #1d6542;
-    --color-danger: #b42323;
-    --color-danger-strong: #9b1c1c;
+    --color-surface: #22261e;
+    --color-ink: #353b30;
+    --color-primary: #dab49d;
+    --color-primary-strong: #e4c2ad;
+    --color-on-primary: #252c21;
+    --color-danger: #b04a3b;
+    --color-danger-strong: #9a3f31;
 
-    --color-sand-50: #191917;
-    --color-sand-100: #121210;
-    --color-sand-200: #2a2925;
+    --color-sand-50: #1d201a;
+    --color-sand-100: #191b16;
+    --color-sand-200: #2c3127;
 
-    --color-slate-50: #22211e;
-    --color-slate-100: #2a2926;
-    --color-slate-200: #34332e;
-    --color-slate-300: #47453f;
-    --color-slate-400: #7a776e;
-    --color-slate-500: #a29f96;
-    --color-slate-600: #b9b6ad;
-    --color-slate-700: #d0cdc4;
-    --color-slate-800: #e4e1d9;
-    --color-slate-900: #f2f0ea;
+    --color-slate-50: #23271f;
+    --color-slate-100: #292e24;
+    --color-slate-200: #31372c;
+    --color-slate-300: #444b3e;
+    --color-slate-400: #7b8174;
+    --color-slate-500: #a3a99b;
+    --color-slate-600: #bac0b1;
+    --color-slate-700: #d0d2c6;
+    --color-slate-800: #e4e2d8;
+    --color-slate-900: #f1eee4;
 
-    --color-brand-50: #15241b;
-    --color-brand-100: #1b3326;
-    --color-brand-200: #285039;
-    --color-brand-300: #2f6046;
-    --color-brand-500: #4f9d72;
-    --color-brand-600: #7fbf9a;
-    --color-brand-700: #8fcca7;
-    --color-brand-800: #a9dbbd;
-    --color-brand-900: #cdeedb;
+    --color-brand-50: #2b2a22;
+    --color-brand-100: #36322a;
+    --color-brand-200: #4a4034;
+    --color-brand-300: #665244;
+    --color-brand-500: #c39b84;
+    --color-brand-600: #d0a990;
+    --color-brand-700: #dab49d;
+    --color-brand-800: #e6c8b5;
+    --color-brand-900: #f1ddd0;
 
-    --color-gold-50: #26200f;
-    --color-gold-900: #ecd49a;
+    --color-gold-50: #2a2619;
+    --color-gold-400: #a88d55;
+    --color-gold-900: #e3cf9f;
 
-    --color-amber-50: #2a2210;
-    --color-amber-100: #3a2d10;
-    --color-amber-200: #4d3c17;
-    --color-amber-300: #6b5420;
-    --color-amber-700: #f2c46b;
-    --color-amber-800: #f5cf80;
-    --color-amber-900: #f8dc9e;
+    --color-amber-50: #2a2516;
+    --color-amber-100: #393018;
+    --color-amber-200: #4d4020;
+    --color-amber-300: #6b5728;
+    --color-amber-500: #c9a45a;
+    --color-amber-600: #b8934a;
+    --color-amber-700: #e2c27d;
+    --color-amber-800: #e9cf95;
+    --color-amber-900: #f0dcae;
 
-    --color-red-50: #2c1615;
-    --color-red-100: #3d1a18;
-    --color-red-200: #5a2522;
-    --color-red-700: #f3a29b;
-    --color-red-800: #f7b8b1;
+    --color-red-50: #2d1d18;
+    --color-red-100: #3b231d;
+    --color-red-200: #553028;
+    --color-red-400: #b8695a;
+    --color-red-700: #eba597;
+    --color-red-800: #f1b9ad;
   }
 }
 
@@ -140,7 +162,7 @@ body,
 }
 
 body {
-  @apply bg-sand-100 text-slate-800 antialiased;
+  @apply bg-sand-100 text-[15px] leading-normal text-slate-800 antialiased;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -148,11 +170,13 @@ body {
 [dir="rtl"],
 .rtl-auto:dir(rtl) {
   font-family: "IBM Plex Sans Arabic", "Noto Nastaliq Urdu", "Geeza Pro", "Al Nile", var(--font-sans);
+  letter-spacing: 0;
   line-height: 1.7;
 }
 
 :focus-visible {
   outline: 2px solid var(--color-brand-500);
+  border-radius: 2px;
   outline-offset: 2px;
 }
 
@@ -165,26 +189,26 @@ body {
   }
 }
 
-/* A flat surface on the paper: hairline border, no drop shadow. */
+/* A section on the page: no box at all, just a hairline above it (the Bilal way). */
 @utility card {
-  @apply rounded-lg border border-slate-200 bg-surface p-4;
+  @apply border-t border-slate-200 pt-5 pb-2;
 }
 
 /* A surface whose rows are divided by hairlines (lists, settings groups). */
 @utility sheet {
-  @apply divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200 bg-surface;
+  @apply divide-y divide-slate-200 border-y border-slate-200;
 }
 
 @utility btn {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2 text-[15px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2 text-[15px] font-medium transition-colors duration-200 ease-calm disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 @utility btn-primary {
-  @apply btn bg-primary text-white hover:bg-primary-strong;
+  @apply btn bg-primary text-on-primary shadow-[inset_0_1px_0_rgb(255_255_255/0.33),inset_0_-1px_0_rgb(64_46_34/0.16)] hover:bg-primary-strong;
 }
 
 @utility btn-secondary {
-  @apply btn border border-slate-300 bg-surface text-slate-800 hover:bg-slate-50;
+  @apply btn border border-slate-300 bg-transparent text-slate-800 hover:border-slate-400 hover:bg-slate-50;
 }
 
 @utility btn-danger {
@@ -196,7 +220,7 @@ body {
 }
 
 @utility input {
-  @apply block min-h-11 w-full rounded-md border border-slate-300 bg-surface px-3 py-2 text-base text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none;
+  @apply block min-h-11 w-full rounded-md border border-slate-300 bg-surface px-3 py-2 text-base text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none dark:bg-sand-50;
 }
 
 @utility label {
@@ -209,12 +233,17 @@ body {
 
 /* Section headings: sentence case, quiet, no tracked all-caps. */
 @utility section-title {
-  @apply mb-2 text-[15px] font-semibold text-slate-800;
+  @apply mb-2 font-serif text-[22px] leading-tight font-normal text-slate-900;
+}
+
+/* Page and display headings: Prata at regular weight, set large. */
+@utility display {
+  @apply font-serif font-normal tracking-[-0.01em] text-slate-900;
 }
 
 /* Text link used for "View all", "Edit list", etc. */
 @utility link {
-  @apply text-sm font-medium text-brand-700 underline decoration-brand-200 underline-offset-4 hover:decoration-brand-700;
+  @apply text-sm text-brand-700 underline decoration-transparent underline-offset-4 transition-colors hover:decoration-brand-300;
 }
 
 @utility num {
@@ -239,12 +268,12 @@ body::before {
   position: fixed;
   inset: 0 0 auto 0;
   height: env(safe-area-inset-top);
-  background: #0a2e1e;
+  background: #191b16;
   z-index: 90;
   pointer-events: none;
 }
 :root.dark body::before {
-  background: #121210;
+  background: #191b16;
 }
 @media print {
   body::before {
@@ -297,5 +326,60 @@ body::before {
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+}
+
+/*
+ * Sky washes for <Sky>. Each fades to the page colour by the bottom of the element.
+ * Paper (light) skies are gentle; night skies are deeper.
+ */
+.sky {
+  --sky-a: #d9dccf;
+  --sky-b: #e2ddd0;
+  background:
+    radial-gradient(120% 70% at 70% 0%, var(--sky-a), transparent 70%),
+    linear-gradient(180deg, var(--sky-b), var(--color-sand-100) 92%);
+  transition: background 1.2s var(--ease-calm);
+}
+.sky[data-sky='fajr'] { --sky-a: #c9cfd6; --sky-b: #dcd6d0; }
+.sky[data-sky='day'] { --sky-a: #d8ddd4; --sky-b: #e4e2d8; }
+.sky[data-sky='asr'] { --sky-a: #e6d8bf; --sky-b: #e8dfcf; }
+.sky[data-sky='maghrib'] { --sky-a: #e2c4b2; --sky-b: #e6d9cd; }
+.sky[data-sky='isha'] { --sky-a: #c9ccc6; --sky-b: #dcd9d0; }
+@media screen {
+  :root.dark .sky[data-sky='fajr'] { --sky-a: #2c3646; --sky-b: #1f2421; }
+  :root.dark .sky[data-sky='day'] { --sky-a: #2f3a33; --sky-b: #1e221b; }
+  :root.dark .sky[data-sky='asr'] { --sky-a: #3d3727; --sky-b: #1f211a; }
+  :root.dark .sky[data-sky='maghrib'] { --sky-a: #4a3229; --sky-b: #221f1a; }
+  :root.dark .sky[data-sky='isha'] { --sky-a: #1f2a36; --sky-b: #191b16; }
+}
+@media print {
+  .sky { display: none; }
+}
+
+/* Night skies carry a faint, slowly drifting field of stars. */
+@media screen {
+  :root.dark .sky[data-sky='isha']::after,
+  :root.dark .sky[data-sky='fajr']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.55;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 34% 8%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 58% 22%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 76% 12%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 30%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 22% 38%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 46% 44%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 68% 52%, #f1eee4 50%, transparent 51%);
+    mask-image: linear-gradient(180deg, #000, transparent 80%);
+    animation: sky-drift 240s linear infinite alternate;
+  }
+}
+@keyframes sky-drift {
+  to {
+    transform: translateX(-24px);
   }
 }

@@ -5,6 +5,7 @@ import { SessionProvider, useSession } from './hooks/useSession';
 import { StudentDataProvider, useMyData } from './hooks/useStudentData';
 import { useAllUsers } from './hooks/useAdminData';
 import { FullScreen, Spinner } from './components/ui';
+import { Splash } from './components/quiet';
 import { Layout } from './components/Layout';
 import { AdminLayout } from './components/AdminLayout';
 import { SignIn } from './pages/SignIn';
@@ -34,7 +35,7 @@ import { IconInbox, IconLog, IconPerson, IconToday, IconWeek, IconX } from './co
 
 function Toast({ text, onClose }: { text: string; onClose: () => void }) {
   return (
-    <div role="alert" className="top-safe-toast fixed inset-x-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-lg bg-ink py-3 pr-2 pl-4 text-sm text-white shadow-lg">
+    <div role="alert" className="top-safe-toast fixed inset-x-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-ink py-3 pr-2 pl-4 text-sm text-[#f1eee4] shadow-xl">
       <span className="flex-1">{text}</span>
       <button className="btn min-h-9 px-2 text-white/80 hover:bg-white/10 hover:text-white" onClick={onClose} aria-label="Dismiss">
         <IconX size={18} />
@@ -67,7 +68,7 @@ function StudentRoutes() {
     return () => document.removeEventListener('visibilitychange', touch);
   }, [uid, lastSeenMs]);
 
-  if (data.loading && !data.all.length) return <Spinner />;
+  if (data.loading && !data.all.length) return <Splash status="Loading your mamoolaat…" />;
   if (!profile!.onboarded) return <Onboarding />;
 
   return (
@@ -130,7 +131,7 @@ function Gate() {
   if (removed) {
     return (
       <FullScreen>
-        <h1 className="text-2xl font-semibold tracking-[-0.015em] text-slate-900">Your account was removed</h1>
+        <h1 className="display text-[32px] leading-tight">Your account was removed</h1>
         <p className="mt-3 max-w-sm text-slate-600">
           Your teacher removed your Mamūlāt account and its data, and you have been signed out. If you think this is a mistake, please talk to your teacher.
         </p>
@@ -141,7 +142,7 @@ function Gate() {
       </FullScreen>
     );
   }
-  if (user === undefined) return <Spinner label="Opening Mamūlāt…" />;
+  if (user === undefined) return <Splash />;
   if (user === null) return <SignIn />;
   if (profile === undefined) {
     return (

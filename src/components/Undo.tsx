@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 
 /**
  * "Done · Undo" toasts, used instead of "Are you sure?" dialogs for small, reversible actions.
@@ -74,16 +75,33 @@ export function UndoProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={api}>
       {children}
       <div className="update-prompt fixed inset-x-3 z-[65] mx-auto max-w-md" role="status" aria-live="polite">
-        {toast && (
-          <div key={toast.id} className="flex items-center gap-3 rounded-lg bg-ink py-2 pr-2 pl-4 text-white shadow-lg">
-            <span className="flex-1 text-sm" dir="auto">
-              {toast.message}
-            </span>
-            <button className="btn min-h-9 px-3 text-sm font-semibold text-gold-400 hover:bg-white/10" onClick={() => settle(true)}>
-              Undo
-            </button>
-          </div>
-        )}
+        <AnimatePresence mode="popLayout">
+          {toast && (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              transition={{ duration: 0.28, ease: [0.22, 0.8, 0.25, 1] }}
+              className="relative flex items-center gap-3 overflow-hidden rounded-xl bg-ink py-2 pr-2 pl-4 text-[#f1eee4] shadow-xl"
+            >
+              <span className="flex-1 text-sm" dir="auto">
+                {toast.message}
+              </span>
+              <button className="btn min-h-9 px-3 text-sm text-[#dab49d] hover:bg-white/10" onClick={() => settle(true)}>
+                Undo
+              </button>
+              {/* time left to undo */}
+              <motion.span
+                aria-hidden
+                className="absolute inset-x-0 bottom-0 h-px origin-left bg-[#dab49d]/60"
+                initial={{ scaleX: 1 }}
+                animate={{ scaleX: 0 }}
+                transition={{ duration: SHOW_MS / 1000, ease: 'linear' }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Ctx.Provider>
   );

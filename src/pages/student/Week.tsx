@@ -44,16 +44,16 @@ export function Week() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <button className="btn-secondary w-11 px-0" onClick={() => setOffset(offset - 1)} aria-label="Previous week">
+        <button className="btn-ghost w-11 px-0" onClick={() => setOffset(offset - 1)} aria-label="Previous week">
           <IconChevronLeft size={20} />
         </button>
         <div className="text-center">
-          <div className="font-semibold text-slate-900">{offset === 0 ? 'This week' : offset === -1 ? 'Last week' : 'Week of'}</div>
+          <div className="font-serif text-[26px] leading-tight text-slate-900">{offset === 0 ? 'This week' : offset === -1 ? 'Last week' : 'Week of'}</div>
           <div className="text-sm text-slate-500">
             {formatGregorian(days[0], { weekday: undefined, year: undefined })} – {formatGregorian(days[6], { weekday: undefined })}
           </div>
         </div>
-        <button className="btn-secondary w-11 px-0" onClick={() => setOffset(offset + 1)} disabled={offset >= 0} aria-label="Next week">
+        <button className="btn-ghost w-11 px-0" onClick={() => setOffset(offset + 1)} disabled={offset >= 0} aria-label="Next week">
           <IconChevronRight size={20} />
         </button>
       </div>
@@ -61,7 +61,7 @@ export function Week() {
         <Stat label="Complete" value={pct(completion)} />
         <Stat label="Full days" value={fullDays} />
       </StatRow>
-      <div className="rounded-lg border border-slate-200 bg-surface p-2">
+      <div className="rounded-xl bg-surface p-2">
         <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" />
       </div>
       <p className="text-xs text-slate-500">
