@@ -83,7 +83,8 @@ export function ClassView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      {/* the title gets the full width on phones; the Day/Week switch sits beside it from sm up */}
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="display text-[34px] leading-tight" dir="auto">
           {cls.name}
         </h1>
