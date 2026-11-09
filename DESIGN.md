@@ -77,6 +77,29 @@ typography:
     fontSize: "11px"
     fontWeight: 400
     lineHeight: 1.2
+  caption-strong:
+    fontFamily: "Archivo Variable, IBM Plex Sans Arabic, system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.4
+  input:
+    fontFamily: "Archivo Variable, IBM Plex Sans Arabic, system-ui, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.5
+  figure-large:
+    fontFamily: "Archivo Variable, system-ui, sans-serif"
+    fontSize: "28px"
+    fontWeight: 300
+    lineHeight: 1.2
+    fontFeature: "tnum"
+  figure-hero:
+    fontFamily: "Archivo Variable, system-ui, sans-serif"
+    fontSize: "44px"
+    fontWeight: 300
+    lineHeight: 1
+    letterSpacing: "-0.01em"
+    fontFeature: "tnum"
 rounded:
   xs: "4px"
   md: "6px"

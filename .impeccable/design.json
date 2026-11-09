@@ -405,6 +405,22 @@
       "nav": {
         "displayName": "Nav",
         "purpose": "Bottom tab labels."
+      },
+      "caption-strong": {
+        "displayName": "Caption Strong",
+        "purpose": "Secondary status text, small links, the 13px step."
+      },
+      "input": {
+        "displayName": "Input",
+        "purpose": "Form fields and lead lines; 16px so iOS doesn't zoom."
+      },
+      "figure-large": {
+        "displayName": "Figure Large",
+        "purpose": "Student detail headline figures."
+      },
+      "figure-hero": {
+        "displayName": "Figure Hero",
+        "purpose": "The day's percentage and sign-in hero figure."
       }
     },
     "shadows": [
