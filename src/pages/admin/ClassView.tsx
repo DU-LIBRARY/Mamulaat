@@ -78,6 +78,7 @@ export function ClassView() {
     to: `/admin/student/${w.student.id}?date=${days[0]}`,
     cells: w.days.map((d) => d.completion),
     logged: w.days.map((d) => d.hasLog),
+    off: w.days.map((d) => d.off),
     total: w.completion,
   }));
 
@@ -126,10 +127,12 @@ export function ClassView() {
                     <span className="truncate font-semibold" dir="auto">
                       {displayName(s)}
                     </span>
-                    <span className={`chip px-3 py-1 text-sm ${cellClass(st.scheduled ? (st.hasLog ? st.completion : 0) : null)}`}>{st.hasLog ? pct(st.completion) : 'No log'}</span>
+                    <span className={`chip px-3 py-1 text-sm ${cellClass(st.scheduled ? (st.hasLog ? st.completion : 0) : null)}`}>{st.off ? 'Day off' : st.hasLog ? pct(st.completion) : 'No log'}</span>
                   </Link>
                   {!r?.loaded ? (
                     <div className="text-sm text-slate-400">Loading…</div>
+                  ) : st.off ? (
+                    <div className="text-sm text-slate-500">Day off — doesn't count.</div>
                   ) : mams.length === 0 ? (
                     <div className="text-sm text-slate-400">No mamoolaat set.</div>
                   ) : (

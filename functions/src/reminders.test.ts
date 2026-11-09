@@ -24,6 +24,7 @@ test('helpers', () => {
   assert.equal(hasLogged(undefined), false);
   assert.equal(hasLogged({ entries: {} }), false);
   assert.equal(hasLogged({ entries: { a: {} } }), true);
+  assert.equal(hasLogged({ entries: {}, off: true }), true);
 });
 
 test('userChangeNotice: sign-up finished tells the admin, approval tells the student', () => {

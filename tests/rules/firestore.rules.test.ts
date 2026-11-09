@@ -363,6 +363,22 @@ describe('locked days', () => {
   });
 });
 
+describe('day off', () => {
+  const adminLog = (day: string, extra: Record<string, unknown> = {}) => ({ ...logDoc(day), editedBy: ADMIN, editedByName: 'Admin', ...extra });
+
+  it('only the admin can mark a day off; a student cannot set, clear or delete it', async () => {
+    await assertFails(setDoc(doc(db(A), `users/${A}/logs/${today}`), { ...logDoc(today), off: true }));
+    await assertFails(setDoc(doc(db(ADMIN), `users/${A}/logs/${today}`), adminLog(today, { off: 'yes' })));
+    await assertSucceeds(setDoc(doc(db(ADMIN), `users/${A}/logs/${today}`), adminLog(today, { off: true })));
+    const f = db(A);
+    const clearStamp = { editedBy: deleteField(), editedByName: deleteField() };
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), { date: today, entries: {}, updatedAt: serverTimestamp(), off: deleteField(), ...clearStamp }, { merge: true }));
+    await assertFails(deleteDoc(doc(f, `users/${A}/logs/${today}`)));
+    // logging on a day off keeps the flag
+    await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${today}`), { date: today, entries: {}, updatedAt: serverTimestamp(), ...clearStamp }, { merge: true }));
+  });
+});
+
 describe('admin edits student logs (any day)', () => {
   const adminLog = (day: string, extra: Record<string, unknown> = {}) => ({ ...logDoc(day), editedBy: ADMIN, editedByName: 'Admin', ...extra });
 

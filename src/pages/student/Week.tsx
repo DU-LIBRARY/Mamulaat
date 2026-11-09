@@ -5,7 +5,7 @@ import { WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { Stat, StatRow } from '../../components/ui';
 import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { addDays, formatGregorian, weekDays, weekStartOf } from '../../lib/dates';
-import { dayStats, entryFraction, mamoolCompletion, periodCompletion, pct, scheduledFor } from '../../lib/scoring';
+import { countingFor, dayStats, entryFraction, isOffDay, mamoolCompletion, periodCompletion, pct, scheduledFor } from '../../lib/scoring';
 
 export function Week() {
   const { today, settings } = useActiveSession();
@@ -19,8 +19,9 @@ export function Week() {
     const rows: GridRow[] = inWeek.map((m) => ({
       key: m.id,
       label: m.name,
-      cells: days.map((d) => (scheduledFor(d, [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
+      cells: days.map((d) => (countingFor(d, logs.get(d), [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
       logged: days.map((d) => !!logs.get(d)?.entries?.[m.id]),
+      off: days.map((d) => isOffDay(logs.get(d))),
       total: mamoolCompletion(m, days, logs, today, all),
     }));
     const stats = days.filter((d) => d <= today).map((d) => dayStats(d, logs.get(d), all));
@@ -32,6 +33,7 @@ export function Week() {
         return s.scheduled ? s.completion : null;
       }),
       logged: days.map((d) => dayStats(d, logs.get(d), all).hasLog),
+      off: days.map((d) => isOffDay(logs.get(d))),
       total: periodCompletion(days, logs, all, today),
     });
     return {

@@ -173,6 +173,21 @@ export function adminDeleteLog(uid: string, day: string, actor: Actor) {
   fire(batch.commit());
 }
 
+/**
+ * Admin takes a day off the record (excused) or puts it back. A day off doesn't count at all:
+ * not missed, not in any %, and it doesn't break a streak. Entries are kept untouched.
+ * `exists` = the log doc is already there (an update can't create it; a set would need entries).
+ */
+export function adminSetDayOff(uid: string, day: string, off: boolean, exists: boolean, actor: Actor) {
+  const batch = writeBatch(db);
+  const stampFields = { updatedAt: serverTimestamp(), editedBy: actor.uid, editedByName: actor.name.slice(0, 200) };
+  if (exists) batch.update(logRef(uid, day), { off: off ? true : deleteField(), ...stampFields });
+  else if (off) batch.set(logRef(uid, day), { date: day, entries: {}, off: true, ...stampFields });
+  else return;
+  addAudit(batch, actor, off ? 'log.dayOff' : 'log.dayOn', { studentId: uid, day });
+  fire(batch.commit());
+}
+
 // ---------- mamoolaat ----------
 type MamoolInput = Pick<Mamool, 'name' | 'target' | 'unit'>;
 

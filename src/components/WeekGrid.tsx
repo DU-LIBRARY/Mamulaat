@@ -11,6 +11,8 @@ export interface GridRow {
   cells: (number | null)[]; // completion 0..1 per day, null = not applicable / future
   /** Per day: was anything logged? A day with nothing logged shows ✕ (or blank today), never "0". */
   logged?: boolean[];
+  /** Per day: the admin took the day off the record (excused). Shown as "Off". */
+  off?: boolean[];
   total: number | null;
 }
 
@@ -49,6 +51,13 @@ export function WeekGrid({ days, rows, today, firstHeader }: { days: string[]; r
               {r.cells.map((c, i) => {
                 const d = days[i];
                 if (d > today) return <td key={d} className="h-9 rounded bg-transparent" />;
+                if (r.off?.[i])
+                  return (
+                    <td key={d} className={`h-9 rounded text-[10px] font-medium ${cellClass(null)}`} title="day off — doesn't count">
+                      <span aria-hidden>Off</span>
+                      <span className="sr-only">day off, doesn't count</span>
+                    </td>
+                  );
                 if (c == null)
                   return (
                     <td key={d} className={`h-9 rounded font-medium ${cellClass(null)}`}>

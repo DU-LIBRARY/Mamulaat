@@ -82,6 +82,12 @@ export interface DayLog {
   /** Set when the admin (not the student) last edited this day. */
   editedBy?: string;
   editedByName?: string;
+  /**
+   * Set by the admin: the day is "off" (excused, e.g. ill or travelling). It does not count
+   * at all — not as missed, not toward any %, and it doesn't break a streak. Entries are kept,
+   * so putting the day back on the record restores them.
+   */
+  off?: boolean;
 }
 
 export interface Comment {

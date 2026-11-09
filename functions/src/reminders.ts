@@ -52,8 +52,9 @@ export function isDue(opts: {
   return delta >= 0 && delta < SEND_WINDOW_MINUTES;
 }
 
-/** A day counts as logged if the log doc has at least one entry. */
-export function hasLogged(log: { entries?: Record<string, unknown> } | undefined): boolean {
+/** A day counts as logged if the log doc has at least one entry, or the admin marked it a day off. */
+export function hasLogged(log: { entries?: Record<string, unknown>; off?: unknown } | undefined): boolean {
+  if (log?.off === true) return true;
   return !!log && !!log.entries && Object.keys(log.entries).length > 0;
 }
 

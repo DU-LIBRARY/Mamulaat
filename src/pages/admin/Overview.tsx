@@ -211,7 +211,7 @@ export function Overview() {
             weeks={weeks}
           />
         )}
-        <p className="mt-2 text-xs text-slate-500">✓ every mamool completed · number = % completed · ✕ nothing logged · · today, not logged yet · – no mamoolaat set. Tap a student for details.</p>
+        <p className="mt-2 text-xs text-slate-500">✓ every mamool completed · number = % completed · ✕ nothing logged · · today, not logged yet · Off day off (doesn't count) · – no mamoolaat set. Tap a student for details.</p>
       </section>
 
       <section className="no-print">
@@ -308,6 +308,13 @@ function Register({ days, today, groups, weeks }: { days: string[]; today: strin
                       if (!w) return <td key={d} className="h-9 rounded-md bg-slate-50 text-slate-300">…</td>;
                       const day = w.days[i];
                       const c = day.completion;
+                      if (day.off)
+                        return (
+                          <td key={d} className={`h-9 rounded-md text-[10px] font-semibold ${cellClass(null)}`} title="day off — doesn't count">
+                            <span aria-hidden>Off</span>
+                            <span className="sr-only">day off, doesn't count</span>
+                          </td>
+                        );
                       const notYet = d === today && c != null && !day.hasLog;
                       const label = c == null ? '–' : notYet ? '·' : c >= 1 ? '✓' : !day.hasLog ? '✕' : Math.round(c * 100);
                       const spoken = c == null ? 'no mamoolaat' : notYet ? 'not logged yet' : c >= 1 ? 'all done' : !day.hasLog ? 'nothing logged' : `${Math.round(c * 100)}%`;

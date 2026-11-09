@@ -56,12 +56,14 @@ export function LogDay() {
         <Notice tone="teacher" icon={<IconPencil size={18} />}>Your teacher{logs.get(day)?.editedByName ? ` (${logs.get(day)?.editedByName})` : ''} edited this day.</Notice>
       )}
 
-      {mams.length ? (
+      {s.off ? (
+        <Notice tone="teacher">Your teacher marked this as a day off. It doesn't count, so there's nothing to log.</Notice>
+      ) : mams.length ? (
         <Checklist uid={profile.id} day={day} mamoolaat={mams} log={logs.get(day)} editable={editable} />
       ) : (
         <EmptyState>No mamoolaat were set for this day.</EmptyState>
       )}
-      {editable && <p className="text-center text-xs text-slate-500">Saves automatically. Tap again to undo.</p>}
+      {editable && !s.off && <p className="text-center text-xs text-slate-500">Saves automatically. Tap again to undo.</p>}
     </div>
   );
 }

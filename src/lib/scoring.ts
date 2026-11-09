@@ -16,6 +16,16 @@ export function scheduledFor(day: string, mamoolaat: Mamool[]): Mamool[] {
   );
 }
 
+/** The admin took this day off the record: it doesn't count for anything. */
+export function isOffDay(log: DayLog | undefined): boolean {
+  return log?.off === true;
+}
+
+/** Mamoolaat that count on a day, given that day's log (none on a day off). */
+export function countingFor(day: string, log: DayLog | undefined, mamoolaat: Mamool[]): Mamool[] {
+  return isOffDay(log) ? [] : scheduledFor(day, mamoolaat);
+}
+
 export function entryFraction(e: LogEntry | undefined): number {
   if (!e) return 0;
   if (e.status === 'done') return 1;
@@ -31,10 +41,13 @@ export interface DayStats {
   done: number;
   completion: number; // 0..1
   hasLog: boolean;
+  /** Day off (excused): nothing scheduled, nothing counts. */
+  off: boolean;
 }
 
 export function dayStats(day: string, log: DayLog | undefined, mamoolaat: Mamool[]): DayStats {
-  const sched = scheduledFor(day, mamoolaat);
+  const off = isOffDay(log);
+  const sched = countingFor(day, log, mamoolaat);
   const entries = log?.entries ?? {};
   let sum = 0;
   let done = 0;
@@ -47,7 +60,7 @@ export function dayStats(day: string, log: DayLog | undefined, mamoolaat: Mamool
     if (f >= 1) done++;
   }
   const completion = sched.length ? sum / sched.length : 0;
-  return { day, scheduled: sched.length, logged, done, completion, hasLog: logged > 0 };
+  return { day, scheduled: sched.length, logged, done, completion, hasLog: logged > 0, off };
 }
 
 export function logsByDay(logs: DayLog[]): Map<string, DayLog> {
@@ -64,10 +77,17 @@ export function currentStreak(today: string, logs: Map<string, DayLog>, mamoolaa
     const s = dayStats(d, logs.get(d), mamoolaat);
     return s.scheduled > 0 && s.completion >= STREAK_MIN_COMPLETION;
   };
-  let day = ok(today) ? today : addDays(today, -1);
+  const off = (d: string) => isOffDay(logs.get(d));
+  let day = ok(today) || off(today) ? today : addDays(today, -1);
   let streak = 0;
+  // Days off are skipped: they neither add to nor break the streak.
   // cap the walk to avoid pathological loops
-  for (let i = 0; i < 3660 && ok(day); i++) {
+  for (let i = 0; i < 3660; i++) {
+    if (off(day)) {
+      day = addDays(day, -1);
+      continue;
+    }
+    if (!ok(day)) break;
     streak++;
     day = addDays(day, -1);
   }
@@ -82,17 +102,26 @@ export function bestStreak(today: string, logs: Map<string, DayLog>, mamoolaat: 
   let prev: string | null = null;
   for (const d of days) {
     if (d > today) continue;
+    if (isOffDay(logs.get(d))) continue; // a day off neither counts nor breaks the run
     const s = dayStats(d, logs.get(d), mamoolaat);
     const good = s.scheduled > 0 && s.completion >= STREAK_MIN_COMPLETION;
     if (!good) {
       run = 0;
     } else {
-      run = prev && diffDays(prev, d) === 1 && run > 0 ? run + 1 : 1;
+      run = prev && run > 0 && onlyOffBetween(prev, d, logs) ? run + 1 : 1;
       best = Math.max(best, run);
     }
     prev = d;
   }
   return best;
+}
+
+/** True if `a` and `b` are consecutive, or every day strictly between them is a day off. */
+function onlyOffBetween(a: string, b: string, logs: Map<string, DayLog>): boolean {
+  const gap = diffDays(a, b);
+  if (gap < 1 || gap > 3660) return false;
+  for (let i = 1; i < gap; i++) if (!isOffDay(logs.get(addDays(a, i)))) return false;
+  return true;
 }
 
 /**
@@ -109,7 +138,7 @@ export function mamoolCompletion(m: Mamool, days: string[], logs: Map<string, Da
   let n = 0;
   for (const d of days) {
     if (d > upTo) continue;
-    if (scheduledFor(d, [m]).length === 0) continue;
+    if (countingFor(d, logs.get(d), [m]).length === 0) continue;
     if (pendingToday(d, upTo, logs.get(d), mamoolaat)) continue;
     n++;
     sum += entryFraction(logs.get(d)?.entries[m.id]);

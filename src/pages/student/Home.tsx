@@ -70,7 +70,7 @@ export function Home() {
           <span className="font-medium">Your teacher reminded you to log today.</span> Mark each mamool below as you go.
         </Notice>
       ) : (
-        <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
+        <ReminderBanner show={!stats.todayS.hasLog && !stats.todayS.off && todays.length > 0} />
       )}
       <LastChanceNotice />
 

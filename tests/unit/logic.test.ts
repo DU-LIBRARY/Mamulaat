@@ -187,3 +187,29 @@ describe('cleared / unlogged days are not shown as 0', () => {
     expect(dayStats('2026-11-07', undefined, [x]).scheduled).toBe(0);
   });
 });
+
+describe('day off (excused by the admin)', () => {
+  it('a day off does not count as missed, in any %, or against the streak', async () => {
+    const { periodCompletion, mamoolCompletion, bestStreak } = await import('../../src/lib/scoring');
+    const { studentWeek } = await import('../../src/lib/reports');
+    const q = m('q', '2026-11-01');
+    const done = { q: { status: 'done' as const, amount: 10, target: 10 } };
+    const days = ['2026-11-06', '2026-11-07', '2026-11-08'];
+    // Saturday 11-07 cleared and marked off; Fri and Sun done
+    const logs = logsByDay([log('2026-11-06', done), { ...log('2026-11-07', {}), off: true }, log('2026-11-08', done)]);
+    expect(dayStats('2026-11-07', logs.get('2026-11-07'), [q])).toMatchObject({ scheduled: 0, off: true, hasLog: false });
+    expect(periodCompletion(days, logs, [q], '2026-11-08')).toBe(1);
+    expect(mamoolCompletion(q, days, logs, '2026-11-08', [q])).toBe(1);
+    expect(currentStreak('2026-11-08', logs, [q])).toBe(2);
+    expect(bestStreak('2026-11-08', logs, [q])).toBe(2);
+    const w = studentWeek({ id: 's' } as UserProfile, days, [q], logs, '2026-11-08');
+    expect(w.days.map((d) => d.off)).toEqual([false, true, false]);
+    expect(w.days[1].completion).toBeNull();
+    expect(w.perMamool[0].cells).toEqual([1, null, 1]);
+    // entries on a day off are kept but ignored
+    const offWithEntries = logsByDay([{ ...log('2026-11-07', { q: { status: 'missed', amount: 0, target: 10 } }), off: true }]);
+    expect(periodCompletion(['2026-11-07'], offWithEntries, [q], '2026-11-08')).toBeNull();
+    // without the off flag, an empty past day is still missed
+    expect(periodCompletion(['2026-11-07'], logsByDay([log('2026-11-07', {})]), [q], '2026-11-08')).toBe(0);
+  });
+});

@@ -1,20 +1,20 @@
 import type { DayLog, Mamool, UserProfile } from '../types';
 import { addDays, diffDays } from './dates';
-import { dayStats, entryFraction, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
+import { countingFor, dayStats, entryFraction, isOffDay, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
 
 export interface StudentWeek {
   student: UserProfile;
-  days: { day: string; completion: number | null; hasLog: boolean }[];
+  days: { day: string; completion: number | null; hasLog: boolean; off: boolean }[];
   completion: number | null;
   fullDays: number;
-  perMamool: { mamool: Mamool; cells: (number | null)[]; logged: boolean[]; completion: number | null }[];
+  perMamool: { mamool: Mamool; cells: (number | null)[]; logged: boolean[]; off: boolean[]; completion: number | null }[];
 }
 
 export function studentWeek(student: UserProfile, days: string[], mamoolaat: Mamool[], logs: Map<string, DayLog>, today: string): StudentWeek {
   const ds = days.map((d) => {
-    if (d > today) return { day: d, completion: null, hasLog: false };
+    if (d > today) return { day: d, completion: null, hasLog: false, off: false };
     const s = dayStats(d, logs.get(d), mamoolaat);
-    return { day: d, completion: s.scheduled ? s.completion : null, hasLog: s.hasLog };
+    return { day: d, completion: s.scheduled ? s.completion : null, hasLog: s.hasLog, off: s.off };
   });
   const inWeek = mamoolaat.filter((m) => days.some((d) => scheduledFor(d, [m]).length));
   return {
@@ -24,8 +24,9 @@ export function studentWeek(student: UserProfile, days: string[], mamoolaat: Mam
     fullDays: ds.filter((d) => d.completion === 1).length,
     perMamool: inWeek.map((m) => ({
       mamool: m,
-      cells: days.map((d) => (d <= today && scheduledFor(d, [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
+      cells: days.map((d) => (d <= today && countingFor(d, logs.get(d), [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
       logged: days.map((d) => !!logs.get(d)?.entries?.[m.id]),
+      off: days.map((d) => isOffDay(logs.get(d))),
       completion: mamoolCompletion(m, days, logs, today, mamoolaat),
     })),
   };
@@ -58,7 +59,8 @@ export function needsAttention(
 
   let last: string | null = null;
   for (const [d, l] of logs) {
-    if (d <= today && dayStats(d, l, mamoolaat).hasLog && (!last || d > last)) last = d;
+    // a day off counts as accounted for: the student isn't flagged for not logging while excused
+    if (d <= today && (isOffDay(l) || dayStats(d, l, mamoolaat).hasLog) && (!last || d > last)) last = d;
   }
   const since = last ? diffDays(last, today) : null;
   const windowStart = addDays(today, -(noLogDays - 1));

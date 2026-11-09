@@ -173,7 +173,8 @@ service cloud.firestore {
 
       // ----- daily logs, id = YYYY-MM-DD in the project timezone -----
       function validLog(d, day) {
-        return d.keys().hasOnly(['date', 'entries', 'updatedAt', 'editedBy', 'editedByName'])
+        return d.keys().hasOnly(['date', 'entries', 'updatedAt', 'editedBy', 'editedByName', 'off'])
+          && d.get('off', false) is bool
           && d.date == day
           && d.entries is map
           && d.entries.size() <= 100
@@ -188,8 +189,13 @@ service cloud.firestore {
           && d.get('editedByName', '') is string
           && d.get('editedByName', '').size() <= 200;
       }
+      // A "day off" is the admin's call: a student can't set it, clear it, or delete that log.
+      function wasOff() {
+        return resource != null && resource.data.get('off', false) == true;
+      }
       function validStudentLog(d, day) {
-        return validLog(d, day) && !('editedBy' in d) && !('editedByName' in d);
+        return validLog(d, day) && !('editedBy' in d) && !('editedByName' in d)
+          && d.get('off', false) == wasOff();
       }
 
       match /logs/{day} {
@@ -199,7 +205,7 @@ service cloud.firestore {
                                   && validStudentLog(request.resource.data, day))
                               || (isAdmin() && validDayId(day) && exists(userPath(uid))
                                   && validAdminLog(request.resource.data, day));
-        allow delete: if (isActiveSelf(uid) && validDayId(day) && dayEditable(day)) || isAdmin();
+        allow delete: if (isActiveSelf(uid) && validDayId(day) && dayEditable(day) && !wasOff()) || isAdmin();
       }
 
       // ----- comments from the admin -----

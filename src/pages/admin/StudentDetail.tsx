@@ -14,7 +14,7 @@ import { useUndo } from '../../components/Undo';
 import { ExportBar } from '../../components/ExportBar';
 import { downloadCsv } from '../../lib/csv';
 import { fileSafe, studentDetailRows } from '../../lib/exports';
-import { addComment, addMamool, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
+import { addComment, addMamool, adminDeleteLog, adminSetDayOff, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
 import type { Mamool } from '../../types';
 import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
@@ -149,8 +149,8 @@ export function StudentDetail() {
 
   const rows: GridRow[] = week
     ? [
-        ...week.perMamool.map((pm) => ({ key: pm.mamool.id, label: pm.mamool.name, cells: pm.cells, logged: pm.logged, total: pm.completion })),
-        { key: '__all', label: <b>All</b>, cells: week.days.map((x) => x.completion), logged: week.days.map((x) => x.hasLog), total: week.completion },
+        ...week.perMamool.map((pm) => ({ key: pm.mamool.id, label: pm.mamool.name, cells: pm.cells, logged: pm.logged, off: pm.off, total: pm.completion })),
+        { key: '__all', label: <b>All</b>, cells: week.days.map((x) => x.completion), logged: week.days.map((x) => x.hasLog), off: week.days.map((x) => x.off), total: week.completion },
       ]
     : [];
   const setAnchor = (v: string) => {
@@ -248,11 +248,13 @@ export function StudentDetail() {
             </div>
             <div className="flex items-center justify-between">
               <DateLine day={dayId} />
-              <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.hasLog ? pct(st.completion) : 'No log'}</span>
+              <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.off ? 'Day off' : st.hasLog ? pct(st.completion) : 'No log'}</span>
             </div>
             {log?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {log.editedByName ?? 'the teacher'}.</div>}
             {hidden.has(`log:${dayId}`) ? (
               <EmptyState>This day's log will be cleared.</EmptyState>
+            ) : st.off ? (
+              <EmptyState>Day off — this day doesn't count: not missed, not in any %, and it doesn't break the streak.</EmptyState>
             ) : mams.length ? (
               <Checklist key={dayId} uid={uid} day={dayId} mamoolaat={mams} log={log} editable asAdmin={actor} />
             ) : (
@@ -262,6 +264,21 @@ export function StudentDetail() {
               <button className="btn-ghost text-red-700" onClick={() => later(`log:${dayId}`, `Cleared ${formatGregorian(dayId, { year: undefined })}`, () => adminDeleteLog(uid, dayId, actor))}>
                 Clear this day's log
               </button>
+            )}
+            {!hidden.has(`log:${dayId}`) && (st.off || mams.length > 0) && (
+              <div className="flex flex-col gap-1">
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    const off = !st.off;
+                    adminSetDayOff(uid, dayId, off, !!log, actor);
+                    if (off) undo.undoable(`${formatGregorian(dayId, { year: undefined })} marked as a day off`, () => adminSetDayOff(uid, dayId, false, true, actor));
+                  }}
+                >
+                  {st.off ? 'Count this day again' : 'Mark as day off (excused)'}
+                </button>
+                {!st.off && <p className="text-xs text-slate-500">Use this when the student was excused. Clearing the log only empties it — an empty past day still shows as missed.</p>}
+              </div>
             )}
           </>
         );

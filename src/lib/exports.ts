@@ -1,5 +1,5 @@
 import type { DayLog, Mamool, UserProfile } from '../types';
-import { dayStats, entryFraction, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
+import { dayStats, entryFraction, isOffDay, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
 import { studentWeek } from './reports';
 
 type Cell = string | number | null;
@@ -33,8 +33,8 @@ export function registerRows(
     const logged = days.filter((day) => day <= today && dayStats(day, d.logs.get(day), d.mamoolaat).hasLog).length;
     const name = s.name ?? '';
     const cls = classNameOf(s);
-    rows.push([name, cls, 'ALL', '', ...w.days.map((x) => pctCell(x.completion)), pctCell(w.completion), w.fullDays, logged]);
-    for (const pm of w.perMamool) rows.push([name, cls, pm.mamool.name, targetText(pm.mamool), ...pm.cells.map(pctCell), pctCell(pm.completion), '', '']);
+    rows.push([name, cls, 'ALL', '', ...w.days.map((x) => (x.off ? 'off' : pctCell(x.completion))), pctCell(w.completion), w.fullDays, logged]);
+    for (const pm of w.perMamool) rows.push([name, cls, pm.mamool.name, targetText(pm.mamool), ...pm.cells.map((c, i) => (pm.off[i] ? 'off' : pctCell(c))), pctCell(pm.completion), '', '']);
   }
   return rows;
 }
@@ -49,6 +49,7 @@ export function studentDetailRows(mamoolaat: Mamool[], logs: Map<string, DayLog>
       targetText(m),
       ...days.map((d) => {
         if (d > today || !scheduledFor(d, [m]).length) return '';
+        if (isOffDay(logs.get(d))) return 'off';
         const e = logs.get(d)?.entries[m.id];
         if (!e) return 'not logged';
         if (e.status === 'done') return 'done';
@@ -64,6 +65,7 @@ export function studentDetailRows(mamoolaat: Mamool[], logs: Map<string, DayLog>
     ...days.map((d) => {
       if (d > today) return '';
       const s = dayStats(d, logs.get(d), mamoolaat);
+      if (s.off) return 'off';
       return s.scheduled ? Math.round(s.completion * 100) : '';
     }),
     pctCell(periodCompletion(days, logs, mamoolaat, today)),
