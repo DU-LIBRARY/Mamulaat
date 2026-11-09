@@ -1,0 +1,589 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T11:26:02.185139+00:00",
+  "title": "Design System: Mamūlāt",
+  "extensions": {
+    "colorMeta": {
+      "clay": {
+        "role": "primary",
+        "displayName": "Soft Clay",
+        "tonalRamp": [
+          "#472e21",
+          "#61402f",
+          "#774f3a",
+          "#8d5f47",
+          "#a5735a",
+          "#cba38b",
+          "#d9bba7",
+          "#efe5dc"
+        ]
+      },
+      "clay-strong": {
+        "role": "primary",
+        "displayName": "Clay, pressed",
+        "tonalRamp": [
+          "#472e21",
+          "#61402f",
+          "#774f3a",
+          "#8d5f47",
+          "#a5735a",
+          "#cba38b",
+          "#d9bba7",
+          "#efe5dc"
+        ]
+      },
+      "on-clay": {
+        "role": "primary",
+        "displayName": "Ink on Clay",
+        "tonalRamp": [
+          "#20251d",
+          "#30372e",
+          "#3e443a",
+          "#4f554a",
+          "#5f6559",
+          "#8f9387",
+          "#bfbcb0",
+          "#ebe8e1"
+        ]
+      },
+      "clay-ink": {
+        "role": "primary",
+        "displayName": "Fired Clay",
+        "tonalRamp": [
+          "#472e21",
+          "#61402f",
+          "#774f3a",
+          "#8d5f47",
+          "#a5735a",
+          "#cba38b",
+          "#d9bba7",
+          "#efe5dc"
+        ]
+      },
+      "clay-line": {
+        "role": "primary",
+        "displayName": "Clay Line",
+        "tonalRamp": [
+          "#472e21",
+          "#61402f",
+          "#774f3a",
+          "#8d5f47",
+          "#a5735a",
+          "#cba38b",
+          "#d9bba7",
+          "#efe5dc"
+        ]
+      },
+      "clay-tint": {
+        "role": "primary",
+        "displayName": "Clay Tint",
+        "tonalRamp": [
+          "#472e21",
+          "#61402f",
+          "#774f3a",
+          "#8d5f47",
+          "#a5735a",
+          "#cba38b",
+          "#d9bba7",
+          "#efe5dc"
+        ]
+      },
+      "teacher-gold": {
+        "role": "secondary",
+        "displayName": "Teacher's Gold",
+        "tonalRamp": [
+          "#3a2d12",
+          "#55421a",
+          "#76602a",
+          "#9c7c38",
+          "#c3a464",
+          "#d6c08f",
+          "#e5d7b4",
+          "#eee5d2"
+        ]
+      },
+      "teacher-gold-tint": {
+        "role": "secondary",
+        "displayName": "Teacher's Gold Tint",
+        "tonalRamp": [
+          "#3a2d12",
+          "#55421a",
+          "#76602a",
+          "#9c7c38",
+          "#c3a464",
+          "#d6c08f",
+          "#e5d7b4",
+          "#eee5d2"
+        ]
+      },
+      "teacher-gold-ink": {
+        "role": "secondary",
+        "displayName": "Teacher's Gold Ink",
+        "tonalRamp": [
+          "#3a2d12",
+          "#55421a",
+          "#76602a",
+          "#9c7c38",
+          "#c3a464",
+          "#d6c08f",
+          "#e5d7b4",
+          "#eee5d2"
+        ]
+      },
+      "partial-amber": {
+        "role": "tertiary",
+        "displayName": "Partial Amber",
+        "tonalRamp": [
+          "#4e3912",
+          "#654a18",
+          "#7c5c1e",
+          "#a27a2c",
+          "#b78c3a",
+          "#d1ae67",
+          "#ecdcb8",
+          "#f1e8d4"
+        ]
+      },
+      "partial-amber-tint": {
+        "role": "tertiary",
+        "displayName": "Partial Amber Tint",
+        "tonalRamp": [
+          "#4e3912",
+          "#654a18",
+          "#7c5c1e",
+          "#a27a2c",
+          "#b78c3a",
+          "#d1ae67",
+          "#ecdcb8",
+          "#f1e8d4"
+        ]
+      },
+      "missed-red": {
+        "role": "tertiary",
+        "displayName": "Missed Red",
+        "tonalRamp": [
+          "#3b1610",
+          "#772b20",
+          "#8e3426",
+          "#9f3a2c",
+          "#c27766",
+          "#dcaea1",
+          "#e9cbc1",
+          "#efdcd5"
+        ]
+      },
+      "missed-red-tint": {
+        "role": "tertiary",
+        "displayName": "Missed Red Tint",
+        "tonalRamp": [
+          "#3b1610",
+          "#772b20",
+          "#8e3426",
+          "#9f3a2c",
+          "#c27766",
+          "#dcaea1",
+          "#e9cbc1",
+          "#efdcd5"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Brick Danger",
+        "tonalRamp": [
+          "#3b1610",
+          "#772b20",
+          "#8e3426",
+          "#9f3a2c",
+          "#c27766",
+          "#dcaea1",
+          "#e9cbc1",
+          "#efdcd5"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "#20251d",
+          "#30372e",
+          "#3e443a",
+          "#4f554a",
+          "#5f6559",
+          "#8f9387",
+          "#bfbcb0",
+          "#ebe8e1"
+        ]
+      },
+      "paper-raised": {
+        "role": "neutral",
+        "displayName": "Raised Paper",
+        "tonalRamp": [
+          "#20251d",
+          "#30372e",
+          "#3e443a",
+          "#4f554a",
+          "#5f6559",
+          "#8f9387",
+          "#bfbcb0",
+          "#ebe8e1"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "tonalRamp": [
+          "#20251d",
+          "#30372e",
+          "#3e443a",
+          "#4f554a",
+          "#5f6559",
+          "#8f9387",
+          "#bfbcb0",
+          "#ebe8e1"
+        ]
+      },
+      "olive-ink": {
+        "role": "neutral",
+        "displayName": "Olive Ink",
+        "tonalRamp": [
+          "#20251d",
+          "#30372e",
+          "#3e443a",
+          "#4f554a",
+          "#5f6559",
+          "#8f9387",
+          "#bfbcb0",
+          "#ebe8e1"
+        ]
+      },
+      "olive-body": {
+        "role": "neutral",
+        "displayName": "Olive Body",
+        "tonalRamp": [
+          "#20251d",
+          "#30372e",
+          "#3e443a",
+          "#4f554a",
+          "#5f6559",
+          "#8f9387",
+          "#bfbcb0",
+          "#ebe8e1"
+        ]
+      },
+      "olive-muted": {
+        "role": "neutral",
+        "displayName": "Olive Muted",
+        "tonalRamp": [
+          "#20251d",
+          "#30372e",
+          "#3e443a",
+          "#4f554a",
+          "#5f6559",
+          "#8f9387",
+          "#bfbcb0",
+          "#ebe8e1"
+        ]
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Night",
+        "tonalRamp": [
+          "#111310",
+          "#191b16",
+          "#1d201a",
+          "#22261e",
+          "#2c3127",
+          "#31372c",
+          "#444b3e",
+          "#7b8174"
+        ]
+      },
+      "night-raised": {
+        "role": "neutral",
+        "displayName": "Raised Night",
+        "tonalRamp": [
+          "#111310",
+          "#191b16",
+          "#1d201a",
+          "#22261e",
+          "#2c3127",
+          "#31372c",
+          "#444b3e",
+          "#7b8174"
+        ]
+      },
+      "night-hairline": {
+        "role": "neutral",
+        "displayName": "Night Hairline",
+        "tonalRamp": [
+          "#111310",
+          "#191b16",
+          "#1d201a",
+          "#22261e",
+          "#2c3127",
+          "#31372c",
+          "#444b3e",
+          "#7b8174"
+        ]
+      },
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Night Ink",
+        "tonalRamp": [
+          "#ebe8e1",
+          "#bfbcb0",
+          "#8f9387",
+          "#5f6559",
+          "#4f554a",
+          "#3e443a",
+          "#30372e",
+          "#20251d"
+        ]
+      },
+      "night-muted": {
+        "role": "neutral",
+        "displayName": "Night Sage",
+        "tonalRamp": [
+          "#ebe8e1",
+          "#bfbcb0",
+          "#8f9387",
+          "#5f6559",
+          "#4f554a",
+          "#3e443a",
+          "#30372e",
+          "#20251d"
+        ]
+      },
+      "night-clay": {
+        "role": "primary",
+        "displayName": "Night Clay",
+        "tonalRamp": [
+          "#472e21",
+          "#61402f",
+          "#774f3a",
+          "#8d5f47",
+          "#a5735a",
+          "#cba38b",
+          "#d9bba7",
+          "#efe5dc"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles (Today, Week)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Dialog and sheet titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings, sentence case."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default UI text and buttons."
+      },
+      "body-row": {
+        "displayName": "Body-Row",
+        "purpose": "Mamool names in checklist rows."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Stat values, tabular."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Stat labels, targets, secondary status."
+      },
+      "nav": {
+        "displayName": "Nav",
+        "purpose": "Bottom tab labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "pressable-inset",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.33), inset 0 -1px 0 rgb(64 46 34 / 0.16)",
+        "purpose": "Primary clay buttons only."
+      },
+      {
+        "name": "sheet-lift",
+        "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+        "purpose": "Dialogs and bottom sheets, over a 50% black scrim."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-calm",
+        "value": "cubic-bezier(0.22, 0.8, 0.25, 1)",
+        "purpose": "Every CSS transition."
+      },
+      {
+        "name": "glide",
+        "value": "spring, bounce 0, visualDuration 0.38s",
+        "purpose": "Sheets, rows opening, pages settling in."
+      },
+      {
+        "name": "snap",
+        "value": "spring, bounce 0, visualDuration 0.26s",
+        "purpose": "Icons swapping, toasts, the tab rule."
+      },
+      {
+        "name": "fade",
+        "value": "0.2s ease-calm",
+        "purpose": "Opacity riding along with a spring."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "content-max",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one clay action on a screen.",
+      "html": "<button class=\"ds-btn-primary\">Mark all done</button>",
+      "css": ".ds-btn-primary{font-family:'Archivo Variable',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border:0;border-radius:6px;background:var(--color-primary,#d2a88f);color:var(--color-on-primary,#252c21);font-size:15px;font-weight:500;box-shadow:inset 0 1px 0 rgb(255 255 255/.33),inset 0 -1px 0 rgb(64 46 34/.16);transition:background-color .2s cubic-bezier(.22,.8,.25,1),transform .2s cubic-bezier(.22,.8,.25,1);cursor:pointer}.ds-btn-primary:hover{background:var(--color-primary-strong,#c49a80)}.ds-btn-primary:active{transform:scale(.97)}.ds-btn-primary:focus-visible{outline:2px solid var(--color-brand-500,#a5735a);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined, for secondary actions.",
+      "html": "<button class=\"ds-btn-secondary\">Edit list</button>",
+      "css": ".ds-btn-secondary{font-family:'Archivo Variable',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;border:1px solid var(--color-slate-300,#bfbcb0);border-radius:6px;background:transparent;color:var(--color-slate-800,#30372e);font-size:15px;font-weight:500;transition:border-color .2s,background-color .2s,transform .2s;cursor:pointer}.ds-btn-secondary:hover{border-color:var(--color-slate-400,#8f9387);background:var(--color-slate-50,#ebe8e1)}.ds-btn-secondary:active{transform:scale(.97)}.ds-btn-secondary:focus-visible{outline:2px solid var(--color-brand-500,#a5735a);outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive actions only.",
+      "html": "<button class=\"ds-btn-danger\">Delete student</button>",
+      "css": ".ds-btn-danger{font-family:'Archivo Variable',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;border:0;border-radius:6px;background:var(--color-danger,#9f3a2c);color:#fff;font-size:15px;font-weight:500;transition:background-color .2s,transform .2s;cursor:pointer}.ds-btn-danger:hover{background:var(--color-danger-strong,#863024)}.ds-btn-danger:active{transform:scale(.97)}.ds-btn-danger:focus-visible{outline:2px solid var(--color-brand-500,#a5735a);outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Raised paper field, clay focus.",
+      "html": "<label class=\"ds-label\" for=\"ds-n\">Name</label><input id=\"ds-n\" class=\"ds-input\" placeholder=\"e.g. Quran, Tasbeeh\">",
+      "css": ".ds-label{font-family:'Archivo Variable',system-ui,sans-serif;display:block;margin-bottom:6px;font-size:14px;font-weight:500;color:var(--color-slate-700,#3e443a)}.ds-input{font-family:'Archivo Variable',system-ui,sans-serif;display:block;width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--color-slate-300,#bfbcb0);border-radius:6px;background:var(--color-surface,#f1eee8);color:var(--color-slate-800,#30372e);font-size:16px}.ds-input::placeholder{color:var(--color-slate-400,#8f9387)}.ds-input:focus{outline:none;border-color:var(--color-brand-500,#a5735a);box-shadow:0 0 0 2px var(--color-brand-100,#e8d6c8)}"
+    },
+    {
+      "name": "Mamool Row",
+      "kind": "custom",
+      "refersTo": "status-done-circle",
+      "description": "Signature checklist row: edge mark, name, target, Done circle, quiet Partly/Missed.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-row-main\"><div class=\"ds-row-name\">Quran</div><div class=\"ds-row-sub\">1 juz</div><div class=\"ds-row-alt\"><button class=\"ds-txt\">Partly</button><button class=\"ds-txt\">Missed</button></div></div><button class=\"ds-tick\" aria-pressed=\"true\" aria-label=\"Done\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 256 256\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"20\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"40 144 96 200 224 72\"/></svg></button></div>",
+      "css": ".ds-row{font-family:'Archivo Variable',system-ui,sans-serif;position:relative;display:flex;align-items:center;gap:12px;padding:12px 0 12px 14px;border-top:1px solid var(--color-slate-200,#d5d1c6)}.ds-row::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--color-brand-700,#774f3a)}.ds-row-main{flex:1;min-width:0}.ds-row-name{font-size:17px;line-height:1.375;color:var(--color-slate-900,#20251d)}.ds-row-sub{font-size:14px;color:var(--color-slate-500,#5f6559);font-variant-numeric:tabular-nums}.ds-row-alt{display:flex;gap:4px;margin-left:-8px}.ds-txt{font-family:'Archivo Variable',system-ui,sans-serif;min-height:44px;padding:0 8px;border:0;background:none;color:var(--color-slate-500,#5f6559);font-size:13px;cursor:pointer}.ds-txt:hover{color:var(--color-slate-800,#30372e)}.ds-tick{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex-shrink:0;border-radius:9999px;border:1px solid var(--color-primary,#d2a88f);background:var(--color-primary,#d2a88f);color:var(--color-on-primary,#252c21);cursor:pointer;transition:background-color .3s cubic-bezier(.22,.8,.25,1),border-color .3s}.ds-tick[aria-pressed=false]{background:transparent;border-color:var(--color-slate-300,#bfbcb0);color:var(--color-slate-500,#5f6559)}.ds-tick:focus-visible{outline:2px solid var(--color-brand-500,#a5735a);outline-offset:2px}"
+    },
+    {
+      "name": "Segment Bar",
+      "kind": "custom",
+      "description": "One 3px segment per mamool: clay when done, amber when partly.",
+      "html": "<div class=\"ds-seg\"><span><i style=\"width:100%\"></i></span><span><i style=\"width:100%\"></i></span><span><i class=\"p\" style=\"width:50%\"></i></span><span><i style=\"width:0\"></i></span></div>",
+      "css": ".ds-seg{display:flex;gap:4px;width:240px}.ds-seg span{position:relative;flex:1;height:3px;overflow:hidden;border-radius:9999px;background:rgb(191 188 176/.6)}.ds-seg i{position:absolute;inset:0 auto 0 0;border-radius:9999px;background:var(--color-brand-700,#774f3a)}.ds-seg i.p{background:var(--color-amber-500,#b78c3a)}"
+    },
+    {
+      "name": "Teacher Notice",
+      "kind": "card",
+      "refersTo": "notice-teacher",
+      "description": "Gold tint, only for the teacher's voice.",
+      "html": "<div class=\"ds-notice\">Message from Ustadh: please complete your Quran before Friday.</div>",
+      "css": ".ds-notice{font-family:'Archivo Variable',system-ui,sans-serif;padding:12px 16px;border-radius:10px;background:var(--color-gold-50,#eee5d2);color:var(--color-gold-900,#55421a);font-size:14px;line-height:1.6}"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "description": "Frosted tab bar; a short clay rule marks the active tab.",
+      "html": "<nav class=\"ds-nav\"><a class=\"on\">Today<b></b></a><a>Week<b></b></a><a>Inbox<b></b></a><a>Me<b></b></a></nav>",
+      "css": ".ds-nav{font-family:'Archivo Variable',system-ui,sans-serif;display:flex;justify-content:space-around;border-top:1px solid rgb(213 209 198/.7);background:rgb(233 229 221/.9);backdrop-filter:blur(16px)}.ds-nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:56px;padding-top:8px;font-size:11px;color:var(--color-slate-500,#5f6559);cursor:pointer}.ds-nav a:hover{color:var(--color-slate-700,#3e443a)}.ds-nav a.on{color:var(--color-slate-900,#20251d)}.ds-nav b{width:16px;height:1px}.ds-nav a.on b{background:var(--color-brand-700,#774f3a)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Paper and Night Sky",
+    "overview": "Mamūlāt is built from two materials. By day it is warm, slightly grey paper. After dark it is an olive-black night. A soft sky wash sits at the top of every screen and follows the time of prayer: a blue dawn at Fajr, pale through the day, warmer at Asr, rose-clay at Maghrib, deep night at Isha with a faint drift of stars. The sky fades into the page within the first screenful, so content always sits on plain paper or plain night.\n\nEverything else stays quiet. There are no cards with shadows. Sections sit directly on the page, divided by hairlines, the way lines divide a register. Large regular-weight Prata headlines carry the voice, and Archivo carries the work. One soft clay accent marks what matters: the action, \"done\", the active tab. Gold is kept for the teacher's voice alone.\n\nThe controls are calm but tactile. Buttons have a faint inset fill and shrink slightly under the finger, the main \"Done\" control is a circle you tick, and sheets glide on springs with no bounce. Restraint is the default. Feedback through touch is the one thing the system adds.",
+    "keyCharacteristics": [
+      "Two themes, paper and night, are equal citizens; both are designed, neither is derived.",
+      "A prayer-time sky at the top of every screen; flat page below it.",
+      "Hairlines instead of boxes; no card shadows.",
+      "One clay accent; gold only for the teacher.",
+      "Prata display at regular weight, Archivo for UI; IBM Plex Sans Arabic for Arabic/Urdu entries.",
+      "44px tap targets, springs without bounce, Undo instead of confirmation."
+    ],
+    "rules": [
+      {
+        "name": "The One Clay Rule",
+        "body": "Clay is the only accent. If a screen needs a second emphasis, use weight or size, not a new hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Gold Belongs to the Teacher Rule",
+        "body": "Gold appears only where the teacher is speaking. Never use it for achievements, streaks or decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dark Text on Clay Rule",
+        "body": "Clay fills always carry on-clay (#252c21) text. White on clay fails contrast and breaks the look.",
+        "section": "colors"
+      },
+      {
+        "name": "The Regular Weight Rule",
+        "body": "Prata is only ever set at 400. Hierarchy comes from size, not bold.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Shouting Rule",
+        "body": "No tracked all-caps labels. Headings are sentence case.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Every number that can change (percentages, streaks, counts, dates in grids) uses tabular figures (`num`).",
+        "section": "typography"
+      },
+      {
+        "name": "The Script Respect Rule",
+        "body": "Student-entered text always gets `dir=\"auto\"`. Right-to-left runs switch to IBM Plex Sans Arabic at line-height 1.7 with no letter-spacing.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline, Not Box Rule",
+        "body": "Group content with a hairline and space. Never wrap a section in a shadowed card.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do design every screen in both paper and night; check the night version late in the evening at low brightness.",
+      "Do keep tap targets at 44px minimum (`min-h-11`, `h-11 w-11`).",
+      "Do use the shared springs in `src/lib/motion.ts` (glide 0.38s, snap 0.26s, bounce 0) and the `ease-calm` curve (`cubic-bezier(0.22, 0.8, 0.25, 1)`) for CSS transitions.",
+      "Do honour reduced motion; the global rule collapses every transition and animation.",
+      "Do use hairlines (`card`, `sheet`, `StatRow`) to group content.",
+      "Do put `dir=\"auto\"` on every student-entered string."
+    ],
+    "donts": [
+      "Don't add drop shadows to sections or list items; only sheets and dialogs lift.",
+      "Don't introduce a second accent colour or use gold outside the teacher's voice.",
+      "Don't put white text on clay.",
+      "Don't set Prata bold or use tracked all-caps headings.",
+      "Don't let the sky carry content or contrast; it is decorative and fades out within the first screenful.",
+      "Don't add bounce or overshoot to any motion."
+    ]
+  }
+}
