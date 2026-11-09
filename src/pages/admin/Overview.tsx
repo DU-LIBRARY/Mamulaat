@@ -150,7 +150,7 @@ export function Overview() {
 
       <section className="no-print">
         <h2 className="section-title">
-          Needs attention <span className="block text-xs font-normal text-slate-500">Below {settings.attentionThreshold}% this week or no logs for {settings.attentionNoLogDays} days</span>
+          Needs attention <span className="mt-1 block font-sans text-sm text-slate-500">Below {settings.attentionThreshold}% this week or no logs for {settings.attentionNoLogDays} days</span>
         </h2>
         {attention.length === 0 ? (
           <EmptyState>Everyone is on track.</EmptyState>

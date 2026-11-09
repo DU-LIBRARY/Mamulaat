@@ -81,7 +81,7 @@ export function Waiting({ profile }: { profile: UserProfile }) {
   return (
     <FullScreen>
       <Wordmark className="mb-10" />
-      <h1 className="display text-[36px] leading-tight">{c.title}</h1>
+      <h1 className="display text-[34px] leading-tight">{c.title}</h1>
       <p className="mt-2 max-w-sm leading-relaxed text-slate-600">{c.body}</p>
       <div className="mt-6 flex w-full max-w-sm items-center gap-3 rounded-xl bg-surface p-3">
         {profile.photoURL && <img src={profile.photoURL} alt="" className="h-10 w-10 rounded-full" referrerPolicy="no-referrer" />}
@@ -103,7 +103,7 @@ export function ConfigMissing() {
   return (
     <FullScreen>
       <Wordmark className="mb-10" />
-      <h1 className="display text-[36px] leading-tight">Firebase is not configured</h1>
+      <h1 className="display text-[34px] leading-tight">Firebase is not configured</h1>
       <p className="mt-2 max-w-md text-slate-600">
         Copy <code>.env.example</code> to <code>.env.local</code> and fill in your dedicated Mamulaat Firebase project's
         config (or use <code>.env.emulator.example</code> for local emulators). See the README.

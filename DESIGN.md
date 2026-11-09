@@ -29,12 +29,23 @@ colors:
   night-muted: "#a3a99b"
   night-clay: "#dab49d"
 typography:
+  hero:
+    fontFamily: "Prata, IBM Plex Sans Arabic, Georgia, serif"
+    fontSize: "44px"
+    fontWeight: 400
+    lineHeight: 1.05
+    letterSpacing: "-0.01em"
   display:
     fontFamily: "Prata, IBM Plex Sans Arabic, Georgia, serif"
-    fontSize: "36px"
+    fontSize: "34px"
     fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "-0.01em"
+  headline-large:
+    fontFamily: "Prata, IBM Plex Sans Arabic, Georgia, serif"
+    fontSize: "28px"
+    fontWeight: 400
+    lineHeight: 1.25
   headline:
     fontFamily: "Prata, IBM Plex Sans Arabic, Georgia, serif"
     fontSize: "24px"
@@ -227,7 +238,9 @@ A warm, low-saturation palette of paper, olive and clay, with a matching night s
 **Character:** A calm, high-contrast serif set large at regular weight, over a sturdy, slightly wide grotesk. The serif gives the dignity of a printed register; the grotesk keeps the daily task plain and fast.
 
 ### Hierarchy
-- **Display** (Prata 400, 32–36px, 1.25): page titles such as Today and Week. Tracked in slightly (-0.01em).
+- **Hero** (Prata 400, 44px, 1.05): one per screen at most. The sign-in line and the "Next up" mamool on Today.
+- **Display** (Prata 400, 34px, 1.25): every page title and the large date line. Tracked in slightly (-0.01em).
+- **Headline Large** (Prata 400, 28px, 1.25): a person's name at the top of their page (Me, a student's page) and summary sheets.
 - **Headline** (Prata 400, 24px, 1.25): dialog and sheet titles.
 - **Title** (Prata 400, 22px, 1.25): section headings, in sentence case.
 - **Body** (Archivo 400, 15px, 1.5): default UI text and buttons.
@@ -235,9 +248,13 @@ A warm, low-saturation palette of paper, olive and clay, with a matching night s
 - **Figure** (Archivo 300, 26px, tabular): stat values in a stat row. Large figures (up to 44px) for the day's percentage.
 - **Label** (Archivo 500, 14px): form labels.
 - **Caption** (Archivo 400, 12–13px): stat labels, targets, secondary status text.
-- **Nav** (Archivo 400, 11px): bottom-tab labels.
+- **Nav** (Archivo 400, 11px): bottom-tab labels and the smallest functional text (e.g. "locks tonight"). Nothing goes below 11px.
+
+Paragraphs and list items wrap with `text-wrap: pretty` (no single word stranded on the last line); headings use `text-wrap: balance`.
 
 ### Named Rules
+**The Three Serif Sizes Rule.** Page-level Prata comes in three sizes only: 44px hero, 34px page title, 28px name. Anything between is drift.
+
 **The Regular Weight Rule.** Prata is only ever set at 400. Hierarchy comes from size, not bold.
 
 **The No Shouting Rule.** No tracked all-caps labels. Headings are sentence case.

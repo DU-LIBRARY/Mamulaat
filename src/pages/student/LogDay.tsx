@@ -37,7 +37,7 @@ export function LogDay() {
           >
             <span>{d === today ? 'Today' : shortDay(d)}</span>
             <span className="num text-lg leading-tight font-semibold">{dayNumber(d)}</span>
-            {locksTonight(d) && <span className={`text-[10px] ${d === day ? 'text-on-primary' : 'text-amber-800'}`}>locks tonight</span>}
+            {locksTonight(d) && <span className={`text-[11px] ${d === day ? 'text-on-primary' : 'text-amber-800'}`}>locks tonight</span>}
           </Link>
         ))}
       </nav>

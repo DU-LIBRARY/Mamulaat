@@ -42,7 +42,7 @@ export function Signup({ profile }: { profile: UserProfile }) {
   return (
     <FullScreen>
       <div className="w-full max-w-sm text-left">
-        <h1 className="display text-[36px] leading-tight">Request access</h1>
+        <h1 className="display text-[34px] leading-tight">Request access</h1>
         <p className="mt-2 mb-6 leading-relaxed text-slate-600">Tell us who you are. Your teacher will approve your request.</p>
         <form onSubmit={submit} className="card flex flex-col gap-4">
           <div>

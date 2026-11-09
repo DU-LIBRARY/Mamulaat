@@ -84,7 +84,7 @@ function Gate() {
   if (removed) {
     return (
       <FullScreen>
-        <h1 className="display text-[32px] leading-tight">Your account was removed</h1>
+        <h1 className="display text-[34px] leading-tight">Your account was removed</h1>
         <p className="mt-3 max-w-sm text-slate-600">
           Your teacher removed your Mamūlāt account and its data, and you have been signed out. If you think this is a mistake, please talk to your teacher.
         </p>

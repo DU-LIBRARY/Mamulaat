@@ -61,7 +61,7 @@ export function Me() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 font-serif text-2xl text-brand-800" aria-hidden>{(profile.name ?? '?').trim().charAt(0).toUpperCase()}</div>
         )}
         <div className="min-w-0">
-          <div className="font-serif text-[30px] leading-tight text-slate-900" dir="auto">
+          <div className="font-serif text-[28px] leading-tight text-slate-900" dir="auto">
             {profile.name}
           </div>
           <div className="truncate text-sm text-slate-500">{profile.email}</div>
