@@ -14,7 +14,8 @@ import { useUndo } from '../../components/Undo';
 import { ExportBar } from '../../components/ExportBar';
 import { downloadCsv } from '../../lib/csv';
 import { fileSafe, studentDetailRows } from '../../lib/exports';
-import { addComment, addMamool, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
+import { getDocs } from 'firebase/firestore';
+import { addComment, addMamool, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
 import type { Mamool } from '../../types';
 import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
@@ -114,6 +115,11 @@ export function StudentDetail() {
   const classes = useClasses();
   const data = useStudentLive(uid);
   const [text, setText] = useState('');
+  const [push, setPush] = useState(true);
+  const [devices, setDevices] = useState<number | null>(null);
+  useEffect(() => {
+    getDocs(pushSubsCol(uid)).then((s) => setDevices(s.size), () => setDevices(null));
+  }, [uid]);
   const [tab, setTab] = useState<'week' | 'day' | 'mamoolaat' | 'comments' | 'profile'>(sp.get('tab') === 'day' ? 'day' : 'week');
   const { confirm, notify } = useDialog();
   const undo = useUndo();
@@ -300,7 +306,7 @@ export function StudentDetail() {
             className="card flex flex-col gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              if (text.trim()) addComment(uid, text, actor);
+              if (text.trim()) addComment(uid, text, actor, push);
               setText('');
             }}
           >
@@ -308,6 +314,17 @@ export function StudentDetail() {
               Leave a comment (shows on the student's home page)
             </label>
             <textarea id="comment-text" className="input min-h-24" dir="auto" value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} />
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={push} onChange={(e) => setPush(e.target.checked)} />
+              <span>
+                Also send it to their phone as a notification
+                <span className="block text-xs text-slate-500">
+                  {devices === 0
+                    ? "They haven't turned notifications on yet, so they'll only see it in the app."
+                    : 'Arrives within about 15 minutes. The first 300 characters are sent.'}
+                </span>
+              </span>
+            </label>
             <button className="btn-primary" type="submit" disabled={!text.trim()}>
               Send
             </button>

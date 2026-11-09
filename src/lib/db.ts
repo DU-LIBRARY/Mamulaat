@@ -43,6 +43,7 @@ export const classesCol = () => collection(db, 'classes');
 export const settingsRef = () => doc(db, 'settings', 'app');
 export const auditCol = () => collection(db, 'auditLog');
 export const nudgesCol = () => collection(db, 'nudges');
+export const pushSubsCol = (uid: string) => collection(db, 'users', uid, 'pushSubs');
 export const nudgeRef = (uid: string, day: string) => doc(db, 'nudges', `${uid}_${day}`);
 
 export function logsRangeQuery(uid: string, from: string, to: string) {
@@ -295,8 +296,18 @@ export function markChangeSeen(uid: string, changeId: string) {
 }
 
 // ---------- comments (admin side) ----------
-export function addComment(uid: string, text: string, actor: Actor) {
+/** Leave a note on the student's home page; with `push`, also send it to their phone (next notifications run). */
+export function addComment(uid: string, text: string, actor: Actor, push = false) {
   const batch = writeBatch(db);
+  if (push) {
+    batch.set(doc(collection(db, 'pushMessages')), {
+      uid,
+      text: text.trim().slice(0, 300),
+      actorId: actor.uid,
+      actorName: actor.name.slice(0, 200),
+      createdAt: serverTimestamp(),
+    });
+  }
   batch.set(doc(commentsCol(uid)), {
     text: text.trim().slice(0, 4000),
     authorId: actor.uid,
@@ -304,7 +315,7 @@ export function addComment(uid: string, text: string, actor: Actor) {
     createdAt: serverTimestamp(),
     readAt: null,
   });
-  addAudit(batch, actor, 'comment.add', { studentId: uid });
+  addAudit(batch, actor, 'comment.add', { studentId: uid, ...(push ? { push: true } : {}) });
   fire(batch.commit());
 }
 

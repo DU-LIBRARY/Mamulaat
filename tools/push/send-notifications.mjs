@@ -4,6 +4,7 @@
 //  - Reminders: a general "please log" message at the fixed times in push.config.json (every day
 //    at 23:00, and Fridays at 12:00, project timezone) to students who turned reminders on.
 //  - Nudge: when the admin taps "send reminder" (nudges/{uid}_{day}), on the next run.
+//  - Message: a note from the admin with "also send to their phone" ticked (pushMessages/{id}).
 //  - New sign-up: tells every admin when a student finishes signing up.
 //  - Approved: tells a student when the admin approves them.
 //
@@ -113,6 +114,18 @@ for (const n of nudges.docs) {
   if (!dry) await n.ref.update({ pushedAt: admin.firestore.FieldValue.serverTimestamp() });
 }
 
+// 2b. Messages from the admin (a note on the student's page with "send to their phone" ticked)
+let messages = 0;
+const pushMessages = await db.collection('pushMessages').get();
+for (const m of pushMessages.docs) {
+  const v = m.data();
+  if (typeof v.uid === 'string' && typeof v.text === 'string' && byId.get(v.uid)) {
+    const from = typeof v.actorName === 'string' && v.actorName ? v.actorName : 'your teacher';
+    if (await pushToUser(v.uid, { title: `Message from ${from}`, body: v.text, url: '.', tag: `msg-${m.id}` })) messages++;
+  }
+  if (!dry) await m.ref.delete(); // sent (or nobody to send to): done
+}
+
 // 3 + 4. New sign-ups (→ admins) and approvals (→ the student). Without database triggers we compare
 // with what earlier runs saw, kept in pushState/notices (no app user can read or write it).
 const stateRef = db.doc('pushState/notices');
@@ -148,6 +161,6 @@ if (!dry) await stateRef.set({ initialized: true, signups: seenSignups, active: 
 
 console.log(
   `${today} ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${tz}: ` +
-    `${reminded} reminder(s), ${nudged} nudge(s), ${signups} sign-up notice(s), ${approvals} approval(s)${firstRun ? ' (first run: existing students recorded)' : ''}. ` +
+    `${reminded} reminder(s), ${nudged} nudge(s), ${messages} message(s), ${signups} sign-up notice(s), ${approvals} approval(s)${firstRun ? ' (first run: existing students recorded)' : ''}. ` +
     `Sent ${stats.sent} push(es); removed ${stats.removed} expired device(s); ${stats.failed} failed.`,
 );
