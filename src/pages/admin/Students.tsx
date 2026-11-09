@@ -242,7 +242,7 @@ function BulkBar({ selected, users, classes, actor, clear, today }: { selected: 
   };
 
   return (
-    <div className="pb-safe fixed inset-x-0 bottom-[4.5rem] z-30 mx-auto max-w-3xl px-3" role="region" aria-label="Actions for selected people">
+    <div className="above-nav fixed inset-x-0 z-30 mx-auto max-w-3xl px-3 pb-2" role="region" aria-label="Actions for selected people">
       <div className="card flex flex-col gap-2 border-slate-300 shadow-lg">
         <div className="flex items-center justify-between">
           <b>{selected.length} selected</b>

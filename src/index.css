@@ -228,9 +228,37 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
+/*
+ * iPhone notch / Dynamic Island. The Home Screen app draws behind the status bar
+ * (black-translucent + viewport-fit=cover), so iOS reports the real top inset: content is
+ * padded below it (.pt-safe) and this solid strip sits behind the clock. The clock text is
+ * white in this mode, hence a dark strip in both themes. It's 0px tall everywhere else.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top);
+  background: #0a2e1e;
+  z-index: 90;
+  pointer-events: none;
+}
+:root.dark body::before {
+  background: #121210;
+}
+@media print {
+  body::before {
+    display: none;
+  }
+}
+
 /* Sit above the fixed bottom nav (~4.5rem) and the home indicator. */
 .update-prompt {
   bottom: calc(max(env(safe-area-inset-bottom), 0.5rem) + 4.5rem);
+}
+/* Sit just above the fixed bottom nav (3.5rem + its home-indicator padding). */
+.above-nav {
+  bottom: calc(3.5rem + max(env(safe-area-inset-bottom), 0.5rem));
 }
 /* Keep top-anchored overlays clear of the status bar / Dynamic Island. */
 .top-safe-toast {
