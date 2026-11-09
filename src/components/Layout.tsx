@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { SyncIndicator } from './SyncIndicator';
@@ -22,20 +22,7 @@ export function Wordmark({ className = '' }: { className?: string }) {
   );
 }
 
-/** True once the page has scrolled, so the header only gains a backdrop when content is under it. */
-function useScrolled() {
-  const [s, setS] = useState(false);
-  useEffect(() => {
-    const on = () => setS(window.scrollY > 8);
-    on();
-    window.addEventListener('scroll', on, { passive: true });
-    return () => window.removeEventListener('scroll', on);
-  }, []);
-  return s;
-}
-
 export function Layout({ title, nav, children, right }: { title?: string; nav: NavItem[]; children: ReactNode; right?: ReactNode }) {
-  const scrolled = useScrolled();
   const { pathname } = useLocation();
   return (
     <div className="relative isolate">
@@ -44,11 +31,12 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
         <a href="#main" className="sr-only z-50 rounded-md bg-surface px-3 py-2 text-sm font-medium text-brand-800 focus:not-sr-only focus:fixed focus:top-2 focus:left-2">
           Skip to content
         </a>
-        <header
-          className={`no-print pt-safe sticky top-0 z-20 transition-[background-color,border-color] duration-300 ease-calm ${
-            scrolled ? 'border-b border-slate-200/70 bg-sand-100/85 backdrop-blur-lg' : 'border-b border-transparent'
-          }`}
-        >
+        {/*
+          The header scrolls away with the page rather than sticking. Safari treats a bar pinned
+          to the top as a toolbar and paints the status bar strip solid; without one, content
+          slides up under the clock and Dynamic Island the way native apps and Safari's own pages do.
+        */}
+        <header className="no-print pt-safe relative z-20">
           <div className="flex h-14 items-center justify-between gap-2 px-5">
             <div className="flex items-baseline gap-2.5">
               <Wordmark />
