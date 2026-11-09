@@ -329,6 +329,13 @@ body {
     radial-gradient(120% 70% at 70% 0%, var(--sky-a), transparent 70%),
     linear-gradient(180deg, var(--sky-b), var(--color-sand-100) 92%);
   transition: background 1.2s var(--ease-calm);
+  /*
+   * Rise out of the page colour at the very top. Safari (and the Home Screen app) paints the
+   * strip behind the clock / Dynamic Island in the page colour, so starting the sky from that
+   * same colour makes the status bar and the screen one continuous surface, with no seam.
+   */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 calc(var(--safe-top, 0px) + 9rem));
+  mask-image: linear-gradient(180deg, transparent 0, #000 calc(var(--safe-top, 0px) + 9rem));
 }
 .sky[data-sky='fajr'] { --sky-a: #c9cfd6; --sky-b: #dcd6d0; }
 .sky[data-sky='day'] { --sky-a: #d8ddd4; --sky-b: #e4e2d8; }
