@@ -89,7 +89,7 @@ export function UndoProvider({ children }: { children: ReactNode }) {
               <span className="flex-1 text-sm" dir="auto">
                 {toast.message}
               </span>
-              <button className="btn min-h-9 px-3 text-sm text-[#dab49d] hover:bg-white/10" onClick={() => settle(true)}>
+              <button className="btn min-h-11 px-3 text-sm text-[#dab49d] hover:bg-white/10" onClick={() => settle(true)}>
                 Undo
               </button>
               {/* time left to undo */}

@@ -12,7 +12,7 @@ export function UpdatePrompt() {
     <div role="status" className="update-prompt fixed inset-x-3 z-[70] mx-auto max-w-md">
       <div className="flex items-center gap-3 rounded-lg bg-ink py-2 pr-2 pl-4 text-white shadow-lg">
         <span className="flex-1 text-sm">A new version of Mamūlāt is ready.</span>
-        <button className="btn min-h-9 bg-white px-3 text-sm text-ink hover:bg-white/90" onClick={() => applyUpdate()}>
+        <button className="btn min-h-11 bg-white px-3 text-sm text-ink hover:bg-white/90" onClick={() => applyUpdate()}>
           Update
         </button>
       </div>

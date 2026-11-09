@@ -1,4 +1,4 @@
-import { IconChevronLeft, IconChevronRight } from '../../components/icons';
+import { IconCheck, IconChevronLeft, IconChevronRight, IconHalf, IconX } from '../../components/icons';
 import { useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
@@ -18,10 +18,10 @@ import type { LogEntry } from '../../types';
 import { displayName } from '../../lib/display';
 
 function entryText(e: LogEntry | undefined) {
-  if (!e) return { icon: '·', cls: 'bg-slate-100 text-slate-500', text: 'not logged' };
-  if (e.status === 'done') return { icon: '✓', cls: 'bg-brand-100 text-brand-900', text: 'done' };
-  if (e.status === 'missed') return { icon: '✕', cls: 'bg-red-100 text-red-800', text: 'missed' };
-  return { icon: '½', cls: 'bg-amber-100 text-amber-900', text: `${e.amount}/${e.target}` };
+  if (!e) return { icon: null, cls: 'bg-slate-100 text-slate-700', text: 'not logged' };
+  if (e.status === 'done') return { icon: <IconCheck size={14} />, cls: 'bg-brand-100 text-brand-900', text: 'done' };
+  if (e.status === 'missed') return { icon: <IconX size={13} />, cls: 'bg-red-100 text-red-800', text: 'missed' };
+  return { icon: <IconHalf size={12} />, cls: 'bg-amber-100 text-amber-900', text: `${e.amount}/${e.target}` };
 }
 
 export function ClassView() {
@@ -83,13 +83,14 @@ export function ClassView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      {/* the title gets the full width on phones; the Day/Week switch sits beside it from sm up */}
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="display text-[34px] leading-tight" dir="auto">
           {cls.name}
         </h1>
         <div className="no-print flex rounded-md border border-slate-200 bg-surface p-0.5" role="group" aria-label="View">
           {(['day', 'week'] as const).map((v) => (
-            <button key={v} aria-pressed={view === v} className={`btn min-h-9 rounded px-4 text-sm ${view === v ? 'bg-ink text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
+            <button key={v} aria-pressed={view === v} className={`btn min-h-11 rounded px-4 text-sm ${view === v ? 'bg-ink text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
               {v === 'day' ? 'Day' : 'Week'}
             </button>
           ))}
@@ -129,17 +130,18 @@ export function ClassView() {
                     <span className={`chip px-3 py-1 text-sm ${cellClass(st.scheduled ? (st.hasLog ? st.completion : 0) : null)}`}>{st.hasLog ? pct(st.completion) : 'No log'}</span>
                   </Link>
                   {!r?.loaded ? (
-                    <div className="text-sm text-slate-400">Loading…</div>
+                    <div className="text-sm text-slate-500">Loading…</div>
                   ) : mams.length === 0 ? (
-                    <div className="text-sm text-slate-400">No mamoolaat set.</div>
+                    <div className="text-sm text-slate-500">No mamoolaat set.</div>
                   ) : (
                     <ul className="flex flex-wrap gap-1.5">
                       {mams.map((m) => {
                         const e = log?.entries[m.id];
                         const t = entryText(e);
                         return (
-                          <li key={m.id} className={`rounded-lg px-2 py-1 text-sm ${t.cls}`} title={`${Math.round(entryFraction(e) * 100)}%`}>
-                            <b aria-hidden>{t.icon}</b> <span className="sr-only">{t.text}:</span> <span dir="auto">{m.name}</span> <span className="opacity-70">({e?.status === 'partial' ? `${e.amount}/${targetLabel(m)}` : targetLabel(m)})</span>
+                          <li key={m.id} className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm ${t.cls}`} title={`${Math.round(entryFraction(e) * 100)}%`}>
+                            {t.icon && <span aria-hidden className="inline-flex">{t.icon}</span>}
+                            <span className="sr-only">{t.text}:</span> <span dir="auto">{m.name}</span> <span className="num">({e?.status === 'partial' ? `${e.amount}/${targetLabel(m)}` : targetLabel(m)})</span>
                           </li>
                         );
                       })}

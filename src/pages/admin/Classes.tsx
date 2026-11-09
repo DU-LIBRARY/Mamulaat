@@ -94,7 +94,7 @@ function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) 
       <MamoolForm submitLabel="Add to template" onSubmit={add} />
       <div className="flex flex-wrap gap-2">
         {SUGGESTIONS.filter((x) => !items.some((t) => sameMamoolName(t.name, x.name))).map((x) => (
-          <button key={x.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-3 text-sm text-slate-700 hover:border-brand-500" dir="auto" onClick={() => add(x)}>
+          <button key={x.name} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-3 text-sm text-slate-700 hover:border-brand-500" dir="auto" onClick={() => add(x)}>
             <IconPlus size={14} className="text-slate-400" />
             {x.name}
           </button>

@@ -18,16 +18,16 @@ export function ExportBar({ week, month, monthLabel }: { week?: () => void; mont
   return (
     <div className="no-print flex flex-wrap items-center justify-end gap-2" role="group" aria-label="Export">
       {week && (
-        <button className="btn-secondary min-h-9 px-3 text-sm" disabled={busy} onClick={() => run(week)}>
+        <button className="btn-secondary min-h-11 px-3 text-sm" disabled={busy} onClick={() => run(week)}>
           Week CSV
         </button>
       )}
       {month && (
-        <button className="btn-secondary min-h-9 px-3 text-sm" disabled={busy} onClick={() => run(month)} aria-label={monthLabel ? `Month CSV for ${monthLabel}` : undefined}>
+        <button className="btn-secondary min-h-11 px-3 text-sm" disabled={busy} onClick={() => run(month)} aria-label={monthLabel ? `Month CSV for ${monthLabel}` : undefined}>
           {busy ? 'Preparing…' : 'Month CSV'}
         </button>
       )}
-      <button className="btn-secondary min-h-9 px-3 text-sm" onClick={() => window.print()}>
+      <button className="btn-secondary min-h-11 px-3 text-sm" onClick={() => window.print()}>
         Print
       </button>
     </div>

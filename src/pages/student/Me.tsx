@@ -61,7 +61,7 @@ export function Me() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 font-serif text-2xl text-brand-800" aria-hidden>{(profile.name ?? '?').trim().charAt(0).toUpperCase()}</div>
         )}
         <div className="min-w-0">
-          <div className="font-serif text-[30px] leading-tight text-slate-900" dir="auto">
+          <div className="font-serif text-[28px] leading-tight text-slate-900" dir="auto">
             {profile.name}
           </div>
           <div className="truncate text-sm text-slate-500">{profile.email}</div>
@@ -99,7 +99,7 @@ export function Me() {
             aria-checked={profile.reminderEnabled}
             disabled={busy}
             onClick={toggle}
-            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 ease-calm ${profile.reminderEnabled ? 'bg-primary' : 'bg-slate-300'}`}
+            className={`relative h-7 w-12 shrink-0 rounded-full before:absolute before:inset-x-0 before:-inset-y-2 transition-colors duration-300 ease-calm ${profile.reminderEnabled ? 'bg-primary' : 'bg-slate-300'}`}
           >
             <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-300 ease-calm ${profile.reminderEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>

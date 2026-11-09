@@ -32,12 +32,12 @@ export function LogDay() {
             aria-current={d === day ? 'page' : undefined}
             aria-label={`${formatGregorian(d)}${d === today ? ' (today)' : ''}${locksTonight(d) ? ', locks tonight' : ''}`}
             className={`flex min-w-14 flex-col items-center rounded-md border px-3 py-1.5 text-xs font-medium ${
-              d === day ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-surface text-slate-600 hover:border-slate-300'
+              d === day ? 'border-primary bg-primary text-on-primary' : 'border-slate-200 bg-surface text-slate-600 hover:border-slate-300'
             }`}
           >
             <span>{d === today ? 'Today' : shortDay(d)}</span>
             <span className="num text-lg leading-tight font-semibold">{dayNumber(d)}</span>
-            {locksTonight(d) && <span className={`text-[10px] ${d === day ? 'text-white/90' : 'text-amber-800'}`}>locks tonight</span>}
+            {locksTonight(d) && <span className={`text-[11px] ${d === day ? 'text-on-primary' : 'text-amber-800'}`}>locks tonight</span>}
           </Link>
         ))}
       </nav>

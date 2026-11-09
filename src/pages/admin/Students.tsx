@@ -388,14 +388,14 @@ export function Students() {
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Sort
-            <select className="input min-h-9 w-auto py-1 text-sm" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <select className="input min-h-11 w-auto py-1 text-sm" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
               <option value="name">by name</option>
               <option value="week">lowest this week first</option>
               <option value="seen">longest since opened first</option>
             </select>
           </label>
           <button
-            className={`btn min-h-9 border px-3 text-sm ${staleOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
+            className={`btn min-h-11 border px-3 text-sm ${staleOnly ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
             aria-pressed={staleOnly}
             onClick={() => setStaleOnly((v) => !v)}
           >

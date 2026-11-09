@@ -21,7 +21,7 @@ export function ThemePicker() {
             type="button"
             role="radio"
             aria-checked={pref === o.value}
-            className={`btn min-h-10 flex-1 rounded px-3 text-sm ${pref === o.value ? 'bg-surface text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`btn min-h-11 flex-1 rounded px-3 text-sm ${pref === o.value ? 'bg-surface text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             onClick={() => setPref(o.value)}
           >
             {o.label}

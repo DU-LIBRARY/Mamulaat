@@ -120,10 +120,10 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="flex flex-col">
-                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Move ${m.name} up`}>
+                    <button className="btn-ghost min-h-11 px-2.5 py-0" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Move ${m.name} up`}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="M2 8l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
-                    <button className="btn-ghost min-h-9 px-2.5 py-0" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label={`Move ${m.name} down`}>
+                    <button className="btn-ghost min-h-11 px-2.5 py-0" onClick={() => move(i, 1)} disabled={i === active.length - 1} aria-label={`Move ${m.name} down`}>
                       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
                   </div>
@@ -169,7 +169,7 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
             <div className="mb-2 text-xs text-slate-500">Common mamoolaat</div>
             <div className="flex flex-wrap gap-2">
               {SUGGESTIONS.filter((s) => !active.some((m) => m.name === s.name)).map((s, i) => (
-                <button key={s.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-3 text-sm text-slate-700 hover:border-brand-500 hover:text-brand-800" dir="auto" onClick={() => addMamool(uid, s, nextOrder + i, today, actor)}>
+                <button key={s.name} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-3 text-sm text-slate-700 hover:border-brand-500 hover:text-brand-800" dir="auto" onClick={() => addMamool(uid, s, nextOrder + i, today, actor)}>
                   <IconPlus size={14} className="text-slate-400" />{s.name} {s.unit || s.target !== 1 ? <span className="text-slate-500">{targetLabel(s)}</span> : ''}
                 </button>
               ))}
