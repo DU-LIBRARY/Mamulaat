@@ -96,7 +96,7 @@ export function Overview() {
             <b className="font-semibold">{pending.length}</b> sign-up{pending.length > 1 ? 's' : ''} waiting for approval
           </Link>
           {readyToApprove.length > 0 && (
-            <button className="btn min-h-9 border border-gold-400 bg-surface px-3 text-sm text-gold-900 hover:bg-gold-50" onClick={() => approveAll(readyToApprove)}>
+            <button className="btn min-h-11 border border-gold-400 bg-surface px-3 text-sm text-gold-900 hover:bg-gold-50" onClick={() => approveAll(readyToApprove)}>
               <IconCheck size={16} />
               Approve {readyToApprove.length === pending.length ? 'all' : readyToApprove.length} into requested class{readyToApprove.length > 1 ? 'es' : ''}
             </button>
@@ -110,7 +110,7 @@ export function Overview() {
             Not logged today <span className="font-normal text-slate-500">({notLogged.length})</span>
           </h2>
           {toNudge.length > 1 && (
-            <button className="btn-secondary min-h-9 px-3 text-sm" disabled={nudging} onClick={() => nudge(toNudge)}>
+            <button className="btn-secondary min-h-11 px-3 text-sm" disabled={nudging} onClick={() => nudge(toNudge)}>
               <IconBell size={16} />
               Remind all {toNudge.length}
             </button>
@@ -132,11 +132,11 @@ export function Overview() {
                   </span>
                 </Link>
                 {nudged.has(s.id) ? (
-                  <span className="inline-flex min-h-9 items-center gap-1 text-sm text-brand-700">
+                  <span className="inline-flex min-h-11 items-center gap-1 text-sm text-brand-700">
                     <IconCheck size={16} /> Reminded
                   </span>
                 ) : (
-                  <button className="btn-secondary min-h-9 px-3 text-sm" disabled={nudging} onClick={() => nudge([s])} aria-label={`Send ${displayName(s)} a reminder`}>
+                  <button className="btn-secondary min-h-11 px-3 text-sm" disabled={nudging} onClick={() => nudge([s])} aria-label={`Send ${displayName(s)} a reminder`}>
                     <IconBell size={16} />
                     Remind
                   </button>

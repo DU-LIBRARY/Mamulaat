@@ -48,7 +48,7 @@ export function Messages() {
                   {c.readAt ? (
                     <span>Read</span>
                   ) : (
-                    <button className="btn-secondary min-h-9 px-3 text-sm" onClick={() => markCommentRead(profile.id, c.id)}>
+                    <button className="btn-secondary min-h-11 px-3 text-sm" onClick={() => markCommentRead(profile.id, c.id)}>
                       Mark as read
                     </button>
                   )}
@@ -89,7 +89,7 @@ export function Messages() {
                   {c.seenAt ? (
                     <span>Seen</span>
                   ) : (
-                    <button className="btn-secondary min-h-9 px-3 text-sm" onClick={() => markChangeSeen(profile.id, c.id)}>
+                    <button className="btn-secondary min-h-11 px-3 text-sm" onClick={() => markChangeSeen(profile.id, c.id)}>
                       Got it
                     </button>
                   )}

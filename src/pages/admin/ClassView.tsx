@@ -89,7 +89,7 @@ export function ClassView() {
         </h1>
         <div className="no-print flex rounded-md border border-slate-200 bg-surface p-0.5" role="group" aria-label="View">
           {(['day', 'week'] as const).map((v) => (
-            <button key={v} aria-pressed={view === v} className={`btn min-h-9 rounded px-4 text-sm ${view === v ? 'bg-ink text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
+            <button key={v} aria-pressed={view === v} className={`btn min-h-11 rounded px-4 text-sm ${view === v ? 'bg-ink text-white' : 'text-slate-600 hover:text-slate-900'}`} onClick={() => setParam('view', v)}>
               {v === 'day' ? 'Day' : 'Week'}
             </button>
           ))}
