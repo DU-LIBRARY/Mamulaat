@@ -69,7 +69,7 @@
   --color-slate-200: #d5d1c6;
   --color-slate-300: #bfbcb0;
   --color-slate-400: #8f9387;
-  --color-slate-500: #5f6559;
+  --color-slate-500: #585e52;
   --color-slate-600: #4f554a;
   --color-slate-700: #3e443a;
   --color-slate-800: #30372e;
@@ -220,7 +220,7 @@ body {
 }
 
 @utility input {
-  @apply block min-h-11 w-full rounded-md border border-slate-300 bg-surface px-3 py-2 text-base text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none dark:bg-sand-50;
+  @apply block min-h-11 w-full rounded-md border border-slate-300 bg-surface px-3 py-2 text-base text-slate-800 placeholder:text-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none dark:bg-sand-50;
 }
 
 @utility label {

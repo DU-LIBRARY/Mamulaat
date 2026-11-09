@@ -21,7 +21,7 @@ colors:
   hairline: "#d5d1c6"
   olive-ink: "#20251d"
   olive-body: "#30372e"
-  olive-muted: "#5f6559"
+  olive-muted: "#585e52"
   night: "#191b16"
   night-raised: "#22261e"
   night-hairline: "#31372c"
