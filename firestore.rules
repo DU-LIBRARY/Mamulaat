@@ -234,6 +234,22 @@ service cloud.firestore {
       }
 
       // ----- FCM device tokens (doc id = token) -----
+      // This device's Web Push subscription (see src/lib/messaging.ts). Read only by the
+      // "Notifications" GitHub Action (Admin SDK); the admin may list them to delete a student.
+      match /pushSubs/{id} {
+        allow read: if isActiveOrPendingSelf(uid) || isAdmin();
+        allow create, update: if isActiveOrPendingSelf(uid)
+                              && request.resource.data.keys().hasOnly(['endpoint', 'p256dh', 'auth', 'createdAt', 'lastSeen', 'userAgent'])
+                              && request.resource.data.endpoint is string
+                              && request.resource.data.endpoint.size() <= 2000
+                              && request.resource.data.endpoint.matches('^https://.*')
+                              && request.resource.data.p256dh is string && request.resource.data.p256dh.size() <= 200
+                              && request.resource.data.auth is string && request.resource.data.auth.size() <= 100
+                              && optString(request.resource.data.get('userAgent', null), 300);
+        allow delete: if isActiveOrPendingSelf(uid) || isAdmin();
+      }
+
+      // Left over from the old Firebase Cloud Messaging setup: devices delete their own on update.
       match /fcmTokens/{token} {
         // Pending sign-ups may register a device too, so they can be told when they are approved.
         // The admin may list tokens so a student's data can be deleted completely.

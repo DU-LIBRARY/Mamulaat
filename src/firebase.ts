@@ -27,7 +27,6 @@ export const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const VAPID_KEY: string | undefined = import.meta.env.VITE_FIREBASE_VAPID_KEY || undefined;
 export const USE_EMULATORS = import.meta.env.VITE_USE_EMULATORS === 'true';
 
 export const configMissing = !firebaseConfig.apiKey || !firebaseConfig.projectId;

@@ -9,6 +9,7 @@ import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/date
 import type { AppSettings } from '../../types';
 import { ThemePicker } from '../../components/ThemePicker';
 import { InstallApp } from '../../components/InstallApp';
+import { isIOS, isStandalone } from '../../lib/pwa';
 import { displayName } from '../../lib/display';
 
 const TIMEZONES: string[] = (() => {
@@ -131,7 +132,13 @@ function AdminNotifications() {
           <Notice>{pushSupportMessage[support.reason]}</Notice>
         </div>
       )}
-      <p className="mt-3 text-xs text-slate-500">Needs the reminder functions to be deployed (see the README). Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
+      {isIOS() && !isStandalone() && (
+        <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <b className="font-medium text-slate-900">iPhone / iPad:</b> notifications only work in the Home Screen app. In Safari tap Share →{' '}
+          <i>Add to Home Screen</i> (iOS 16.4 or later), open Mamulaat from that icon, then turn this on there.
+        </p>
+      )}
+      <p className="mt-3 text-xs text-slate-500">Sent by the Notifications GitHub Action every 15 minutes (set up once, see README §7). Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
     </section>
   );
 }
@@ -203,6 +210,8 @@ export function AdminSettings() {
 
   return (
     <div className="flex flex-col gap-4">
+      <AdminNotifications />
+
       {!settingsLoaded && <p className="text-sm text-slate-500">Loading settings…</p>}
       <form
         className="card flex flex-col gap-3"
@@ -275,7 +284,6 @@ export function AdminSettings() {
       <InstallApp />
 
       <ThemePicker />
-      <AdminNotifications />
       <PasswordSignIn />
       <TransferAdmin />
 

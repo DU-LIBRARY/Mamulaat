@@ -39,7 +39,6 @@ export const logsCol = (uid: string) => collection(db, 'users', uid, 'logs');
 export const logRef = (uid: string, day: string) => doc(db, 'users', uid, 'logs', day);
 export const commentsCol = (uid: string) => collection(db, 'users', uid, 'comments');
 export const changesCol = (uid: string) => collection(db, 'users', uid, 'changes');
-export const tokensCol = (uid: string) => collection(db, 'users', uid, 'fcmTokens');
 export const classesCol = () => collection(db, 'classes');
 export const settingsRef = () => doc(db, 'settings', 'app');
 export const auditCol = () => collection(db, 'auditLog');
@@ -496,7 +495,7 @@ export async function bulkUpdateUsers(uids: string[], action: BulkAction, actor:
 
 /** Delete a student and ALL their data (mamoolaat, logs, comments, changes, tokens). Must be online. */
 export async function deleteStudent(uid: string, actor: Actor, name: string) {
-  const subs = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens'];
+  const subs = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens', 'pushSubs'];
   const failed: string[] = [];
   // Delete every sub-collection; keep going if one fails so we never leave a half-deleted student,
   // and only remove the profile once everything else is gone (so a retry can finish the job).

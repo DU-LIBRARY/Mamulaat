@@ -541,7 +541,7 @@ describe('admin', () => {
 });
 
 describe('admin deleting a student (full control)', () => {
-  const SUBS = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens'];
+  const SUBS = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens', 'pushSubs'];
 
   beforeEach(async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
@@ -578,6 +578,17 @@ describe('admin deleting a student (full control)', () => {
     const f = db(ADMIN);
     await assertSucceeds(deleteDoc(doc(f, `users/${PENDING}`)));
     await assertSucceeds(deleteDoc(doc(f, `users/${INACTIVE}`)));
+  });
+
+  it('a user can store their own push subscription, with only the expected fields', async () => {
+    const sub = { endpoint: 'https://push.example/abc', p256dh: 'k', auth: 'a', createdAt: Timestamp.now(), lastSeen: Timestamp.now(), userAgent: 'x' };
+    await assertSucceeds(setDoc(doc(db(A), `users/${A}/pushSubs/s1`), sub));
+    await assertSucceeds(setDoc(doc(db(PENDING), `users/${PENDING}/pushSubs/s1`), sub));
+    await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s2`), { ...sub, extra: 1 }));
+    await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s3`), { ...sub, endpoint: 'http://insecure' }));
+    await assertFails(setDoc(doc(db(A), `users/${B}/pushSubs/s1`), sub));
+    await assertFails(getDocs(collection(db(B), `users/${A}/pushSubs`)));
+    await assertSucceeds(getDocs(collection(db(ADMIN), `users/${A}/pushSubs`)));
   });
 
   it("a student still cannot read another student's device tokens", async () => {

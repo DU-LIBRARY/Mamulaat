@@ -1,0 +1,46 @@
+# Sends Mamulaat's push notifications (daily reminders, nudges, sign-up and approval notices).
+# There's no server and no Cloud Functions: this job wakes every 15 minutes, reads Firestore and
+# sends standard Web Push messages (tools/push/send-notifications.mjs).
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions → Secrets):
+#   FIREBASE_SERVICE_ACCOUNT  service-account JSON key (already set if the backend deploy works)
+#   VAPID_PRIVATE_KEY         private half of the push key pair (public half: push.config.json)
+# Until both are set, the job does nothing.
+name: Notifications
+on:
+  schedule:
+    # Every 15 minutes (UTC). GitHub can start scheduled jobs a few minutes late.
+    - cron: '4,19,34,49 * * * *'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Send a test notification instead'
+        type: choice
+        options: [none, admins, all]
+        default: none
+      dry_run:
+        description: 'Only log what would be sent'
+        type: boolean
+        default: false
+concurrency:
+  group: notifications
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund --omit=dev
+        working-directory: tools/push
+      - run: node --experimental-strip-types --no-warnings tools/push/send-notifications.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          TEST: ${{ github.event.inputs.test }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}

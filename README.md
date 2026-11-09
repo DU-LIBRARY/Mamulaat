@@ -7,18 +7,20 @@ Mamulaat is an offline-first PWA for students to track their daily **mamoolaat**
 - Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
 - Progress and streaks are private: only the student and the admin can see them.
 - **Hosting: GitHub Pages** (built and published by a GitHub Action on every push to `main`). Firebase is the backend only: sign-in, Firestore, push messaging and the reminder function.
-- Stack: React + Vite + TypeScript, Tailwind v4, vite-plugin-pwa, Firebase JS SDK (modular), Firestore with a persistent offline cache, Google sign-in, FCM web push, and Cloud Functions (TypeScript) for reminders.
+- Stack: React + Vite + TypeScript, Tailwind v4, vite-plugin-pwa, Firebase JS SDK (modular), Firestore with a persistent offline cache, Google sign-in, standard Web Push, and a scheduled GitHub Action that sends the notifications.
 - **Access control lives entirely in `firestore.rules`.** The UI is never trusted. The rules are tested with the Emulator Suite (`tests/rules`).
 
 ```
 src/                 React app (student + admin UIs)
-  sw.ts              the ONE service worker: Workbox precache + FCM background messages
+  sw.ts              the ONE service worker: Workbox precache + Web Push notifications
   firebase.ts        Firebase init (env-var config, offline cache, emulators)
   lib/               dates (timezone/Hijri), scoring, reports, db writes, messaging, sync indicator
 firestore.rules      security rules (all access control)
 tests/rules/         rules tests (Emulator Suite)
 tests/unit/          date/scoring/report tests
-functions/           Cloud Functions: scheduled reminders, user-deletion cleanup
+functions/           old Cloud Functions version of the notifications (optional, needs Blaze); its
+                     src/reminders.ts helpers are shared with tools/push/
+tools/push/          the notification sender run by .github/workflows/notifications.yml
 scripts/             seed-emulator.mjs, bootstrap-admin.mjs, generate-icons.mjs
 ```
 
@@ -33,8 +35,8 @@ Mamulaat must have its **own** Firebase project. Do not reuse or connect it to a
    - Under **Authentication → Settings → Authorized domains**, add **`<github-owner>.github.io`** (for this repo: `du-library.github.io`), or your custom domain. Without this, Google sign-in fails on the live site.
 3. **Build → Firestore Database → Create database.** Use production mode and pick a region close to your students. The region can't be changed later.
 4. **Project settings → General → Your apps → Add app → Web (</>).** Register the app and copy the config values into `.env.local` (see §2). Don't tick "Firebase Hosting"; the app is hosted on GitHub Pages.
-5. **FCM (web push):** go to **Project settings → Cloud Messaging → Web configuration → Web Push certificates → Generate key pair**. Copy the public key into `VITE_FIREBASE_VAPID_KEY`.
-6. **Blaze plan (needed for reminders):** go to **Upgrade → Blaze** and link a billing account. The scheduled function (every 15 minutes, about 2,900 runs a month) plus a few reads per student should stay **well inside the free tier** for a class-sized app. However, Cloud Scheduler and Cloud Functions both **require a billing account**. Set a budget alert (e.g. $1) under Google Cloud → Billing → Budgets. Without Blaze, everything works except push reminders. Students still see the in-app reminder banner.
+5. **Push notifications:** no Firebase setup is needed. See §7 for the GitHub secret.
+6. **Blaze plan: not needed.** Notifications are sent by a GitHub Action (§7), so the free Spark plan is enough.
 7. Install the CLI (`npm i` installs it locally as `firebase-tools`) and point it at the project:
    ```bash
    npx firebase login
@@ -123,7 +125,7 @@ One-time setup on GitHub:
 1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
    Pages on a **private** repo needs a paid GitHub plan (Pro/Team/Enterprise). On a free plan the repo must be public. That's fine: the code and Firebase config contain no secrets, and the security rules protect the data.
 2. **Settings → Secrets and variables → Actions → Variables tab → New repository variable.** Add each of these with the values from §2:
-   `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_VAPID_KEY`.
+   `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`.
    Optional: `VITE_BASE` = `/` if you use a custom domain.
 3. Merge to `main`, or run the workflow by hand from the **Actions** tab. The site will be at **`https://<owner>.github.io/<repo>/`** (here: `https://du-library.github.io/Mamulaat/`).
 4. Add `<owner>.github.io` to Firebase **Authentication → Settings → Authorized domains** (§1, step 2).
@@ -190,23 +192,35 @@ Anyone with **Owner/Editor** (or Firestore/Datastore viewer) access to the Fireb
 5. Have them confirm they can open the Firebase console for the project.
 6. Move **billing** to the school: Billing → Account management, then change the billing account or add them as Billing Account Administrator.
 7. **Remove yourself** from the project's IAM. Also remove yourself from the billing account and from Firebase → Project settings → Users and permissions if you're listed there.
-8. **Delete the GitHub deploy key.** In Google Cloud → IAM & Admin → Service accounts → `firebase-adminsdk-…` → **Keys**, delete the key you created. Then delete the `FIREBASE_SERVICE_ACCOUNT` secret in GitHub. The new owner can create a new key for themselves if they want automatic deploys. Also remove yourself as a GitHub repo admin (or transfer the repo), and delete any other keys or `application-default` credentials you created (`gcloud auth application-default revoke`) and any local exports with real data.
+8. **Delete the GitHub deploy key.** In Google Cloud → IAM & Admin → Service accounts → `firebase-adminsdk-…` → **Keys**, delete the key you created. Then delete the `FIREBASE_SERVICE_ACCOUNT` secret in GitHub (notifications stop until the new owner adds their own). The new owner can create a new key for themselves if they want automatic deploys. Also remove yourself as a GitHub repo admin (or transfer the repo), and delete any other keys or `application-default` credentials you created (`gcloud auth application-default revoke`) and any local exports with real data.
 9. Optional: in Firebase → Authentication, delete your own user. Your Firestore profile stays inactive.
 
 Until steps 4–7 are done, you can still technically see data through the console. The in-app handover alone isn't enough.
 
 There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists, the first user becomes admin" rule, and no hidden roles. Admin can only be granted by the current admin (handover) or by someone with Google Cloud access to the project (the bootstrap script or the console).
 
-## 7. Reminders (FCM)
+## 7. Notifications (Web Push from a GitHub Action)
 
-- Students go to **Me → Daily reminder**, turn it on and pick a time. The default comes from admin settings. Times are in the project timezone.
-- The browser asks for notification permission. On success, the device token is stored at `users/{uid}/fcmTokens/{token}`. Tokens are refreshed on app start, and the old one is replaced if it rotated. If permission is denied or push is unsupported, the app explains this and keeps the **in-app banner** fallback, shown whenever the app is opened and today isn't logged.
-- **iPhone/iPad:** web push only works after adding the app to the Home Screen (iOS 16.4+) and enabling reminders from the Home Screen app. The app explains this on iOS.
-- `functions/src/index.ts → sendDailyReminders` runs every 15 minutes. For each active student with reminders on whose time has passed (within a 3-hour window) and who hasn't been reminded today, it checks `logs/{today}`. If nothing is logged, it sends a data-only push to their devices. Dead tokens (`registration-token-not-registered`, etc.) and tokens unseen for 60 days are deleted.
-- **Other pushes** (same deploy, same Blaze requirement):
-  - `sendNudge`: when the admin taps **Remind** on Overview → *Not logged today*, a `nudges/{uid}_{day}` doc is written (one per student per day) and the student gets a push straight away. The student also sees "Your teacher reminded you" in the app.
-  - `notifyUserChange`: pushes the admin when someone finishes signing up (turn on **Admin → Settings → Notifications** on the admin's device), and pushes a student when they're approved (they can tap *Notify me when I'm approved* on the waiting screen).
-- The PWA and FCM share **one** service worker (`src/sw.ts`). The page registers it via vite-plugin-pwa and passes it to `getToken({ serviceWorkerRegistration })`, so there's no separate `firebase-messaging-sw.js`.
+There's no server and no Cloud Functions, so this works on the free Spark plan. The app stores each device's standard Web Push subscription in Firestore. A GitHub Action (`.github/workflows/notifications.yml`) wakes every 15 minutes, reads Firestore and sends the notifications (`tools/push/send-notifications.mjs`).
+
+**One-time setup:**
+1. **Publish the rules** (they include `users/{uid}/pushSubs`). The *Deploy Firebase backend* workflow does this when this change reaches `main`.
+2. **Service account:** the `FIREBASE_SERVICE_ACCOUNT` secret the backend deploy already uses is reused. Its role needs to be able to read and write Firestore. *Firebase Admin SDK Administrator Service Agent* or *Cloud Datastore User* both work.
+3. **Push key:** add a repository secret named `VAPID_PRIVATE_KEY` containing the private key that pairs with `publicKey` in `push.config.json`. To make a new pair, run `npx web-push generate-vapid-keys`, put the public key in `push.config.json` and the private key in the secret. Everyone then has to turn notifications on again.
+4. **Test it:** turn notifications on on your phone. Then go to **GitHub → Actions → Notifications → Run workflow** and choose *test: admins*.
+
+**What gets sent:**
+- **Daily reminder:** students turn it on in **Me → Daily reminder** and pick a time (the default comes from admin settings, in the project timezone). Once that time has passed, within a 3-hour window, the student gets a push if nothing is logged today. It's sent at most once a day.
+- **Nudge:** when the admin taps **Remind** on Overview → *Not logged today*, the student is told on the next run, within about 15 minutes.
+- **New sign-up:** every admin with notifications on (**Settings → Notifications**) is told when someone finishes signing up.
+- **Approved:** a student is told when they're approved, if they turned on notifications on the waiting screen.
+
+**Notes:**
+- **iPhone/iPad:** web push only works after adding the app to the Home Screen (iOS 16.4+) and turning notifications on from the Home Screen app. The app explains this on iOS.
+- Without push, the **in-app banner** still shows whenever the app is opened and today isn't logged.
+- Expired subscriptions (the push service answers 404/410) and devices unseen for 60 days are deleted. `pushState/notices` records which sign-ups and approvals have already been announced. No app user can read it.
+- GitHub can start scheduled jobs a few minutes late. GitHub also pauses scheduled workflows in a repository with no commits for 60 days; re-enable it from the Actions tab.
+- `functions/` (the old Cloud Functions version) is no longer needed. Don't deploy both, or reminders could be sent twice.
 
 ## 8. How it works
 
