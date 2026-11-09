@@ -8,7 +8,22 @@ const base = process.env.VITE_BASE || '/';
 
 export default defineConfig({
   base,
-  build: { chunkSizeWarningLimit: 1500 },
+  build: {
+    // Firebase alone is ~650 kB minified; it has its own chunk, so the default 500 kB warning is noise.
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Libraries change far less often than the app. In their own chunks, an update only
+        // re-downloads the app code; the service worker keeps the unchanged vendor files.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('/firebase/') || id.includes('/@firebase/')) return 'firebase';
+          if (/\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'react';
+          if (id.includes('/motion') || id.includes('/framer-motion/') || id.includes('/radix-ui/') || id.includes('/@radix-ui/') || id.includes('/@phosphor-icons/')) return 'ui';
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -21,6 +36,8 @@ export default defineConfig({
       injectRegister: false, // registered manually in src/lib/pwa.ts
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,woff2}'],
+        // Archivo ships Vietnamese glyphs the app never shows; don't download them for offline use.
+        globIgnores: ['**/*-vietnamese-*'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {

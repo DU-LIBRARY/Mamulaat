@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { configMissing } from './firebase';
 import { SessionProvider, useSession } from './hooks/useSession';
 import { StudentDataProvider, useMyData } from './hooks/useStudentData';
-import { useAllUsers } from './hooks/useAdminData';
 import { FullScreen, Spinner } from './components/ui';
 import { Splash } from './components/quiet';
 import { Layout } from './components/Layout';
-import { AdminLayout } from './components/AdminLayout';
 import { SignIn } from './pages/SignIn';
 import { ConfigMissing, Waiting } from './pages/Waiting';
 import { Signup } from './pages/Signup';
@@ -18,31 +16,16 @@ import { Week } from './pages/student/Week';
 import { Messages } from './pages/student/Messages';
 import { ManageMamoolaat } from './pages/student/ManageMamoolaat';
 import { Me } from './pages/student/Me';
-import { Overview } from './pages/admin/Overview';
-import { MyMamool } from './pages/admin/MyMamool';
-import { Classes } from './pages/admin/Classes';
-import { ClassView } from './pages/admin/ClassView';
-import { Students } from './pages/admin/Students';
-import { StudentDetail } from './pages/admin/StudentDetail';
-import { AdminSettings } from './pages/admin/Settings';
-import { Audit } from './pages/admin/Audit';
 import { DialogProvider } from './components/Dialog';
 import { UndoProvider } from './components/Undo';
 import { touchLastSeen } from './lib/db';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { onForegroundMessage, refreshToken } from './lib/messaging';
-import { IconInbox, IconLog, IconPerson, IconToday, IconWeek, IconX } from './components/icons';
+import { IconInbox, IconLog, IconPerson, IconToday, IconWeek } from './components/icons';
+import { Toast } from './components/Toast';
 
-function Toast({ text, onClose }: { text: string; onClose: () => void }) {
-  return (
-    <div role="alert" className="top-safe-toast fixed inset-x-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-ink py-3 pr-2 pl-4 text-sm text-[#f1eee4] shadow-xl">
-      <span className="flex-1">{text}</span>
-      <button className="btn min-h-9 px-2 text-white/80 hover:bg-white/10 hover:text-white" onClick={onClose} aria-label="Dismiss">
-        <IconX size={18} />
-      </button>
-    </div>
-  );
-}
+// The teacher's side loads only for the teacher, so students never parse it.
+const AdminRoutes = lazy(() => import('./AdminRoutes'));
 
 function StudentRoutes() {
   const { profile } = useSession();
@@ -96,36 +79,6 @@ function StudentRoutes() {
   );
 }
 
-function AdminRoutes() {
-  const { profile } = useSession();
-  const users = useAllUsers();
-  const [toast, setToast] = useState<string | null>(null);
-  const pending = users.data.filter((u) => u.status === 'pending').length;
-  const uid = profile!.id;
-  useEffect(() => {
-    if (profile?.reminderEnabled) refreshToken(uid);
-    let unsub: (() => void) | undefined;
-    onForegroundMessage((t, b) => setToast(`${t}: ${b}`)).then((u) => (unsub = u));
-    return () => unsub?.();
-  }, [uid, profile?.reminderEnabled]);
-  return (
-    <AdminLayout pending={pending}>
-      {toast && <Toast text={toast} onClose={() => setToast(null)} />}
-      <Routes>
-        <Route path="/admin" element={<MyMamool />} />
-        <Route path="/admin/overview" element={<Overview />} />
-        <Route path="/admin/classes" element={<Classes />} />
-        <Route path="/admin/class/:classId" element={<ClassView />} />
-        <Route path="/admin/students" element={<Students />} />
-        <Route path="/admin/student/:uid" element={<StudentDetail />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/admin/audit" element={<Audit />} />
-        <Route path="*" element={<Navigate to="/admin" replace />} />
-      </Routes>
-    </AdminLayout>
-  );
-}
-
 function Gate() {
   const { user, profile, profileError, isAdmin, signOut, removed, dismissRemoved } = useSession();
   if (removed) {
@@ -163,7 +116,12 @@ function Gate() {
   if (!profile) return <Spinner />;
   if (profile.status === 'pending' && !profile.signupComplete) return <Signup profile={profile} />;
   if (profile.status !== 'active') return <Waiting profile={profile} />;
-  if (isAdmin) return <AdminRoutes />;
+  if (isAdmin)
+    return (
+      <Suspense fallback={<Splash />}>
+        <AdminRoutes />
+      </Suspense>
+    );
   return (
     <StudentDataProvider uid={profile.id}>
       <StudentRoutes />

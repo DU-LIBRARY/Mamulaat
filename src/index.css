@@ -8,7 +8,7 @@
  * No cards-with-shadows: content sits on the page, divided by hairlines.
  * Fonts are self-hosted (Fontsource) so the app works offline.
  */
-@import "@fontsource/prata/400.css";
+@import "@fontsource/prata/latin-400.css";
 @import "@fontsource-variable/archivo/wght.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-400.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
