@@ -277,8 +277,8 @@ service cloud.firestore {
     }
 
     // ---------- nudges ("please log today" pushes sent by the admin) ----------
-    // id = <uid>_<day>, so there is at most one nudge per student per day. A Cloud Function
-    // sends the push when one is created. The student can read their own (for the in-app note).
+    // id = <uid>_<day>, so there is at most one nudge per student per day. The "Notifications"
+    // GitHub Action sends the push on its next run. The student can read their own (for the in-app note).
     match /nudges/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid && isActive());
       allow create: if isAdmin()
@@ -293,6 +293,24 @@ service cloud.firestore {
                     && request.resource.data.actorName.size() <= 200
                     && request.resource.data.createdAt == request.time;
       allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ---------- pushMessages (a note from the admin, also sent to the student's phone) ----------
+    // The "Notifications" GitHub Action sends each one and then deletes it. Nobody reads them in the app.
+    match /pushMessages/{id} {
+      allow create: if isAdmin()
+                    && request.resource.data.keys().hasOnly(['uid', 'text', 'actorId', 'actorName', 'createdAt'])
+                    && request.resource.data.uid is string
+                    && exists(userPath(request.resource.data.uid))
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 300
+                    && request.resource.data.actorId == request.auth.uid
+                    && request.resource.data.actorName is string
+                    && request.resource.data.actorName.size() <= 200
+                    && request.resource.data.createdAt == request.time;
+      allow read, update: if false;
       allow delete: if isAdmin();
     }
 

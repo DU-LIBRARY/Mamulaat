@@ -212,6 +212,7 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 **What gets sent:**
 - **Reminders:** a general "please log your mamoolaat" message **every day at 23:00 and on Fridays at 12:00** (project timezone) to every active student who turned reminders on in **Me → Daily reminder**. The times and wording are in `push.config.json` → `reminders` (`weekday`: 0 = Sunday … 5 = Friday). Each one is sent once, by the first run within an hour of its time; `pushState/reminders` records what was sent.
 - **Nudge:** when the admin taps **Remind** on Overview → *Not logged today*, the student is told on the next run, within about 15 minutes.
+- **Message:** on a student's page → **Notes**, leave a note with **Also send it to their phone** ticked. The note shows on their home page and is pushed on the next run as "Message from <your name>" (first 300 characters). `pushMessages/{id}` holds it until it's sent.
 - **New sign-up:** every admin with notifications on (**Settings → Notifications**) is told when someone finishes signing up.
 - **Approved:** a student is told when they're approved, if they turned on notifications on the waiting screen.
 

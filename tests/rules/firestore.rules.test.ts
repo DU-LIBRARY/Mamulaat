@@ -645,6 +645,19 @@ describe('admin handover', () => {
   });
 });
 
+describe('pushMessages (admin note sent to a phone)', () => {
+  const msg = (uid: string, actorId = ADMIN) => ({ uid, text: 'Hello', actorId, actorName: 'Admin', createdAt: serverTimestamp() });
+  it('only the admin can create one, for an existing user, and nobody can read them', async () => {
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'pushMessages/m1'), msg(A)));
+    await assertFails(setDoc(doc(db(ADMIN), 'pushMessages/m2'), msg('nobody')));
+    await assertFails(setDoc(doc(db(ADMIN), 'pushMessages/m3'), { ...msg(A), text: 'x'.repeat(301) }));
+    await assertFails(setDoc(doc(db(ADMIN), 'pushMessages/m4'), { ...msg(A), extra: 1 }));
+    await assertFails(setDoc(doc(db(A), 'pushMessages/m5'), msg(B, A)));
+    await assertFails(getDoc(doc(db(A), 'pushMessages/m1')));
+    await assertFails(getDoc(doc(db(ADMIN), 'pushMessages/m1')));
+  });
+});
+
 describe('nudges (admin "please log today" reminders)', () => {
   const nudge = (uid: string, day: string, actorId = ADMIN) => ({ uid, day, actorId, actorName: 'Admin', createdAt: serverTimestamp() });
 
