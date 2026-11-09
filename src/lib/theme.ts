@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 export type ThemePref = 'system' | 'light' | 'dark';
 
 const KEY = 'mamulaat-theme';
-const LIGHT_BAR = '#f5f4ef';
-const DARK_BAR = '#121210';
+const LIGHT_BAR = '#f1f3f8';
+const DARK_BAR = '#0b1020';
 const media = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
 export function getThemePref(): ThemePref {

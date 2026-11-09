@@ -1,4 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
+import { cva } from 'class-variance-authority';
+import { AnimatePresence, motion } from 'motion/react';
+import { cn } from '../lib/cn';
 import { adminSaveEntry, restoreEntries, saveEntries, saveEntry, type Actor } from '../lib/db';
 import type { DayLog, EntryStatus, LogEntry, Mamool } from '../types';
 import { entryFraction } from '../lib/scoring';
@@ -23,11 +26,115 @@ function statusText(e: LogEntry | undefined, m: Pick<Mamool, 'target' | 'unit'>)
 /** Counted mamoolaat (e.g. 100 tasbeeh) get a +1 tap counter. */
 const isCounted = (m: Pick<Mamool, 'target'>) => m.target > 1;
 
-const STATUS: Record<EntryStatus, { label: string; icon: ReactNode; on: string }> = {
-  done: { label: 'Done', icon: <IconCheck size={18} />, on: 'bg-primary text-white border-primary' },
-  partial: { label: 'Partly', icon: <IconHalf size={16} />, on: 'bg-amber-100 text-amber-900 border-amber-300' },
-  missed: { label: 'Missed', icon: <IconX size={16} />, on: 'bg-red-50 text-red-800 border-red-200' },
+const STATUS: Record<EntryStatus, { label: string; icon: ReactNode }> = {
+  done: { label: 'Done', icon: <IconCheck size={18} /> },
+  partial: { label: 'Partly', icon: <IconHalf size={16} /> },
+  missed: { label: 'Missed', icon: <IconX size={16} /> },
 };
+
+/** Status buttons as cva variants (the shadcn/ui pattern): which status × whether it's chosen × row layout. */
+const statusButton = cva(
+  'relative inline-flex items-center justify-center overflow-hidden border transition-[background-color,border-color,color,box-shadow] duration-200 disabled:cursor-not-allowed disabled:opacity-60',
+  {
+    variants: {
+      status: { done: 'font-semibold', partial: 'font-medium', missed: 'font-medium' },
+      on: { true: '', false: 'bg-surface' },
+      layout: {
+        full: 'min-h-11 rounded-md',
+        compact: 'h-12 w-12 gap-1.5 rounded-[14px] sm:w-auto sm:min-w-24 sm:px-3',
+        /** The main "Done" control on a full row: a round bead you press. */
+        bead: 'h-14 w-14 shrink-0 rounded-full border-2',
+        /** Secondary statuses on a full row. */
+        chip: 'min-h-11 gap-1.5 rounded-full px-3.5 text-[13px]',
+      },
+    },
+    compoundVariants: [
+      { status: 'done', on: false, class: 'border-brand-300 text-brand-800 hover:border-brand-500 hover:bg-brand-50' },
+      { status: ['partial', 'missed'], on: false, class: 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50' },
+      {
+        status: 'done',
+        on: true,
+        class: 'border-primary-strong bg-primary text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_2px_6px_-2px_rgb(29_61_150/0.5)]',
+      },
+      { status: 'partial', on: true, class: 'border-amber-300 bg-amber-100 text-amber-900' },
+      { status: 'missed', on: true, class: 'border-red-200 bg-red-50 text-red-800' },
+      { status: 'done', layout: 'full', class: 'gap-1.5 text-[15px]' },
+      { status: 'done', layout: 'bead', on: false, class: 'border-brand-300 bg-surface text-brand-500 hover:border-brand-500 hover:text-brand-700' },
+      {
+        status: 'done',
+        layout: 'bead',
+        on: true,
+        class:
+          'border-primary-strong bg-[radial-gradient(circle_at_32%_26%,rgb(255_255_255/0.45),transparent_44%),linear-gradient(160deg,var(--color-brand-500),var(--color-primary-strong))] text-white shadow-[0_6px_16px_-6px_rgb(29_61_150/0.7)]',
+      },
+      { status: ['partial', 'missed'], layout: 'full', class: 'gap-1 text-xs' },
+    ],
+  },
+);
+
+function StatusButton({
+  s,
+  on,
+  layout,
+  disabled,
+  onClick,
+  icon,
+  label,
+  iconOnlyOnPhone,
+}: {
+  s: EntryStatus;
+  on: boolean;
+  layout: 'full' | 'compact' | 'bead' | 'chip';
+  disabled: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  label: string;
+  iconOnlyOnPhone?: boolean;
+}) {
+  const iconOnly = layout === 'bead';
+  return (
+    <motion.button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-pressed={on}
+      aria-label={iconOnlyOnPhone || iconOnly ? label : undefined}
+      title={iconOnlyOnPhone || iconOnly ? label : undefined}
+      whileTap={disabled ? undefined : { scale: 0.94 }}
+      transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+      className={statusButton({ status: s, on, layout })}
+    >
+      {/* the chosen state washes in from the tap, like glaze spreading */}
+      <AnimatePresence initial={false}>
+        {on && s === 'done' && layout !== 'bead' && (
+          <motion.span
+            key="wash"
+            aria-hidden
+            className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgb(255_255_255/0.22),transparent_60%)]"
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1.4 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          />
+        )}
+      </AnimatePresence>
+      <motion.span
+        key={String(on)}
+        className="relative inline-flex"
+        initial={on ? { scale: 0.4, rotate: s === 'done' ? -25 : 0 } : false}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+      >
+        {icon}
+      </motion.span>
+      {!iconOnly && (
+        <span className={cn('relative', iconOnlyOnPhone && 'hidden text-sm sm:inline')} aria-hidden={iconOnlyOnPhone || undefined}>
+          {label}
+        </span>
+      )}
+    </motion.button>
+  );
+}
 
 /** Bigger icons for the one-line rows, where the icon alone carries the meaning on a phone. */
 const COMPACT_ICON: Record<EntryStatus, ReactNode> = {
@@ -38,7 +145,7 @@ const COMPACT_ICON: Record<EntryStatus, ReactNode> = {
 
 /** Left-edge mark showing the row's state at a glance. */
 function edge(status: EntryStatus | undefined) {
-  if (status === 'done') return 'before:bg-primary';
+  if (status === 'done') return 'before:bg-primary bg-brand-50/40';
   if (status === 'partial') return 'before:bg-amber-500';
   if (status === 'missed') return 'before:bg-red-400';
   return 'before:bg-transparent';
@@ -102,7 +209,7 @@ function MamoolRow({
 
   if (compact) {
     return (
-      <li className={`relative px-3 py-2.5 before:absolute before:inset-y-2.5 sm:px-4 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
+      <li className={`relative px-3 py-2.5 before:absolute before:inset-y-2.5 sm:px-4 before:left-0 before:w-[3px] before:rounded-r-full before:transition-colors ${edge(status)}`}>
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="line-clamp-2 text-[15px] leading-snug font-medium break-words text-slate-900 sm:text-base" dir="auto" title={m.name}>
@@ -122,31 +229,19 @@ function MamoolRow({
             {m.name}: {statusText(entry, m)}
           </span>
           <div className="flex shrink-0 items-center gap-2" role="group" aria-label={`${m.name} status`}>
-            {(Object.keys(STATUS) as EntryStatus[]).map((s) => {
-              const main = s === 'done';
-              const idle = main
-                ? 'border-brand-700 bg-surface text-brand-800 hover:bg-brand-50'
-                : 'border-slate-200 bg-surface text-slate-500 hover:border-slate-300 hover:bg-slate-50';
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  disabled={!editable}
-                  onClick={() => set(s)}
-                  aria-pressed={status === s}
-                  aria-label={STATUS[s].label}
-                  title={STATUS[s].label}
-                  className={`inline-flex h-12 w-12 items-center justify-center gap-1.5 rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-24 sm:px-3 ${
-                    main ? 'font-semibold' : 'font-medium'
-                  } ${status === s ? STATUS[s].on : idle}`}
-                >
-                  {COMPACT_ICON[s]}
-                  <span className="hidden text-sm sm:inline" aria-hidden="true">
-                    {STATUS[s].label}
-                  </span>
-                </button>
-              );
-            })}
+            {(Object.keys(STATUS) as EntryStatus[]).map((s) => (
+              <StatusButton
+                key={s}
+                s={s}
+                on={status === s}
+                layout="compact"
+                disabled={!editable}
+                onClick={() => set(s)}
+                icon={COMPACT_ICON[s]}
+                label={STATUS[s].label}
+                iconOnlyOnPhone
+              />
+            ))}
           </div>
         </div>
       {editingPartial && (
@@ -184,9 +279,12 @@ function MamoolRow({
   }
 
   return (
-    <li className={`relative px-4 py-3.5 before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r ${edge(status)}`}>
-      <div className="mb-2.5 flex items-baseline justify-between gap-3">
-        <div className="min-w-0">
+    <li className={`relative px-4 py-3.5 transition-colors before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r-full before:transition-colors ${edge(status)}`}>
+      <span className="sr-only" aria-live="polite">
+        {m.name}: {statusText(entry, m)}
+      </span>
+      <div className="flex items-center gap-3" role="group" aria-label={`${m.name} status`}>
+        <div className="min-w-0 flex-1">
           <div className="text-[17px] leading-snug font-medium break-words text-slate-900" dir="auto">
             {m.name}
           </div>
@@ -195,50 +293,44 @@ function MamoolRow({
               <>
                 <span className="font-medium text-amber-800">{fmt(entry.amount)}</span> of {targetLabel(m)}
               </>
+            ) : status === 'done' ? (
+              <span className="font-medium text-brand-700">Done · {targetLabel(m)}</span>
             ) : (
               targetLabel(m)
             )}
+            {showPercent && entry && <span className="ml-2 font-medium">· {Math.round(f * 100)}%</span>}
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {showPercent && entry && <div className="num text-sm font-medium text-slate-500">{Math.round(f * 100)}%</div>}
-          {editable && isCounted(m) && status !== 'done' && (
-            <button
-              type="button"
-              onClick={bump}
-              className="num inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-brand-200 bg-brand-50 px-2.5 text-sm font-semibold text-brand-800 hover:border-brand-500"
-              aria-label={`Add 1 to ${m.name} (now ${entry ? fmt(entry.status === 'done' ? m.target : entry.amount) : 0} of ${targetLabel(m)})`}
-            >
-              +1
-            </button>
+          <AnimatePresence initial={false}>
+          {status !== 'done' && (
+          <motion.div
+            key="chips"
+            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+          >
+          <div className="flex flex-wrap items-center gap-2 pt-2.5">
+            {(['partial', 'missed'] as EntryStatus[]).map((s) => (
+              <StatusButton key={s} s={s} on={status === s} layout="chip" disabled={!editable} onClick={() => set(s)} icon={STATUS[s].icon} label={STATUS[s].label} />
+            ))}
+            {editable && isCounted(m) && (
+              <motion.button
+                type="button"
+                onClick={bump}
+                whileTap={{ scale: 0.9 }}
+                className="num inline-flex min-h-11 items-center justify-center rounded-full border border-brand-200 bg-brand-50 px-3.5 text-[13px] font-semibold text-brand-800 hover:border-brand-500"
+                aria-label={`Add 1 to ${m.name} (now ${entry ? fmt(entry.status === 'done' ? m.target : entry.amount) : 0} of ${targetLabel(m)})`}
+              >
+                +1
+              </motion.button>
+            )}
+          </div>
+          </motion.div>
           )}
+          </AnimatePresence>
         </div>
-      </div>
-      <span className="sr-only" aria-live="polite">
-        {m.name}: {statusText(entry, m)}
-      </span>
-      <div className="grid grid-cols-[2fr_1fr_1fr] gap-2" role="group" aria-label={`${m.name} status`}>
-        {(Object.keys(STATUS) as EntryStatus[]).map((s) => {
-          const main = s === 'done';
-          const idle = main
-            ? 'border-brand-700 bg-surface text-brand-800 hover:bg-brand-50'
-            : 'border-slate-200 bg-surface text-slate-500 hover:border-slate-300 hover:bg-slate-50';
-          return (
-            <button
-              key={s}
-              type="button"
-              disabled={!editable}
-              onClick={() => set(s)}
-              aria-pressed={status === s}
-              className={`inline-flex min-h-11 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                main ? 'gap-1.5 text-[15px] font-semibold' : 'gap-1 text-xs font-medium'
-              } ${status === s ? STATUS[s].on : idle}`}
-            >
-              {STATUS[s].icon}
-              {STATUS[s].label}
-            </button>
-          );
-        })}
+        <StatusButton s="done" on={status === 'done'} layout="bead" disabled={!editable} onClick={() => set('done')} icon={<IconCheck size={26} />} label="Done" />
       </div>
       {editingPartial && (
         <div className="mt-3 flex items-center gap-2">
@@ -314,7 +406,7 @@ export function Checklist({
         <button
           type="button"
           onClick={markRest}
-          className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-md border border-brand-200 bg-surface px-3 text-sm font-medium text-brand-800 hover:border-brand-500 hover:bg-brand-50"
+          className="inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-full border border-brand-200 bg-surface px-4 text-sm font-medium text-brand-800 shadow-[0_1px_2px_rgb(16_34_79/0.06)] transition-[background-color,border-color,transform] hover:border-brand-500 hover:bg-brand-50 active:scale-95"
         >
           <IconCheck size={16} />
           {remaining.length === mamoolaat.length ? 'Mark all done' : `Mark the other ${remaining.length} done`}

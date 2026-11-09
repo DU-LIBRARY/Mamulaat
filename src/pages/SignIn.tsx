@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useSession } from '../hooks/useSession';
 import { PrivacyNote } from '../components/PrivacyNote';
 import { DateLine } from '../components/DateLine';
+import { motion } from 'motion/react';
+import { Girih, Khatam } from '../components/ui';
 
 export function SignIn() {
   const { signIn, signInWithPassword, today } = useSession();
@@ -11,15 +13,39 @@ export function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <div className="flex min-h-dvh flex-col px-6 pt-safe">
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-11 w-11 rounded-[9px]" />
-        <h1 className="mt-6 text-[28px] leading-tight font-semibold tracking-[-0.02em] text-slate-900">Mamūlāt</h1>
-        <p className="mt-2 text-[17px] leading-relaxed text-slate-600">Keep your daily mamoolaat, and share your progress privately with your teacher.</p>
-        <DateLine day={today} className="mt-6 border-t border-slate-200 pt-4 text-slate-700" />
-
+    <div className="flex min-h-dvh flex-col">
+      {/* The glazed tile: one strand of beads is counted in as the page opens. */}
+      <div className="tile pt-safe rounded-t-none rounded-b-[2rem] px-6">
+        <Girih className="text-white/[0.09]" />
+        <div className="mx-auto w-full max-w-sm pt-14 pb-9">
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-12 w-12 rounded-[11px] ring-1 ring-white/25" />
+          <h1 className="mt-6 text-[34px] leading-none font-semibold tracking-[-0.03em]">Mamūlāt</h1>
+          <p className="mt-3 text-[17px] leading-relaxed text-white/80">Keep your daily mamoolaat, and share your progress privately with your teacher.</p>
+          <div className="mt-7 flex items-center gap-2.5" aria-hidden>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <motion.span
+                key={i}
+                className="h-4 w-4 rounded-full border border-gold-400 bg-[radial-gradient(circle_at_32%_28%,rgb(255_255_255/0.7),transparent_45%),linear-gradient(160deg,#f1d27f,#b3861f)]"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 16, delay: 0.25 + i * 0.12 }}
+              />
+            ))}
+            <motion.span
+              className="h-5 w-5"
+              initial={{ scale: 0.3, rotate: -90, opacity: 0 }}
+              animate={{ scale: 1, rotate: 0, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 14, delay: 0.95 }}
+            >
+              <Khatam className="h-full w-full fill-turq-400 stroke-turq-600 [stroke-width:1]" />
+            </motion.span>
+          </div>
+          <DateLine day={today} className="mt-6 [&>div:first-child]:text-white [&>div:last-child]:text-white/70" />
+        </div>
+      </div>
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col px-6 pt-8 pb-6">
         <button
-          className="btn mt-8 w-full border border-slate-300 bg-surface text-slate-800 hover:bg-slate-50"
+          className="btn-secondary min-h-12 w-full rounded-xl text-[16px]"
           disabled={busy}
           onClick={async () => {
             setBusy(true);
@@ -85,7 +111,7 @@ export function SignIn() {
           </p>
         )}
       </div>
-      <div className="mx-auto w-full max-w-sm pb-8">
+      <div className="pb-safe mx-auto w-full max-w-sm px-6 pb-8">
         <PrivacyNote compact />
       </div>
     </div>

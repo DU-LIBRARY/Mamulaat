@@ -1,9 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { Dialog as RDialog } from 'radix-ui';
+import { AnimatePresence, motion } from 'motion/react';
 
 /**
  * In-page replacements for window.confirm / prompt / alert. The browser's own dialogs
  * block the page, look out of place in an installed app, and are suppressed by some
  * mobile browsers, so every confirmation in the app goes through here.
+ * Built on Radix's Dialog primitive (focus trap, Escape, focus return, aria wiring) and
+ * animated with Motion: a bottom sheet on phones, a centred card on wider screens.
  */
 export interface ConfirmOptions {
   title: string;
@@ -57,7 +61,9 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{ confirm, notify }}>
       {children}
-      {req && <DialogView req={req} typed={typed} setTyped={setTyped} close={close} />}
+      <RDialog.Root open={!!req} onOpenChange={(o) => !o && close(false)}>
+        <AnimatePresence>{req && <DialogView key="dlg" req={req} typed={typed} setTyped={setTyped} close={close} />}</AnimatePresence>
+      </RDialog.Root>
     </Ctx.Provider>
   );
 }
@@ -66,65 +72,68 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
   const ref = useRef<HTMLDivElement>(null);
   const canConfirm = !req.requireText || typed === req.requireText;
 
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    ref.current?.querySelector<HTMLElement>('input, button[data-primary]')?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close(false);
-      if (e.key === 'Tab') {
-        // keep focus inside the dialog
-        const f = ref.current?.querySelectorAll<HTMLElement>('input, select, textarea, a[href], button:not(:disabled)');
-        if (!f?.length) return;
-        const first = f[0];
-        const last = f[f.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      previous?.focus?.();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && close(false)}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby={req.message ? 'dlg-desc' : undefined} className="pb-safe w-full max-w-md rounded-lg bg-surface p-5 shadow-xl">
-        <h2 id="dlg-title" className="text-lg font-semibold text-slate-900" dir="auto">
-          {req.title}
-        </h2>
-        {req.message && (
-          <div id="dlg-desc" className="mt-2 text-sm text-slate-600" dir="auto">
-            {req.message}
-          </div>
-        )}
-        {req.requireText && (
-          <div className="mt-3">
-            <label className="label" htmlFor="dlg-type">
-              Type <b>{req.requireText}</b> to confirm
-            </label>
-            <input id="dlg-type" className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoCapitalize="off" autoCorrect="off" autoComplete="off" />
-          </div>
-        )}
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          {req.kind === 'confirm' && (
-            <button className="btn-secondary" onClick={() => close(false)}>
-              {req.cancelLabel ?? 'Cancel'}
-            </button>
-          )}
-          <button data-primary className={req.danger ? 'btn-danger' : 'btn-primary'} disabled={!canConfirm} onClick={() => close(true)}>
-            {req.confirmLabel ?? 'Confirm'}
-          </button>
-        </div>
+    <RDialog.Portal forceMount>
+      <RDialog.Overlay asChild forceMount>
+        <motion.div
+          className="fixed inset-0 z-[60] bg-ink/40 backdrop-blur-[2px]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+        />
+      </RDialog.Overlay>
+      <div className="pointer-events-none fixed inset-0 z-[61] flex items-end justify-center p-3 sm:items-center sm:p-4">
+        <RDialog.Content
+          asChild
+          forceMount
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            ref.current?.querySelector<HTMLElement>('input, button[data-primary]')?.focus();
+          }}
+        >
+          <motion.div
+            ref={ref}
+            className="pb-safe pointer-events-auto w-full max-w-md rounded-2xl border border-slate-200/70 bg-surface p-5 shadow-[0_24px_60px_-12px_rgb(16_34_79/0.35)]"
+            initial={{ opacity: 0, y: 40, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+          >
+            <RDialog.Title className="text-lg font-semibold tracking-[-0.01em] text-slate-900" dir="auto">
+              {req.title}
+            </RDialog.Title>
+            {req.message ? (
+              <RDialog.Description asChild>
+                <div className="mt-2 text-sm leading-relaxed text-slate-600" dir="auto">
+                  {req.message}
+                </div>
+              </RDialog.Description>
+            ) : (
+              <RDialog.Description className="sr-only">{req.title}</RDialog.Description>
+            )}
+            {req.requireText && (
+              <div className="mt-3">
+                <label className="label" htmlFor="dlg-type">
+                  Type <b>{req.requireText}</b> to confirm
+                </label>
+                <input id="dlg-type" className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoCapitalize="off" autoCorrect="off" autoComplete="off" />
+              </div>
+            )}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              {req.kind === 'confirm' && (
+                <button className="btn-secondary" onClick={() => close(false)}>
+                  {req.cancelLabel ?? 'Cancel'}
+                </button>
+              )}
+              <button data-primary className={req.danger ? 'btn-danger' : 'btn-primary'} disabled={!canConfirm} onClick={() => close(true)}>
+                {req.confirmLabel ?? 'Confirm'}
+              </button>
+            </div>
+          </motion.div>
+        </RDialog.Content>
       </div>
-    </div>
+    </RDialog.Portal>
   );
 }
 

@@ -1,10 +1,10 @@
+import { TodayTile } from '../../components/TodayTile';
 import { useEffect, useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useStudentLive } from '../../hooks/useStudentData';
-import { DateLine } from '../../components/DateLine';
 import { Checklist } from '../../components/Checklist';
 import { MamoolEditor } from '../../components/MamoolEditor';
-import { EmptyState, SegmentBar, Spinner, Stat, StatRow } from '../../components/ui';
+import { EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
 import { IconPencil } from '../../components/icons';
 import { currentStreak, dayStats, entryFraction, pct, periodCompletion, scheduledFor } from '../../lib/scoring';
 import { weekDays, weekStartOf } from '../../lib/dates';
@@ -33,28 +33,16 @@ export function MyMamool() {
   if (data.loading && !all.length) return <Spinner />;
   const todays = scheduledFor(today, all).filter((m) => m.active);
   const todayLog = logs.get(today);
-  const first = profile.name?.split(' ')[0];
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <div className="text-sm text-slate-500" dir="auto">
-          Assalamu alaykum{first ? `, ${first}` : ''}
-        </div>
-        <div className="mt-1 flex items-end justify-between gap-4">
-          <DateLine day={today} size="lg" />
-          {todays.length > 0 && (
-            <div className="shrink-0 text-right">
-              <div className="num text-2xl leading-none font-semibold text-slate-900">
-                {stats.todayS.done}
-                <span className="text-slate-400">/{stats.todayS.scheduled}</span>
-              </div>
-              <div className="mt-1 text-xs text-slate-500">done today</div>
-            </div>
-          )}
-        </div>
-        <SegmentBar className="mt-4" fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />
-      </header>
+      <TodayTile
+        name={profile.name ?? undefined}
+        day={today}
+        done={stats.todayS.done}
+        scheduled={todays.length > 0 ? stats.todayS.scheduled : 0}
+        fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))}
+      />
 
       <section aria-labelledby="my-today">
         <h2 id="my-today" className="section-title">My mamool today</h2>

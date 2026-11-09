@@ -1,11 +1,11 @@
+import { TodayTile } from '../../components/TodayTile';
 import { Link } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
-import { DateLine } from '../../components/DateLine';
 import { Checklist } from '../../components/Checklist';
 import { ReminderBanner } from '../../components/ReminderBanner';
-import { Spinner, Badge, cellClass, EmptyState, Notice, SegmentBar, StatRow, Stat } from '../../components/ui';
+import { Spinner, Badge, cellClass, EmptyState, Notice, StatRow, Stat } from '../../components/ui';
 import { IconBell, IconLock, IconPlus } from '../../components/icons';
 import { LastChanceNotice, PendingSyncNotice } from '../../components/LockNotices';
 import { useDocData } from '../../hooks/useFirestore';
@@ -41,28 +41,16 @@ export function Home() {
   const todays = scheduledFor(today, all).filter((m) => m.active);
   const todayLog = logs.get(today);
   const unread = data.comments.filter((c) => !c.readAt);
-  const first = profile.name?.split(' ')[0];
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <div className="text-sm text-slate-500" dir="auto">
-          Assalamu alaykum{first ? `, ${first}` : ''}
-        </div>
-        <div className="mt-1 flex items-end justify-between gap-4">
-          <DateLine day={today} size="lg" />
-          {todays.length > 0 && (
-            <div className="shrink-0 text-right">
-              <div className="num text-2xl leading-none font-semibold text-slate-900">
-                {stats.todayS.done}
-                <span className="text-slate-400">/{stats.todayS.scheduled}</span>
-              </div>
-              <div className="mt-1 text-xs text-slate-500">done today</div>
-            </div>
-          )}
-        </div>
-        <SegmentBar className="mt-4" fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />
-      </header>
+      <TodayTile
+        name={profile.name ?? undefined}
+        day={today}
+        done={stats.todayS.done}
+        scheduled={todays.length > 0 ? stats.todayS.scheduled : 0}
+        fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))}
+      />
 
       <PendingSyncNotice />
       {nudge.data && stats.todayS.logged < stats.todayS.scheduled ? (
