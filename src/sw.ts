@@ -40,7 +40,7 @@ self.addEventListener('push', (event) => {
   } catch {
     data = { body: event.data?.text() };
   }
-  const title = data.title || 'Mamulaat';
+  const title = data.title || 'Mamūlāt';
   const body = data.body || "You haven't logged your mamoolaat today.";
   event.waitUntil(
     (async () => {

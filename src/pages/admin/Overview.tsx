@@ -82,7 +82,7 @@ export function Overview() {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="print-only text-xl font-semibold">Mamulaat — madrassah register</h1>
+      <h1 className="print-only text-xl font-semibold">Mamūlāt — madrassah register</h1>
       <DateLine day={today} size="lg" />
       <StatRow>
         <Stat label="Students" value={students.length} />

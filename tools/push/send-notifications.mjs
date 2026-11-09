@@ -74,7 +74,7 @@ const admins = users.docs.filter((d) => d.get('role') === 'admin' && d.get('stat
 
 if (TEST === 'admins' || TEST === 'all') {
   const uids = TEST === 'all' ? [...byId.keys()] : admins;
-  for (const uid of uids) await pushToUser(uid, { title: 'Mamulaat', body: 'Test notification: notifications are working.', url: '.', tag: 'test' });
+  for (const uid of uids) await pushToUser(uid, { title: 'Mamūlāt', body: 'Test notification: notifications are working.', url: '.', tag: 'test' });
   console.log(`Test (${TEST}): sent ${stats.sent}, removed ${stats.removed} expired device(s), ${stats.failed} failed.`);
   process.exit(0);
 }
@@ -94,7 +94,7 @@ for (const { slot, key } of dueSlots(CFG.reminders ?? [], today, minutes, sentSl
   let n = 0;
   for (const [uid, d] of byId) {
     if (d.role !== 'student' || d.status !== 'active' || d.reminderEnabled !== true) continue;
-    if (await pushToUser(uid, { title: slot.title || 'Mamulaat', body: slot.body, url: '.', tag: `reminder-${key}` })) n++;
+    if (await pushToUser(uid, { title: slot.title || 'Mamūlāt', body: slot.body, url: '.', tag: `reminder-${key}` })) n++;
   }
   reminded += n;
   console.log(`Reminder ${key}: sent to ${n} student(s)`);
@@ -147,7 +147,7 @@ for (const [uid, d] of byId) {
     seenActive[uid] = Date.now();
     // On the very first run, everyone already active is just recorded, not told they were approved.
     if (!firstRun) {
-      await pushToUser(uid, { title: 'You have been approved', body: 'Open Mamulaat to set up your daily mamoolaat.', url: '.', tag: 'approved' });
+      await pushToUser(uid, { title: 'You have been approved', body: 'Open Mamūlāt to set up your daily mamoolaat.', url: '.', tag: 'approved' });
       approvals++;
     }
   }

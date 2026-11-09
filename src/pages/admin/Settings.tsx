@@ -135,7 +135,7 @@ function AdminNotifications() {
       {isIOS() && !isStandalone() && (
         <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <b className="font-medium text-slate-900">iPhone / iPad:</b> notifications only work in the Home Screen app. In Safari tap Share →{' '}
-          <i>Add to Home Screen</i> (iOS 16.4 or later), open Mamulaat from that icon, then turn this on there.
+          <i>Add to Home Screen</i> (iOS 16.4 or later), open Mamūlāt from that icon, then turn this on there.
         </p>
       )}
       <p className="mt-3 text-xs text-slate-500">Students with reminders on are reminded to log: {reminderSchedule().toLowerCase()}. Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>

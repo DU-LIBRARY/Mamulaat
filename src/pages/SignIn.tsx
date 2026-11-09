@@ -14,7 +14,7 @@ export function SignIn() {
     <div className="flex min-h-dvh flex-col px-6 pt-safe">
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
         <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-11 w-11 rounded-[9px]" />
-        <h1 className="mt-6 text-[28px] leading-tight font-semibold tracking-[-0.02em] text-slate-900">Mamulaat</h1>
+        <h1 className="mt-6 text-[28px] leading-tight font-semibold tracking-[-0.02em] text-slate-900">Mamūlāt</h1>
         <p className="mt-2 text-[17px] leading-relaxed text-slate-600">Keep your daily mamoolaat, and share your progress privately with your teacher.</p>
         <DateLine day={today} className="mt-6 border-t border-slate-200 pt-4 text-slate-700" />
 

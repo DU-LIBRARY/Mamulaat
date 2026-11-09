@@ -15,7 +15,7 @@ export function Wordmark({ className = '' }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-6 w-6 rounded-[5px]" />
-      <span className="text-[17px] font-semibold tracking-[-0.01em] text-brand-900">Mamulaat</span>
+      <span className="text-[17px] font-semibold tracking-[-0.01em] text-brand-900">Mamūlāt</span>
     </span>
   );
 }
