@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'motion/react';
  * block the page, look out of place in an installed app, and are suppressed by some
  * mobile browsers, so every confirmation in the app goes through here.
  * Built on Radix's Dialog primitive (focus trap, Escape, focus return, aria wiring) and
- * animated with Motion: a bottom sheet on phones, a centred card on wider screens.
+ * animated with Motion (a short fade): a bottom sheet on phones, a centred card on wider screens.
  */
 export interface ConfirmOptions {
   title: string;
@@ -76,7 +76,7 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
     <RDialog.Portal forceMount>
       <RDialog.Overlay asChild forceMount>
         <motion.div
-          className="fixed inset-0 z-[60] bg-ink/40 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[60] bg-black/50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -94,13 +94,13 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
         >
           <motion.div
             ref={ref}
-            className="pb-safe pointer-events-auto w-full max-w-md rounded-2xl border border-slate-200/70 bg-surface p-5 shadow-[0_24px_60px_-12px_rgb(16_34_79/0.35)]"
-            initial={{ opacity: 0, y: 40, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+            className="pb-safe pointer-events-auto w-full max-w-md rounded-2xl bg-sand-100 p-6 shadow-2xl"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.28, ease: [0.22, 0.8, 0.25, 1] }}
           >
-            <RDialog.Title className="text-lg font-semibold tracking-[-0.01em] text-slate-900" dir="auto">
+            <RDialog.Title className="font-serif text-[24px] leading-tight text-slate-900" dir="auto">
               {req.title}
             </RDialog.Title>
             {req.message ? (

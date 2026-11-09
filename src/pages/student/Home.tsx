@@ -1,11 +1,11 @@
-import { TodayTile } from '../../components/TodayTile';
 import { Link } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
+import { DateLine } from '../../components/DateLine';
 import { Checklist } from '../../components/Checklist';
 import { ReminderBanner } from '../../components/ReminderBanner';
-import { Spinner, Badge, cellClass, EmptyState, Notice, StatRow, Stat } from '../../components/ui';
+import { Spinner, Badge, cellClass, EmptyState, Notice, SegmentBar, StatRow, Stat } from '../../components/ui';
 import { IconBell, IconLock, IconPlus } from '../../components/icons';
 import { LastChanceNotice, PendingSyncNotice } from '../../components/LockNotices';
 import { useDocData } from '../../hooks/useFirestore';
@@ -41,16 +41,27 @@ export function Home() {
   const todays = scheduledFor(today, all).filter((m) => m.active);
   const todayLog = logs.get(today);
   const unread = data.comments.filter((c) => !c.readAt);
+  const first = profile.name?.split(' ')[0];
 
   return (
-    <div className="flex flex-col gap-6">
-      <TodayTile
-        name={profile.name ?? undefined}
-        day={today}
-        done={stats.todayS.done}
-        scheduled={todays.length > 0 ? stats.todayS.scheduled : 0}
-        fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))}
-      />
+    <div className="flex flex-col gap-8">
+      <header className="pt-6">
+        <div className="text-[15px] text-slate-600" dir="auto">
+          Assalamu alaykum{first ? `, ${first}` : ''}
+        </div>
+        <DateLine day={today} size="lg" className="mt-2" />
+        {todays.length > 0 && (
+          <div className="mt-7">
+            <div className="mb-2.5 flex items-baseline justify-between text-sm text-slate-600">
+              <span>Today's mamoolaat</span>
+              <span className="num">
+                <span className="text-slate-900">{stats.todayS.done}</span> of {stats.todayS.scheduled} done
+              </span>
+            </div>
+            <SegmentBar fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />
+          </div>
+        )}
+      </header>
 
       <PendingSyncNotice />
       {nudge.data && stats.todayS.logged < stats.todayS.scheduled ? (
@@ -76,7 +87,7 @@ export function Home() {
         )}
 
         {adding ? (
-          <div className="card mt-3">
+          <div className="card mt-4">
             <h3 className="section-title">Add a mamool</h3>
             <MamoolForm
               submitLabel="Add to my list"
@@ -91,7 +102,7 @@ export function Home() {
           </div>
         ) : (
           <button
-            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 text-[15px] font-medium text-slate-600 hover:border-brand-500 hover:text-brand-700"
+            className="mt-2 flex min-h-11 items-center gap-2 text-[15px] text-brand-700 hover:text-brand-900"
             onClick={() => setAdding(true)}
           >
             <IconPlus size={18} />
@@ -122,11 +133,11 @@ export function Home() {
             }${locked ? ', locked' : ''}`;
             const body = (
               <>
-              <span className={`text-xs ${d.day === today ? 'font-semibold text-brand-700' : 'text-slate-500'}`}>{shortDay(d.day)}</span>
+              <span className={`text-xs ${d.day === today ? 'text-slate-900' : 'text-slate-500'}`}>{shortDay(d.day)}</span>
               <span
                 className={`num flex h-10 w-full items-center justify-center rounded-md text-xs font-medium ${
-                  d.day > today ? 'border border-dashed border-slate-300 text-slate-300' : cellClass(d.scheduled ? d.completion : null)
-                } ${d.day === today ? 'outline-2 outline-offset-2 outline-brand-700' : ''}`}
+                  d.day > today ? 'border border-slate-200 text-slate-300' : cellClass(d.scheduled ? d.completion : null)
+                } ${d.day === today ? 'outline-1 outline-offset-2 outline-slate-900' : ''}`}
               >
                 {d.day > today ? '' : d.scheduled ? Math.round(d.completion * 100) : '–'}
               </span>
@@ -147,7 +158,7 @@ export function Home() {
       </section>
 
       {(unread.length > 0 || data.unseenChanges > 0) && (
-        <section className="rounded-lg border border-gold-400/50 bg-gold-50">
+        <section className="rounded-xl bg-gold-50">
           <div className="flex items-baseline justify-between px-4 pt-3.5">
             <h2 className="section-title mb-0 text-gold-900">
               From your teacher <Badge n={unread.length + data.unseenChanges} />
@@ -156,13 +167,13 @@ export function Home() {
               View all
             </Link>
           </div>
-          <ul className="divide-y divide-gold-400/30 px-4 pb-1">
+          <ul className="divide-y divide-gold-400/25 px-4 pb-1">
             {unread.slice(0, 3).map((c) => (
               <li key={c.id} className="flex items-start gap-3 py-3">
                 <p className="flex-1 whitespace-pre-wrap text-slate-800" dir="auto">
                   {c.text}
                 </p>
-                <button className="min-h-11 shrink-0 text-sm font-medium text-gold-900 underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
+                <button className="min-h-11 shrink-0 text-sm text-gold-900 underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
                   Mark read
                 </button>
               </li>

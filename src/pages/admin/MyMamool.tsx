@@ -1,10 +1,10 @@
-import { TodayTile } from '../../components/TodayTile';
 import { useEffect, useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useStudentLive } from '../../hooks/useStudentData';
+import { DateLine } from '../../components/DateLine';
 import { Checklist } from '../../components/Checklist';
 import { MamoolEditor } from '../../components/MamoolEditor';
-import { EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
+import { EmptyState, SegmentBar, Spinner, Stat, StatRow } from '../../components/ui';
 import { IconPencil } from '../../components/icons';
 import { currentStreak, dayStats, entryFraction, pct, periodCompletion, scheduledFor } from '../../lib/scoring';
 import { weekDays, weekStartOf } from '../../lib/dates';
@@ -33,16 +33,27 @@ export function MyMamool() {
   if (data.loading && !all.length) return <Spinner />;
   const todays = scheduledFor(today, all).filter((m) => m.active);
   const todayLog = logs.get(today);
+  const first = profile.name?.split(' ')[0];
 
   return (
-    <div className="flex flex-col gap-6">
-      <TodayTile
-        name={profile.name ?? undefined}
-        day={today}
-        done={stats.todayS.done}
-        scheduled={todays.length > 0 ? stats.todayS.scheduled : 0}
-        fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))}
-      />
+    <div className="flex flex-col gap-8">
+      <header className="pt-6">
+        <div className="text-[15px] text-slate-600" dir="auto">
+          Assalamu alaykum{first ? `, ${first}` : ''}
+        </div>
+        <DateLine day={today} size="lg" className="mt-2" />
+        {todays.length > 0 && (
+          <div className="mt-7">
+            <div className="mb-2.5 flex items-baseline justify-between text-sm text-slate-600">
+              <span>Today's mamoolaat</span>
+              <span className="num">
+                <span className="text-slate-900">{stats.todayS.done}</span> of {stats.todayS.scheduled} done
+              </span>
+            </div>
+            <SegmentBar fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />
+          </div>
+        )}
+      </header>
 
       <section aria-labelledby="my-today">
         <h2 id="my-today" className="section-title">My mamool today</h2>
