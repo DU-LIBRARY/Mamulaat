@@ -110,7 +110,7 @@ export function Me() {
         )}
         {isIOS() && (
           <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            <b className="font-medium text-slate-900">iPhone / iPad:</b> push reminders only work after you add Mamulaat to your Home Screen (tap Share →{' '}
+            <b className="font-medium text-slate-900">iPhone / iPad:</b> push reminders only work after you add Mamūlāt to your Home Screen (tap Share →{' '}
             <i>Add to Home Screen</i>) on iOS 16.4 or later, then open it from the Home Screen icon and turn reminders on
             there.{isStandalone() ? ' You are using the Home Screen app.' : ''}
           </p>

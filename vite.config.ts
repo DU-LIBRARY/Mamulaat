@@ -26,8 +26,8 @@ export default defineConfig({
       manifest: {
         // A fixed id keeps Android/Chrome treating every deploy as the same installed app.
         id: base,
-        name: 'Mamulaat',
-        short_name: 'Mamulaat',
+        name: 'Mamūlāt',
+        short_name: 'Mamūlāt',
         description: 'Track your daily mamoolaat — offline-first.',
         lang: 'en',
         start_url: base,

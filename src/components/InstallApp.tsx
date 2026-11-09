@@ -11,7 +11,7 @@ export function InstallApp() {
       <h2 className="section-title">Install the app</h2>
       {canPrompt && (
         <button type="button" className="btn-primary w-full" onClick={() => void promptInstall()}>
-          Install Mamulaat
+          Install Mamūlāt
         </button>
       )}
       {isIOS() ? (
@@ -34,7 +34,7 @@ export function InstallApp() {
                   Open this page in <b>Chrome</b> itself, not inside WhatsApp, Instagram or another app's browser (use ⋮ → <i>Open in Chrome</i>).
                 </li>
                 <li>
-                  If Mamulaat was installed before, remove the old copy first: <i>Settings → Apps → Mamulaat → Uninstall</i>, and delete any old Mamulaat
+                  If Mamūlāt was installed before, remove the old copy first: <i>Settings → Apps → Mamūlāt → Uninstall</i>, and delete any old Mamūlāt
                   icon from the home screen. Then in Chrome tap the lock/settings icon next to the address → <i>Site settings → Delete data</i>, reload and
                   install again.
                 </li>
@@ -46,7 +46,7 @@ export function InstallApp() {
                   Update <b>Chrome</b> and <b>Google Play services</b> from the Play Store, and make sure you have some free storage, then restart the phone and try
                   again.
                 </li>
-                <li>You can always just use Mamulaat in Chrome — everything works there, including offline.</li>
+                <li>You can always just use Mamūlāt in Chrome — everything works there, including offline.</li>
               </ol>
             </details>
           )}

@@ -33,12 +33,12 @@ export async function pushSupport(): Promise<PushSupport> {
 
 export const pushSupportMessage: Record<Exclude<PushSupport, { ok: true }>['reason'], string> = {
   'ios-not-installed':
-    'On iPhone/iPad, notifications only work after you add Mamulaat to your Home Screen (Share → Add to Home Screen, iOS 16.4 or later) and open it from there.',
+    'On iPhone/iPad, notifications only work after you add Mamūlāt to your Home Screen (Share → Add to Home Screen, iOS 16.4 or later) and open it from there.',
   emulator: 'Push notifications are not available when running against the local emulators.',
   'no-vapid': 'Push notifications are not configured for this app yet (missing push key).',
   unsupported: "This browser doesn't support push notifications. You'll still see a reminder banner when you open the app.",
   denied:
-    'Notifications are blocked for this site. Allow them in your browser/site settings (on iPhone: Settings → Notifications → Mamulaat) to get reminders. You will still see an in-app reminder banner.',
+    'Notifications are blocked for this site. Allow them in your browser/site settings (on iPhone: Settings → Notifications → Mamūlāt) to get reminders. You will still see an in-app reminder banner.',
 };
 
 function keyBytes(b64url: string): Uint8Array<ArrayBuffer> {
@@ -163,7 +163,7 @@ export async function unregisterDevice(uid: string) {
 export async function onForegroundMessage(cb: (title: string, body: string) => void) {
   if (!('serviceWorker' in navigator)) return () => undefined;
   const handler = (e: MessageEvent) => {
-    if (e.data?.type === 'push') cb(String(e.data.title ?? 'Mamulaat'), String(e.data.body ?? ''));
+    if (e.data?.type === 'push') cb(String(e.data.title ?? 'Mamūlāt'), String(e.data.body ?? ''));
   };
   navigator.serviceWorker.addEventListener('message', handler);
   return () => navigator.serviceWorker.removeEventListener('message', handler);

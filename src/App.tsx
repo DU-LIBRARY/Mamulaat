@@ -132,7 +132,7 @@ function Gate() {
       <FullScreen>
         <h1 className="text-2xl font-semibold tracking-[-0.015em] text-slate-900">Your account was removed</h1>
         <p className="mt-3 max-w-sm text-slate-600">
-          Your teacher removed your Mamulaat account and its data, and you have been signed out. If you think this is a mistake, please talk to your teacher.
+          Your teacher removed your Mamūlāt account and its data, and you have been signed out. If you think this is a mistake, please talk to your teacher.
         </p>
         <p className="mt-2 max-w-sm text-sm text-slate-500">If you sign in again, a new sign-up request will be sent to your teacher for approval.</p>
         <button className="btn-primary mt-6" onClick={dismissRemoved}>
@@ -141,7 +141,7 @@ function Gate() {
       </FullScreen>
     );
   }
-  if (user === undefined) return <Spinner label="Opening Mamulaat…" />;
+  if (user === undefined) return <Spinner label="Opening Mamūlāt…" />;
   if (user === null) return <SignIn />;
   if (profile === undefined) {
     return (
