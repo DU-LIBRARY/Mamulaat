@@ -8,7 +8,8 @@
     <meta name="theme-color" content="#e9e5dd" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-title" content="Mamūlāt" />
     <meta name="description" content="Track your daily mamoolaat — offline-first." />
     <title>Mamūlāt</title>
@@ -19,6 +20,34 @@
         if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
           document.documentElement.classList.add('dark');
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#191b16');
+        }
+      } catch (e) {}
+      // iPhone notch / Dynamic Island. Some iOS versions run the Home Screen app under the
+      // status bar but report a 0 top inset; then estimate the inset from the screen size so
+      // the header clears the clock (see --safe-top in src/index.css).
+      try {
+        var standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+        if (standalone && /iPhone/.test(navigator.userAgent)) {
+          var fix = function () {
+            var root = document.documentElement;
+            var probe = document.createElement('div');
+            probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top);visibility:hidden';
+            document.body.appendChild(probe);
+            var inset = probe.offsetHeight;
+            probe.remove();
+            var portrait = innerHeight > innerWidth;
+            var h = Math.max(screen.width, screen.height);
+            var fallback = 0;
+            if (!inset && portrait && innerHeight >= h - 1) {
+              if (h === 852 || h === 932) fallback = 59;
+              else if (h > 852 && h !== 896 && h !== 926) fallback = 62;
+              else if (h >= 812) fallback = 50;
+              else fallback = 20;
+            }
+            root.style.setProperty('--safe-top-fallback', fallback + 'px');
+          };
+          addEventListener('DOMContentLoaded', fix);
+          addEventListener('resize', fix);
         }
       } catch (e) {}
     </script>

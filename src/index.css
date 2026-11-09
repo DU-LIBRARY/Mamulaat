@@ -253,32 +253,21 @@ body {
 .pb-safe {
   padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
 }
-.pt-safe {
-  padding-top: env(safe-area-inset-top);
-}
-
 /*
- * iPhone notch / Dynamic Island. The Home Screen app draws behind the status bar
- * (black-translucent + viewport-fit=cover), so iOS reports the real top inset: content is
- * padded below it (.pt-safe) and this solid strip sits behind the clock. The clock text is
- * white in this mode, hence a dark strip in both themes. It's 0px tall everywhere else.
+ * iPhone notch / Dynamic Island, done the way native iOS apps do it: the page runs
+ * edge to edge under the status bar (viewport-fit=cover), the sky and paper show behind
+ * the clock, and the clock text follows the theme (status-bar-style "default" plus
+ * color-scheme). Content is padded below the inset; when the page scrolls, the sticky
+ * header's frosted backdrop extends up behind the clock. --safe-top-fallback is set by
+ * index.html only on iOS builds that draw under the status bar but report a 0 inset.
  */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0 0 auto 0;
-  height: env(safe-area-inset-top);
-  background: #191b16;
-  z-index: 90;
-  pointer-events: none;
+:root {
+  --safe-top: max(env(safe-area-inset-top), var(--safe-top-fallback, 0px));
+  color-scheme: light;
+  background: var(--color-sand-100);
 }
-:root.dark body::before {
-  background: #191b16;
-}
-@media print {
-  body::before {
-    display: none;
-  }
+.pt-safe {
+  padding-top: var(--safe-top);
 }
 
 /* Sit above the fixed bottom nav (~4.5rem) and the home indicator. */
@@ -291,7 +280,7 @@ body::before {
 }
 /* Keep top-anchored overlays clear of the status bar / Dynamic Island. */
 .top-safe-toast {
-  top: calc(env(safe-area-inset-top) + 4.5rem);
+  top: calc(var(--safe-top) + 4.5rem);
 }
 
 /* Print-friendly pages (registers and reports for parents' evenings). */
