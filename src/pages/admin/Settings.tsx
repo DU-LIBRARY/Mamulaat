@@ -117,9 +117,9 @@ function AdminNotifications() {
           aria-labelledby="admin-notif-label"
           disabled={busy}
           onClick={toggle}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? 'bg-primary' : 'bg-slate-300'}`}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 ease-calm ${on ? 'bg-primary' : 'bg-slate-300'}`}
         >
-          <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-[left] ${on ? 'left-[22px]' : 'left-0.5'}`} />
+          <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-300 ease-calm ${on ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>
       </div>
       {msg && (

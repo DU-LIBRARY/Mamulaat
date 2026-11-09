@@ -1,6 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { cva } from 'class-variance-authority';
 import { AnimatePresence, motion } from 'motion/react';
+import { expand, fade, snap } from '../lib/motion';
 import { cn } from '../lib/cn';
 import { adminSaveEntry, restoreEntries, saveEntries, saveEntry, type Actor } from '../lib/db';
 import type { DayLog, EntryStatus, LogEntry, Mamool } from '../types';
@@ -98,8 +99,8 @@ function StatusButton({
           className="inline-flex"
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: [0.22, 0.8, 0.25, 1] }}
+          exit={{ opacity: 0, transition: fade }}
+          transition={snap}
         >
           {icon}
         </motion.span>
@@ -282,10 +283,7 @@ function MamoolRow({
           <motion.div
             key="chips"
             className="overflow-hidden"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 0.8, 0.25, 1] }}
+            {...expand}
           >
           <div className="flex flex-wrap items-center gap-4 pt-1">
             {(['partial', 'missed'] as EntryStatus[]).map((s) => (
