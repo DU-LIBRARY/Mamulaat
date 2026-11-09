@@ -1,0 +1,10 @@
+{
+  "name": "mamulaat-push",
+  "private": true,
+  "type": "module",
+  "description": "Sends Mamulaat's push notifications. Run by .github/workflows/notifications.yml.",
+  "dependencies": {
+    "firebase-admin": "12.7.0",
+    "web-push": "3.6.7"
+  }
+}

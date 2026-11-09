@@ -3,16 +3,12 @@
  * ONE service worker for both jobs:
  *  1. PWA: precache the app shell (Workbox, manifest injected by vite-plugin-pwa)
  *     and serve index.html for navigations so the app opens fully offline.
- *  2. Firebase Cloud Messaging: receive reminder pushes in the background.
- *
- * The page passes this registration to getToken({ serviceWorkerRegistration }),
- * so there is no separate firebase-messaging-sw.js.
+ *  2. Web Push: show the reminder / nudge / sign-up notifications sent by the
+ *     "Notifications" GitHub Action, even when the app is closed.
  */
 import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { initializeApp } from 'firebase/app';
-import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -34,36 +30,36 @@ if (manifest.some((e) => (typeof e === 'string' ? e : e.url) === 'index.html')) 
   registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html'), { denylist: [/^\/__\//] }));
 }
 
-// ---------- FCM ----------
-const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-if (config.apiKey && config.messagingSenderId && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+// ---------- Web Push ----------
+// Sent by the "Notifications" GitHub Action (tools/push/send-notifications.mjs) as JSON:
+// { title, body, url, tag }, where url is relative to the app (e.g. "." or "admin/students").
+self.addEventListener('push', (event) => {
+  let data: { title?: string; body?: string; url?: string; tag?: string } = {};
   try {
-    const messaging = getMessaging(initializeApp(config));
-    // The reminder function sends data-only messages, so we display the notification ourselves.
-    onBackgroundMessage(messaging, (payload) => {
-      const data = payload.data ?? {};
-      const title = data.title || payload.notification?.title || 'Mamulaat';
-      const body = data.body || payload.notification?.body || "You haven't logged your mamoolaat today.";
-      return self.registration.showNotification(title, {
+    data = event.data?.json() ?? {};
+  } catch {
+    data = { body: event.data?.text() };
+  }
+  const title = data.title || 'Mamulaat';
+  const body = data.body || "You haven't logged your mamoolaat today.";
+  event.waitUntil(
+    (async () => {
+      // An open app shows a toast as well (see onForegroundMessage in src/lib/messaging.ts).
+      const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      open.forEach((c) => c.postMessage({ type: 'push', title, body }));
+      await self.registration.showNotification(title, {
         body,
         icon: new URL('icons/icon-192.png', self.registration.scope).href,
         badge: new URL('icons/badge-72.png', self.registration.scope).href,
-        tag: data.tag || 'mamulaat-reminder',
+        tag: data.tag || 'mamulaat',
         data: { url: new URL(data.url || '.', self.registration.scope).href },
       });
-    });
-  } catch (e) {
-    console.warn('[sw] FCM unavailable', e);
-  }
-}
+    })(),
+  );
+});
+
+// The browser replaced the subscription (rare): the app re-registers it the next time it opens.
+self.addEventListener('pushsubscriptionchange', () => undefined);
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

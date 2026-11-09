@@ -138,7 +138,7 @@ function AdminNotifications() {
           <i>Add to Home Screen</i> (iOS 16.4 or later), open Mamulaat from that icon, then turn this on there.
         </p>
       )}
-      <p className="mt-3 text-xs text-slate-500">Needs the reminder functions to be deployed (see the README). Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
+      <p className="mt-3 text-xs text-slate-500">Sent by the Notifications GitHub Action every 15 minutes (set up once, see README §7). Students are notified automatically when you approve them, if they turned on notifications while waiting.</p>
     </section>
   );
 }

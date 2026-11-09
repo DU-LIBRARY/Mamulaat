@@ -81,7 +81,7 @@ function watchRegistration(r: ServiceWorkerRegistration) {
   r.addEventListener('updatefound', () => track(r.installing));
 }
 
-/** Register the single app service worker (PWA shell + FCM). */
+/** Register the single app service worker (PWA shell + Web Push). */
 export function initPwa() {
   if (!('serviceWorker' in navigator)) {
     waiters.splice(0).forEach((w) => w(undefined));
