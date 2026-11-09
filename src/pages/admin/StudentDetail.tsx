@@ -171,7 +171,7 @@ export function StudentDetail() {
         <div className="flex items-center gap-3">
           {student.photoURL && <img src={student.photoURL} alt="" className="h-12 w-12 rounded-full" referrerPolicy="no-referrer" />}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-lg font-semibold text-slate-900" dir="auto">
+            <div className="truncate font-serif text-[28px] leading-tight text-slate-900" dir="auto">
               {displayName(student)}
             </div>
             <div className="truncate text-sm text-slate-500">
@@ -228,7 +228,7 @@ export function StudentDetail() {
               downloadCsv(`mamulaat-${fileSafe(displayName(student))}-${anchor.slice(0, 7)}.csv`, studentDetailRows(data.all, data.logs, md, today));
             }}
           />
-          <div className="rounded-lg border border-slate-200 bg-surface p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
+          <div className="rounded-xl bg-surface p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
           <div className="no-print">
             <WeekMamoolaat uid={uid} all={data.all} today={today} actor={actor} />
           </div>

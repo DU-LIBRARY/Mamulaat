@@ -1,23 +1,30 @@
 import { Link } from 'react-router-dom';
 import { useMemo, useState } from 'react';
+import { Check, Plus } from '@phosphor-icons/react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
-import { DateLine } from '../../components/DateLine';
-import { Checklist } from '../../components/Checklist';
+import { Checklist, targetLabel } from '../../components/Checklist';
 import { ReminderBanner } from '../../components/ReminderBanner';
 import { Spinner, Badge, cellClass, EmptyState, Notice, SegmentBar, StatRow, Stat } from '../../components/ui';
-import { IconBell, IconLock, IconPlus } from '../../components/icons';
+import { Cta, Disclosure, Hero, Row, Rows, Sheet } from '../../components/quiet';
+import { IconBell, IconLock } from '../../components/icons';
 import { LastChanceNotice, PendingSyncNotice } from '../../components/LockNotices';
 import { useDocData } from '../../hooks/useFirestore';
+import { useUndo } from '../../components/Undo';
 import { currentStreak, bestStreak, dayStats, scheduledFor, periodCompletion, pct, entryFraction } from '../../lib/scoring';
-import { formatGregorian, isDayEditable, shortDay, weekDays, weekStartOf } from '../../lib/dates';
-import { addMamool, markCommentRead, nudgeRef } from '../../lib/db';
+import { formatGregorian, formatHijri, isDayEditable, shortDay, weekDays, weekStartOf } from '../../lib/dates';
+import { addMamool, nudgeRef, saveEntry } from '../../lib/db';
 import type { Nudge } from '../../types';
 import { MamoolForm } from '../../components/MamoolEditor';
 
+/**
+ * Today, built like the Bilal app: one big answer (the next mamool to do) with one
+ * action, then everything else as quiet rows that expand in place or open elsewhere.
+ */
 export function Home() {
   const { profile, today, settings, actor } = useActiveSession();
   const data = useMyData();
+  const undo = useUndo();
   const [adding, setAdding] = useState(false);
   const { logs, all } = data;
   const nudge = useDocData<Nudge>(nudgeRef(profile.id, today), `nudge:${profile.id}:${today}`);
@@ -42,88 +49,107 @@ export function Home() {
   const todayLog = logs.get(today);
   const unread = data.comments.filter((c) => !c.readAt);
   const first = profile.name?.split(' ')[0];
+  const hijri = formatHijri(today);
+  // The next one to do: the first not yet logged, else the first only partly done.
+  const next = todays.find((m) => !todayLog?.entries?.[m.id]) ?? todays.find((m) => todayLog?.entries?.[m.id]?.status === 'partial');
+  const markNextDone = () => {
+    if (!next) return;
+    const prev = todayLog?.entries?.[next.id] ?? null;
+    saveEntry(profile.id, today, next.id, { status: 'done', amount: next.target, target: next.target });
+    undo.undoable(`Marked “${next.name}” done`, () => saveEntry(profile.id, today, next.id, prev));
+  };
+  const streakText = `${stats.streak}-day streak`;
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="pt-6">
-        <div className="text-[15px] text-slate-600" dir="auto">
+    <div className="flex flex-col gap-7">
+      <header className="pt-5">
+        <div className="text-[15px] text-slate-900" dir="auto">
           Assalamu alaykum{first ? `, ${first}` : ''}
         </div>
-        <DateLine day={today} size="lg" className="mt-2" />
-        {todays.length > 0 && (
-          <div className="mt-7">
-            <div className="mb-2.5 flex items-baseline justify-between text-sm text-slate-600">
-              <span>Today's mamoolaat</span>
+        <div className="mt-0.5 text-[13px] text-slate-500">
+          {formatGregorian(today, { weekday: 'long', month: 'long', year: undefined })}
+          {hijri ? ` · ${hijri}` : ''}
+        </div>
+
+        {todays.length === 0 ? (
+          <Hero className="mt-9" label="Today" sub="Add the mamoolaat you keep each day, and tick them off as you go.">
+            Nothing set up yet
+          </Hero>
+        ) : next ? (
+          <Hero
+            className="mt-9"
+            label="Next up"
+            sub={
               <span className="num">
-                <span className="text-slate-900">{stats.todayS.done}</span> of {stats.todayS.scheduled} done
+                {targetLabel(next)} · {stats.todayS.done} of {stats.todayS.scheduled} done today
               </span>
-            </div>
-            <SegmentBar fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />
-          </div>
+            }
+          >
+            <span className="line-clamp-2">{next.name}</span>
+          </Hero>
+        ) : (
+          <Hero className="mt-9" label="Today" sub={<span className="num">{stats.todayS.done} of {stats.todayS.scheduled} done · {streakText}</span>}>
+            All logged for today.
+          </Hero>
         )}
+
+        {todays.length > 0 && <SegmentBar className="mt-6" fractions={todays.map((m) => entryFraction(todayLog?.entries?.[m.id]))} />}
+
+        <div className="mt-6">
+          {todays.length === 0 ? (
+            <Cta icon={Plus} onClick={() => setAdding(true)}>
+              Add your first mamool
+            </Cta>
+          ) : next ? (
+            <Cta icon={Check} onClick={markNextDone}>
+              Mark done
+            </Cta>
+          ) : null}
+        </div>
       </header>
 
+      {(nudge.data && stats.todayS.logged < stats.todayS.scheduled) || !stats.todayS.hasLog ? (
+        <div className="flex flex-col gap-3">
+          {nudge.data && stats.todayS.logged < stats.todayS.scheduled ? (
+            <Notice tone="teacher" icon={<IconBell size={18} />}>
+              <span className="font-medium">Your teacher reminded you to log today.</span> Mark each mamool as you go.
+            </Notice>
+          ) : (
+            <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
+          )}
+        </div>
+      ) : null}
       <PendingSyncNotice />
-      {nudge.data && stats.todayS.logged < stats.todayS.scheduled ? (
-        <Notice tone="teacher" icon={<IconBell size={18} />}>
-          <span className="font-medium">Your teacher reminded you to log today.</span> Mark each mamool below as you go.
-        </Notice>
-      ) : (
-        <ReminderBanner show={!stats.todayS.hasLog && todays.length > 0} />
-      )}
       <LastChanceNotice />
 
-      <section>
-        <div className="mb-2.5 flex items-baseline justify-between">
-          <h2 className="section-title mb-0">Today</h2>
-          <Link to="/mamoolaat" className="link">
-            Edit list
-          </Link>
-        </div>
-        {todays.length ? (
-          <Checklist uid={profile.id} day={today} mamoolaat={todays} log={todayLog} editable />
-        ) : (
-          <EmptyState>No mamoolaat yet. Add your first one below.</EmptyState>
-        )}
-
-        {adding ? (
-          <div className="card mt-4">
-            <h3 className="section-title">Add a mamool</h3>
-            <MamoolForm
-              submitLabel="Add to my list"
-              onCancel={() => setAdding(false)}
-              onSubmit={(v) => {
-                const next = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
-                addMamool(profile.id, v, next, today, actor);
-                setAdding(false);
-              }}
-            />
-            <p className="mt-2 text-xs text-slate-500">It appears on today's checklist straight away. Past days are not changed.</p>
+      <Rows>
+        <Disclosure
+          title="Today’s mamoolaat"
+          sub={todays.length ? <span className="num">{stats.todayS.done} of {stats.todayS.scheduled} done</span> : 'None yet'}
+          defaultOpen
+        >
+          {todays.length ? (
+            <Checklist uid={profile.id} day={today} mamoolaat={todays} log={todayLog} editable />
+          ) : (
+            <EmptyState>No mamoolaat yet.</EmptyState>
+          )}
+          <div className="mt-3 flex items-center justify-between">
+            <button className="-ml-1 inline-flex min-h-11 items-center gap-2 px-1 text-[15px] text-brand-700 hover:text-brand-900" onClick={() => setAdding(true)}>
+              <Plus size={18} aria-hidden />
+              Add a mamool
+            </button>
+            <Link to="/mamoolaat" className="link">
+              Edit list
+            </Link>
           </div>
-        ) : (
-          <button
-            className="mt-2 flex min-h-11 items-center gap-2 text-[15px] text-brand-700 hover:text-brand-900"
-            onClick={() => setAdding(true)}
-          >
-            <IconPlus size={18} />
-            Add a mamool
-          </button>
-        )}
-      </section>
+        </Disclosure>
 
-      <StatRow>
-        <Stat label="Streak" value={`${stats.streak} day${stats.streak === 1 ? '' : 's'}`} sub={`Best ${stats.best}`} />
-        <Stat label="This week" value={pct(stats.weekCompletion)} sub="complete" />
-        <Stat label="Full days" value={stats.fullDays} sub="this week" />
-      </StatRow>
-
-      <section aria-labelledby="home-week">
-        <div className="mb-2.5 flex items-baseline justify-between">
-          <h2 id="home-week" className="section-title mb-0">This week</h2>
-          <Link to="/week" className="link">
-            Details
-          </Link>
-        </div>
+        <Disclosure title="This week" sub={<span className="num">{streakText} · {pct(stats.weekCompletion)} complete</span>}>
+          <StatRow className="mb-5 border-t-0">
+            <Stat label="Streak" value={`${stats.streak} day${stats.streak === 1 ? '' : 's'}`} sub={`Best ${stats.best}`} />
+            <Stat label="This week" value={pct(stats.weekCompletion)} sub="complete" />
+            <Stat label="Full days" value={stats.fullDays} sub="this week" />
+          </StatRow>
         <div className="grid grid-cols-7 gap-1.5 text-center">
           {stats.week.map((d) => {
             const future = d.day > today;
@@ -155,41 +181,37 @@ export function Home() {
             );
           })}
         </div>
-      </section>
+          <Link to="/week" className="link mt-4 inline-block">
+            Week details
+          </Link>
+        </Disclosure>
 
-      {(unread.length > 0 || data.unseenChanges > 0) && (
-        <section className="rounded-xl bg-gold-50">
-          <div className="flex items-baseline justify-between px-4 pt-3.5">
-            <h2 className="section-title mb-0 text-gold-900">
-              From your teacher <Badge n={unread.length + data.unseenChanges} />
-            </h2>
-            <Link to="/messages" className="link text-gold-900 decoration-gold-400">
-              View all
-            </Link>
-          </div>
-          <ul className="divide-y divide-gold-400/25 px-4 pb-1">
-            {unread.slice(0, 3).map((c) => (
-              <li key={c.id} className="flex items-start gap-3 py-3">
-                <p className="flex-1 whitespace-pre-wrap text-slate-800" dir="auto">
-                  {c.text}
-                </p>
-                <button className="min-h-11 shrink-0 text-sm text-gold-900 underline decoration-gold-400 underline-offset-4" onClick={() => markCommentRead(profile.id, c.id)}>
-                  Mark read
-                </button>
-              </li>
-            ))}
-            {data.unseenChanges > 0 && (
-              <li className="py-3 text-sm text-slate-700">
-                Your teacher changed your mamoolaat ({data.unseenChanges} change{data.unseenChanges > 1 ? 's' : ''}).{' '}
-                <Link className="font-medium text-gold-900 underline decoration-gold-400 underline-offset-4" to="/messages">
-                  See what changed
-                </Link>
-              </li>
-            )}
-          </ul>
-        </section>
-      )}
+        {(unread.length > 0 || data.unseenChanges > 0) && (
+          <Row
+            to="/messages"
+            sub={unread[0]?.text ?? `Your teacher changed your mamoolaat (${data.unseenChanges})`}
+            end={<Badge n={unread.length + data.unseenChanges} />}
+          >
+            From your teacher
+          </Row>
+        )}
+        <Row to="/log" sub="Fill in or check an earlier day">
+          Another day
+        </Row>
+      </Rows>
 
+      <Sheet open={adding} onOpenChange={setAdding} title="Add a mamool">
+        <MamoolForm
+          submitLabel="Add to my list"
+          onCancel={() => setAdding(false)}
+          onSubmit={(v) => {
+            const order = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
+            addMamool(profile.id, v, order, today, actor);
+            setAdding(false);
+          }}
+        />
+        <p className="mt-3 text-[13px] text-slate-500">It appears on today’s list straight away. Past days are not changed.</p>
+      </Sheet>
     </div>
   );
 }

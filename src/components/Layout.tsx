@@ -1,5 +1,6 @@
 import { cloneElement, isValidElement, useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { SyncIndicator } from './SyncIndicator';
 import { Badge } from './ui';
 import { Sky } from './Sky';
@@ -35,6 +36,7 @@ function useScrolled() {
 
 export function Layout({ title, nav, children, right }: { title?: string; nav: NavItem[]; children: ReactNode; right?: ReactNode }) {
   const scrolled = useScrolled();
+  const { pathname } = useLocation();
   return (
     <div className="relative isolate">
       <Sky />
@@ -59,7 +61,10 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
           </div>
         </header>
         <main id="main" tabIndex={-1} className="flex-1 px-5 pt-4 pb-28 focus:outline-none">
-          {children}
+          {/* each screen settles in: a short rise and fade on the shared easing curve */}
+          <motion.div key={pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, ease: [0.22, 0.8, 0.25, 1] }}>
+            {children}
+          </motion.div>
         </main>
         <nav aria-label="Main" className="no-print pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/70 bg-sand-100/90 backdrop-blur-lg">
           <ul className="mx-auto flex max-w-3xl justify-around">

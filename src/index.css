@@ -189,14 +189,14 @@ body {
   }
 }
 
-/* A flat surface on the paper: hairline border, no drop shadow. */
+/* A section on the page: no box at all, just a hairline above it (the Bilal way). */
 @utility card {
-  @apply rounded-xl bg-surface p-4;
+  @apply border-t border-slate-200 pt-5 pb-2;
 }
 
 /* A surface whose rows are divided by hairlines (lists, settings groups). */
 @utility sheet {
-  @apply divide-y divide-slate-200 overflow-hidden rounded-xl bg-surface;
+  @apply divide-y divide-slate-200 border-y border-slate-200;
 }
 
 @utility btn {
@@ -355,4 +355,31 @@ body::before {
 }
 @media print {
   .sky { display: none; }
+}
+
+/* Night skies carry a faint, slowly drifting field of stars. */
+@media screen {
+  :root.dark .sky[data-sky='isha']::after,
+  :root.dark .sky[data-sky='fajr']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.55;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 34% 8%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 58% 22%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 76% 12%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 30%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 22% 38%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1.2px 1.2px at 46% 44%, #f1eee4 50%, transparent 51%),
+      radial-gradient(1px 1px at 68% 52%, #f1eee4 50%, transparent 51%);
+    mask-image: linear-gradient(180deg, #000, transparent 80%);
+    animation: sky-drift 240s linear infinite alternate;
+  }
+}
+@keyframes sky-drift {
+  to {
+    transform: translateX(-24px);
+  }
 }

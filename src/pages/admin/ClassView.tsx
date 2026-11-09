@@ -84,7 +84,7 @@ export function ClassView() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-slate-900" dir="auto">
+        <h1 className="display text-[34px] leading-tight" dir="auto">
           {cls.name}
         </h1>
         <div className="no-print flex rounded-md border border-slate-200 bg-surface p-0.5" role="group" aria-label="View">
@@ -159,7 +159,7 @@ export function ClassView() {
             {students.length > 0 && <ExportBar week={exportWeek} month={exportMonth} monthLabel={formatMonth(date)} />}
           </div>
           {students.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-surface p-2">
+            <div className="rounded-xl bg-surface p-2">
               <WeekGrid days={days} rows={gridRows} today={today} firstHeader="Student" />
             </div>
           )}

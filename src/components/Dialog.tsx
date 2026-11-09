@@ -94,12 +94,15 @@ function DialogView({ req, typed, setTyped, close }: { req: Request; typed: stri
         >
           <motion.div
             ref={ref}
-            className="pb-safe pointer-events-auto w-full max-w-md rounded-2xl bg-sand-100 p-6 shadow-2xl"
+            className="pb-safe pointer-events-auto w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.28, ease: [0.22, 0.8, 0.25, 1] }}
           >
+            <div aria-hidden className="-mt-3 mb-4 flex justify-center sm:hidden">
+              <span className="h-1 w-9 rounded-full bg-slate-300" />
+            </div>
             <RDialog.Title className="font-serif text-[24px] leading-tight text-slate-900" dir="auto">
               {req.title}
             </RDialog.Title>

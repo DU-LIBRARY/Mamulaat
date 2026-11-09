@@ -53,15 +53,15 @@ export function Me() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 pb-1">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4 pt-5 pb-2">
         {profile.photoURL ? (
           <img src={profile.photoURL} alt="" className="h-12 w-12 rounded-full" referrerPolicy="no-referrer" />
         ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-lg font-semibold text-brand-800" aria-hidden>{(profile.name ?? '?').trim().charAt(0).toUpperCase()}</div>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 font-serif text-2xl text-brand-800" aria-hidden>{(profile.name ?? '?').trim().charAt(0).toUpperCase()}</div>
         )}
         <div className="min-w-0">
-          <div className="text-lg font-semibold text-slate-900" dir="auto">
+          <div className="font-serif text-[30px] leading-tight text-slate-900" dir="auto">
             {profile.name}
           </div>
           <div className="truncate text-sm text-slate-500">{profile.email}</div>
@@ -79,9 +79,9 @@ export function Me() {
         </form>
       </section>
 
-      <Link to="/mamoolaat" className="card flex items-center justify-between">
+      <Link to="/mamoolaat" className="card group flex items-center justify-between pb-5">
         <span>
-          <span className="block font-medium text-slate-900">My mamoolaat</span>
+          <span className="block text-slate-900">My mamoolaat</span>
           <span className="text-sm text-slate-500">Add, edit, reorder or remove</span>
         </span>
         <IconChevronRight size={18} className="text-slate-400" />
@@ -91,7 +91,7 @@ export function Me() {
         <h2 className="section-title">Daily reminder</h2>
         <label className="flex min-h-12 items-center justify-between gap-3">
           <span>
-            <span className="font-medium text-slate-900">Remind me to log</span>
+            <span className="text-slate-900">Remind me to log</span>
             <span className="block text-sm text-slate-500">{reminderSchedule()} ({settings.timezone} time)</span>
           </span>
           <button
@@ -109,7 +109,7 @@ export function Me() {
           <div className="mt-3"><Notice>{pushSupportMessage[support.reason]}</Notice></div>
         )}
         {isIOS() && (
-          <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <p className="mt-3 rounded-lg bg-surface p-3.5 text-sm leading-relaxed text-slate-700">
             <b className="font-medium text-slate-900">iPhone / iPad:</b> push reminders only work after you add Mamūlāt to your Home Screen (tap Share →{' '}
             <i>Add to Home Screen</i>) on iOS 16.4 or later, then open it from the Home Screen icon and turn reminders on
             there.{isStandalone() ? ' You are using the Home Screen app.' : ''}
@@ -126,10 +126,10 @@ export function Me() {
 
       <PrivacyNote />
 
-      <button className="btn-secondary" onClick={() => signOut()}>
+      <button className="min-h-11 self-start text-[15px] text-brand-700 hover:text-brand-900" onClick={() => signOut()}>
         Sign out
       </button>
-      <p className="text-center text-xs text-slate-500">
+      <p className="-mt-4 text-xs text-slate-500">
         Signing out on this device removes offline access until you sign in again.
       </p>
     </div>
