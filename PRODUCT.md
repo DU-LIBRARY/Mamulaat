@@ -15,17 +15,17 @@ An installable, offline-first PWA. Most use is on phones, often added to the iPh
 
 ## Product Purpose
 
-It turns a madrassah's daily-practice commitments into a quick nightly check-in that the teacher can see. Students mark each mamool done, partly done or missed. The app works out completion percentages, streaks and weekly summaries. The teacher uses those numbers to spot who needs attention and step in.
+It turns a madrassah's daily-practice commitments into a quick nightly check-in that the teacher can see. Students mark each mamool done, partly done or missed, and on the Salah tab mark each of the five prayers Takbir (in jamaat from the opening takbir), Jamaat, Qadha or Missed. Salah is kept apart from mamool percentages and streaks. The app works out completion percentages, streaks and weekly summaries. The teacher uses those numbers to spot who needs attention and step in.
 
 Success means students log every day, and the teacher can see at a glance who is consistent and who isn't, then act on it (a reminder nudge, a note).
 
 ## Positioning
 
-The app is about **accountability to the teacher**. The log exists so the teacher can see each student's consistency and step in, so streaks, percentages and the teacher's "needs attention" view matter. At the same time it is strictly private: only the student and the admin ever see a student's data, never other students, and there are no backdoors.
+The app is about **accountability to the teacher**. The log exists so the teacher can see each student's consistency and step in, so streaks, percentages and the teacher's "needs attention" view matter. At the same time it is strictly private: only the student and the admin ever see a student's data, never other students, and there are no backdoors. The one deliberate exception is the **Fajr roll**: the admin may make one student of a class its Fajr monitor, who then sees each classmate's Fajr status only (missed, qadha, not logged, or how many prayed in jamaat), nothing else. Every student in that class is told who the monitor is.
 
 ## Operating Context
 
-- Daily loop: open the app (from a reminder or by habit), mark today's checklist, close it. It has to work offline and sync later. Logs can be backfilled within a window the admin sets (default 2 days); older and future days are locked.
+- Daily loop: open the app (it opens on the Log page) (from a reminder or by habit), mark today's checklist, close it. It has to work offline and sync later. Logs can be backfilled within a window the admin sets (default 2 days); older and future days are locked.
 - Teacher loop: Overview → "Not logged today" / "Needs attention" → open a student → look at the Weekly/Day view → Remind, leave a note (with an optional push), or edit the log (edits are stamped and audited).
 - Every day is a date in the project timezone, with the Hijri (Umm al-Qura) date shown next to the Gregorian one.
 - Exports: week CSV, month CSV and a print-friendly page, for the whole madrassah, for a class, or for one student.

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
-import { classesCol, logsRangeQuery, mamoolaatCol, usersCol } from '../lib/db';
+import { classesCol, logsRangeQuery, mamoolaatCol, salahRangeQuery, usersCol } from '../lib/db';
 import { sortMamoolaat } from './useStudentData';
 import { useCollectionData } from './useFirestore';
-import type { ClassDoc, DayLog, Mamool, UserProfile } from '../types';
+import type { ClassDoc, DayLog, Mamool, SalahDay, UserProfile } from '../types';
 
 export function useAllUsers() {
   const r = useCollectionData<UserProfile>(usersCol(), 'users');
@@ -58,6 +58,30 @@ export function useStudentsRange(uids: string[], from: string, to: string) {
         () => update(uid, {}, 'l'),
       ),
     ]);
+    return () => unsubs.forEach((u) => u());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return state;
+}
+
+/** Live salah records within [from, to] for several students. */
+export function useStudentsSalah(uids: string[], from: string, to: string) {
+  const key = `${uids.join(',')}|${from}|${to}`;
+  const [state, setState] = useState<Map<string, Map<string, SalahDay>>>(new Map());
+  useEffect(() => {
+    setState(new Map());
+    const unsubs = uids.map((uid) =>
+      onSnapshot(
+        salahRangeQuery(uid, from, to),
+        (s) =>
+          setState((prev) => {
+            const n = new Map(prev);
+            n.set(uid, new Map(s.docs.map((d) => [d.id, { id: d.id, ...d.data() } as SalahDay])));
+            return n;
+          }),
+        () => undefined,
+      ),
+    );
     return () => unsubs.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

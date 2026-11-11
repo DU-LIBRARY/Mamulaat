@@ -202,6 +202,35 @@ service cloud.firestore {
         allow delete: if (isActiveSelf(uid) && validDayId(day) && dayEditable(day)) || isAdmin();
       }
 
+      // ----- salah, id = YYYY-MM-DD: one status per prayer, kept apart from mamool logs -----
+      function validSalahStatus(v) { return v in ['takbir', 'jamaat', 'qadha', 'missed']; }
+      function validSalah(d, day) {
+        let e = d.entries;
+        return d.keys().hasOnly(['date', 'entries', 'updatedAt', 'editedBy', 'editedByName'])
+          && d.date == day
+          && e is map
+          && e.keys().hasOnly(['fajr', 'zuhr', 'asr', 'maghrib', 'isha'])
+          && validSalahStatus(e.get('fajr', 'takbir'))
+          && validSalahStatus(e.get('zuhr', 'takbir'))
+          && validSalahStatus(e.get('asr', 'takbir'))
+          && validSalahStatus(e.get('maghrib', 'takbir'))
+          && validSalahStatus(e.get('isha', 'takbir'))
+          && d.updatedAt == request.time;
+      }
+
+      match /salah/{day} {
+        allow read: if isActiveSelf(uid) || isAdmin();
+        allow create, update: if (isActiveSelf(uid) && !isAdmin() && validDayId(day) && dayEditable(day)
+                                  && validSalah(request.resource.data, day)
+                                  && !('editedBy' in request.resource.data) && !('editedByName' in request.resource.data))
+                              || (isAdmin() && validDayId(day) && exists(userPath(uid))
+                                  && validSalah(request.resource.data, day)
+                                  && request.resource.data.get('editedBy', null) == request.auth.uid
+                                  && request.resource.data.get('editedByName', '') is string
+                                  && request.resource.data.get('editedByName', '').size() <= 200);
+        allow delete: if isAdmin();
+      }
+
       // ----- comments from the admin -----
       match /comments/{cid} {
         allow read: if isActiveSelf(uid) || isAdmin();
@@ -261,19 +290,74 @@ service cloud.firestore {
     }
 
     // ---------- classes ----------
+    function classPath(classId) { return /databases/$(database)/documents/classes/$(classId); }
+    // The one student of a class whom the admin made its Fajr monitor (must still be in the class).
+    function isFajrMonitorOf(classId) {
+      return isActive() && me().get('classId', null) == classId
+        && get(classPath(classId)).data.get('fajrMonitorId', null) == request.auth.uid;
+    }
+
     match /classes/{classId} {
-      // Class names (nothing else is stored here) are readable by any signed-in user,
-      // so a new student can pick the class they belong to when signing up.
+      // Class names and who the Fajr monitor is are readable by any signed-in user, so a new
+      // student can pick their class and every student can see who sees their Fajr status.
       allow read: if signedIn();
       // `template`: mamoolaat the admin adds to each student's own list (never replacing it).
       allow create, update: if isAdmin()
-                            && request.resource.data.keys().hasOnly(['name', 'template'])
+                            && request.resource.data.keys().hasOnly(['name', 'template', 'fajrMonitorId', 'fajrMonitorName'])
                             && request.resource.data.name is string
                             && request.resource.data.name.size() > 0
                             && request.resource.data.name.size() <= 100
                             && request.resource.data.get('template', []) is list
-                            && request.resource.data.get('template', []).size() <= 50;
+                            && request.resource.data.get('template', []).size() <= 50
+                            && optString(request.resource.data.get('fajrMonitorName', null), 200)
+                            && (request.resource.data.get('fajrMonitorId', null) == null
+                                || (request.resource.data.fajrMonitorId is string
+                                    && exists(userPath(request.resource.data.fajrMonitorId))
+                                    && get(userPath(request.resource.data.fajrMonitorId)).data.get('classId', null) == classId));
       allow delete: if isAdmin();
+
+      // ----- the daily Fajr roll: r.<uid> = { name, status } -----
+      // Read only by the admin and this class's Fajr monitor. A student writes only their own key,
+      // only for their own class and day window, and only in the same batch as their own salah
+      // record, whose Fajr status it must match (so nobody can show a different status here).
+      function rollEntryOk(day) {
+        let r = request.resource.data.r;
+        let mine = request.auth.uid;
+        let fajr = getAfter(/databases/$(database)/documents/users/$(mine)/salah/$(day)).data.entries.get('fajr', null);
+        return (mine in r)
+          ? (r[mine].keys().hasOnly(['name', 'status']) && r[mine].name is string && r[mine].name.size() <= 200
+             && r[mine].status == fajr)
+          : fajr == null;
+      }
+      match /fajrRoll/{day} {
+        allow read: if isAdmin() || isFajrMonitorOf(classId);
+        allow create: if isActive() && !isAdmin() && me().get('classId', null) == classId
+                      && validDayId(day) && dayEditable(day)
+                      && request.resource.data.keys().hasOnly(['r'])
+                      && request.resource.data.r is map
+                      && request.resource.data.r.keys().hasOnly([request.auth.uid])
+                      && rollEntryOk(day);
+        allow update: if isActive() && !isAdmin() && me().get('classId', null) == classId
+                      && validDayId(day) && dayEditable(day)
+                      && request.resource.data.keys().hasOnly(['r'])
+                      && request.resource.data.r is map
+                      && request.resource.data.r.diff(resource.data.get('r', {})).affectedKeys().hasOnly([request.auth.uid])
+                      && rollEntryOk(day);
+        allow create, update: if isAdmin() && validDayId(day)
+                              && request.resource.data.keys().hasOnly(['r'])
+                              && request.resource.data.r is map;
+        allow delete: if isAdmin();
+      }
+
+      // ----- meta/roster: { names: { uid: name } } of the class's active students -----
+      // Kept up to date by the admin's app and the Notifications job, so the monitor can see who hasn't logged.
+      match /meta/{docId} {
+        allow read: if isAdmin() || isFajrMonitorOf(classId);
+        allow write: if isAdmin() && docId == 'roster'
+                     && request.resource.data.keys().hasOnly(['names'])
+                     && request.resource.data.names is map
+                     && request.resource.data.names.size() <= 500;
+      }
     }
 
     // ---------- nudges ("please log today" pushes sent by the admin) ----------
@@ -332,7 +416,8 @@ service cloud.firestore {
                    && request.resource.data.attentionNoLogDays is int
                    && request.resource.data.attentionNoLogDays >= 1
                    && request.resource.data.attentionNoLogDays <= 60
-                   && validTime(request.resource.data.defaultReminderTime);
+                   && validTime(request.resource.data.defaultReminderTime)
+                   && validTime(request.resource.data.get('fajrReportTime', null));
     }
 
     // ---------- audit log (append-only) ----------

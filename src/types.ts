@@ -36,6 +36,9 @@ export interface ClassDoc {
   name: string;
   /** Mamoolaat the admin wants everyone in this class to have. */
   template?: TemplateItem[];
+  /** A student of this class who may see the class's daily Fajr roll (set by the admin). */
+  fajrMonitorId?: string | null;
+  fajrMonitorName?: string | null;
 }
 
 /** A one-off "please log today" push from the admin. Doc id = `${uid}_${day}` (one per student per day). */
@@ -114,6 +117,8 @@ export interface AppSettings {
   attentionThreshold: number; // percent, e.g. 60
   attentionNoLogDays: number; // flag students with no logs for this many days
   defaultReminderTime: string; // "HH:MM"
+  /** When the Fajr monitor gets the day's Fajr summary push ("HH:MM", project timezone). */
+  fajrReportTime: string;
 }
 
 export interface AuditEntry {
@@ -123,4 +128,34 @@ export interface AuditEntry {
   action: string;
   details: Record<string, unknown>;
   createdAt?: Timestamp;
+}
+
+// ---------- salah ----------
+export const SALAH_NAMES = ['fajr', 'zuhr', 'asr', 'maghrib', 'isha'] as const;
+export type SalahName = (typeof SALAH_NAMES)[number];
+/** takbir = in jamaat from the opening takbir; jamaat = in jamaat, joined late; qadha = made up later. */
+export type SalahStatus = 'takbir' | 'jamaat' | 'qadha' | 'missed';
+
+/** users/{uid}/salah/{YYYY-MM-DD}: one doc per day, kept apart from mamool logs and their scores. */
+export interface SalahDay {
+  id: string;
+  date: string;
+  entries: Partial<Record<SalahName, SalahStatus>>;
+  updatedAt?: Timestamp;
+  editedBy?: string;
+  editedByName?: string;
+}
+
+/**
+ * classes/{classId}/fajrRoll/{YYYY-MM-DD}: each student's Fajr status only, readable by the
+ * admin and the class's Fajr monitor. Each student writes only their own key.
+ */
+export interface FajrRoll {
+  id: string;
+  r?: Record<string, { name: string; status: SalahStatus }>;
+}
+
+/** classes/{classId}/meta/roster: names of the class's active students, for "not logged yet". */
+export interface ClassRoster {
+  names: Record<string, string>;
 }

@@ -1,8 +1,8 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { orderBy, query } from 'firebase/firestore';
-import { changesCol, commentsCol, logsCol, mamoolaatCol } from '../lib/db';
+import { changesCol, commentsCol, logsCol, mamoolaatCol, salahCol } from '../lib/db';
 import { logsByDay } from '../lib/scoring';
-import type { ChangeRecord, Comment, DayLog, Mamool } from '../types';
+import type { ChangeRecord, Comment, DayLog, Mamool, SalahDay } from '../types';
 import { useCollectionData } from './useFirestore';
 
 export interface StudentData {
@@ -10,11 +10,13 @@ export interface StudentData {
   all: Mamool[]; // including removed
   active: Mamool[];
   logs: Map<string, DayLog>;
+  /** Salah record per day (kept apart from the mamool scores). */
+  salah: Map<string, SalahDay>;
   comments: Comment[];
   changes: ChangeRecord[];
   unreadComments: number;
   unseenChanges: number;
-  /** Days whose log is saved on this device but not yet on the server. */
+  /** Days whose log or salah is saved on this device but not yet on the server. */
   pendingDays: string[];
 }
 
@@ -26,6 +28,7 @@ export function sortMamoolaat(list: Mamool[]) {
 export function useStudentLive(uid: string): StudentData {
   const mam = useCollectionData<Mamool>(mamoolaatCol(uid), `mam:${uid}`);
   const logs = useCollectionData<DayLog>(logsCol(uid), `logs:${uid}`);
+  const salah = useCollectionData<SalahDay>(salahCol(uid), `salah:${uid}`);
   const comments = useCollectionData<Comment>(query(commentsCol(uid), orderBy('createdAt', 'desc')), `com:${uid}`);
   const changes = useCollectionData<ChangeRecord>(query(changesCol(uid), orderBy('createdAt', 'desc')), `chg:${uid}`);
   return useMemo(() => {
@@ -35,13 +38,14 @@ export function useStudentLive(uid: string): StudentData {
       all,
       active: all.filter((m) => m.active),
       logs: logsByDay(logs.data),
+      salah: new Map(salah.data.map((d) => [d.id, d])),
       comments: comments.data,
       changes: changes.data,
       unreadComments: comments.data.filter((c) => !c.readAt).length,
       unseenChanges: changes.data.filter((c) => !c.seenAt).length,
-      pendingDays: logs.pendingIds ?? [],
+      pendingDays: [...new Set([...(logs.pendingIds ?? []), ...(salah.pendingIds ?? [])])],
     };
-  }, [mam.data, mam.loading, logs.data, logs.loading, logs.pendingIds, comments.data, changes.data]);
+  }, [mam.data, mam.loading, logs.data, logs.loading, logs.pendingIds, salah.data, salah.pendingIds, comments.data, changes.data]);
 }
 
 const Ctx = createContext<StudentData | null>(null);

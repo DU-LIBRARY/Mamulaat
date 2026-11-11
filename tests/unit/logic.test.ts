@@ -1,3 +1,4 @@
+import { fajrRollSummary, salahStats } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, formatHijri } from '../../src/lib/dates';
 import { currentStreak, dayStats, logsByDay, scheduledFor } from '../../src/lib/scoring';
@@ -185,5 +186,25 @@ describe('cleared / unlogged days are not shown as 0', () => {
     const x = m('x', '2026-11-07', { active: false, removedDate: '2026-11-07' });
     expect(scheduledFor('2026-11-07', [x])).toEqual([]);
     expect(dayStats('2026-11-07', undefined, [x]).scheduled).toBe(0);
+  });
+});
+
+describe('salah', () => {
+  it('counts statuses and jamaat for a day', () => {
+    const s = salahStats({ id: 'd', date: 'd', entries: { fajr: 'takbir', zuhr: 'jamaat', asr: 'qadha', maghrib: 'missed' } });
+    expect(s).toMatchObject({ logged: 4, takbir: 1, jamaat: 1, qadha: 1, missed: 1, inJamaat: 2 });
+    expect(salahStats(undefined).logged).toBe(0);
+  });
+
+  it('groups the class for the Fajr roll; unlisted entries are ignored', () => {
+    const sum = fajrRollSummary(
+      { a: 'Bilal', b: 'Ahmad', c: 'Zaid', d: 'Umar' },
+      { id: 'd', r: { a: { name: 'Bilal', status: 'missed' }, b: { name: 'Ahmad', status: 'qadha' }, d: { name: 'Umar', status: 'jamaat' }, x: { name: 'Left', status: 'missed' } } },
+    );
+    expect(sum.missed.map((p) => p.name)).toEqual(['Bilal']);
+    expect(sum.qadha.map((p) => p.name)).toEqual(['Ahmad']);
+    expect(sum.notLogged.map((p) => p.name)).toEqual(['Zaid']);
+    expect(sum.inJamaat.map((p) => p.name)).toEqual(['Umar']);
+    expect(fajrRollSummary({ a: 'A', b: 'B' }, null).notLogged).toHaveLength(2);
   });
 });

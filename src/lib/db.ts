@@ -14,7 +14,7 @@ import {
   type WriteBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { AppSettings, DayLog, LogEntry, Mamool, TemplateItem, UserProfile } from '../types';
+import type { AppSettings, ClassDoc, DayLog, LogEntry, Mamool, SalahDay, SalahName, SalahStatus, TemplateItem, UserProfile } from '../types';
 import { DEFAULT_TIMEZONE, utcOffsetMinutes } from './dates';
 import { fire, track } from './sync';
 import { sameMamoolName } from './names';
@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   attentionThreshold: 60,
   attentionNoLogDays: 3,
   defaultReminderTime: '20:00',
+  fajrReportTime: '08:00',
 };
 
 // ---------- refs ----------
@@ -45,6 +46,14 @@ export const auditCol = () => collection(db, 'auditLog');
 export const nudgesCol = () => collection(db, 'nudges');
 export const pushSubsCol = (uid: string) => collection(db, 'users', uid, 'pushSubs');
 export const nudgeRef = (uid: string, day: string) => doc(db, 'nudges', `${uid}_${day}`);
+export const salahCol = (uid: string) => collection(db, 'users', uid, 'salah');
+export const salahRef = (uid: string, day: string) => doc(db, 'users', uid, 'salah', day);
+export const fajrRollRef = (classId: string, day: string) => doc(db, 'classes', classId, 'fajrRoll', day);
+export const rosterRef = (classId: string) => doc(db, 'classes', classId, 'meta', 'roster');
+
+export function salahRangeQuery(uid: string, from: string, to: string) {
+  return query(salahCol(uid), where(documentId(), '>=', from), where(documentId(), '<=', to));
+}
 
 export function logsRangeQuery(uid: string, from: string, to: string) {
   return query(logsCol(uid), where(documentId(), '>=', from), where(documentId(), '<=', to));
@@ -171,6 +180,65 @@ export function adminDeleteLog(uid: string, day: string, actor: Actor) {
   batch.delete(logRef(uid, day));
   addAudit(batch, actor, 'log.delete', { studentId: uid, day });
   fire(batch.commit());
+}
+
+// ---------- salah ----------
+/** Who the Fajr roll entry belongs to: needed only when the student is in a class. */
+export interface RollOwner {
+  uid: string;
+  name: string;
+  classId: string | null;
+}
+
+function rollPatch(owner: RollOwner, status: SalahStatus | null) {
+  return { r: { [owner.uid]: status ? { name: owner.name.slice(0, 200), status } : deleteField() } };
+}
+
+/**
+ * Save (or clear, with null) one salah. Fajr is also copied into the class's Fajr roll in the
+ * same batch, so the roll can never disagree with the student's own record (the rules check it).
+ */
+export function saveSalah(owner: RollOwner, day: string, name: SalahName, status: SalahStatus | null) {
+  const batch = writeBatch(db);
+  batch.set(
+    salahRef(owner.uid, day),
+    { date: day, entries: { [name]: status ?? deleteField() }, updatedAt: serverTimestamp(), ...CLEAR_STAMP },
+    { merge: true },
+  );
+  if (name === 'fajr' && owner.classId) batch.set(fajrRollRef(owner.classId, day), rollPatch(owner, status), { merge: true });
+  fire(batch.commit());
+}
+
+/** Admin corrects a student's salah for any day: stamped and audited, and the Fajr roll follows. */
+export function adminSaveSalah(student: RollOwner, day: string, name: SalahName, status: SalahStatus | null, actor: Actor) {
+  const batch = writeBatch(db);
+  batch.set(
+    salahRef(student.uid, day),
+    { date: day, entries: { [name]: status ?? deleteField() }, updatedAt: serverTimestamp(), editedBy: actor.uid, editedByName: actor.name.slice(0, 200) },
+    { merge: true },
+  );
+  if (name === 'fajr' && student.classId) batch.set(fajrRollRef(student.classId, day), rollPatch(student, status), { merge: true });
+  addAudit(batch, actor, 'salah.edit', { studentId: student.uid, day, salah: name, status });
+  fire(batch.commit());
+}
+
+/** Make one student of a class its Fajr monitor (or nobody, with null). */
+export function setFajrMonitor(cls: ClassDoc, student: Pick<UserProfile, 'id' | 'name' | 'email'> | null, roster: Record<string, string>, actor: Actor) {
+  const batch = writeBatch(db);
+  batch.update(doc(classesCol(), cls.id), {
+    fajrMonitorId: student?.id ?? null,
+    fajrMonitorName: student ? (student.name ?? student.email).slice(0, 200) : null,
+  });
+  if (student) batch.set(rosterRef(cls.id), { names: roster });
+  addAudit(batch, actor, 'class.fajrMonitor', { classId: cls.id, className: cls.name, monitorId: student?.id ?? null, monitorName: student?.name ?? null });
+  return track(batch.commit());
+}
+
+/** Keep a class's roster (names of its active students) in step; only written when it changed. */
+export function syncRoster(classId: string, current: Record<string, string> | undefined, next: Record<string, string>) {
+  const a = Object.entries(current ?? {}).sort().join('|');
+  const b = Object.entries(next).sort().join('|');
+  if (a !== b) fire(setDoc(rosterRef(classId), { names: next }));
 }
 
 // ---------- mamoolaat ----------
@@ -449,13 +517,14 @@ export async function applyTemplate(uids: string[], template: TemplateItem[], to
 // ---------- one-off reads for exports ----------
 /** Mamoolaat + logs in [from, to] for several students, read once (for CSV exports). */
 export async function fetchStudentsRange(uids: string[], from: string, to: string) {
-  const out = new Map<string, { mamoolaat: Mamool[]; logs: Map<string, DayLog> }>();
+  const out = new Map<string, { mamoolaat: Mamool[]; logs: Map<string, DayLog>; salah: Map<string, SalahDay> }>();
   await Promise.all(
     uids.map(async (uid) => {
-      const [m, l] = await Promise.all([getDocs(mamoolaatCol(uid)), getDocs(logsRangeQuery(uid, from, to))]);
+      const [m, l, sl] = await Promise.all([getDocs(mamoolaatCol(uid)), getDocs(logsRangeQuery(uid, from, to)), getDocs(salahRangeQuery(uid, from, to))]);
       out.set(uid, {
         mamoolaat: m.docs.map((d) => ({ id: d.id, ...d.data() }) as Mamool),
         logs: new Map(l.docs.map((d) => [d.id, { id: d.id, ...d.data() } as DayLog])),
+        salah: new Map(sl.docs.map((d) => [d.id, { id: d.id, ...d.data() } as SalahDay])),
       });
     }),
   );
@@ -506,7 +575,7 @@ export async function bulkUpdateUsers(uids: string[], action: BulkAction, actor:
 
 /** Delete a student and ALL their data (mamoolaat, logs, comments, changes, tokens). Must be online. */
 export async function deleteStudent(uid: string, actor: Actor, name: string) {
-  const subs = ['mamoolaat', 'logs', 'comments', 'changes', 'fcmTokens', 'pushSubs'];
+  const subs = ['mamoolaat', 'logs', 'salah', 'comments', 'changes', 'fcmTokens', 'pushSubs'];
   const failed: string[] = [];
   // Delete every sub-collection; keep going if one fails so we never leave a half-deleted student,
   // and only remove the profile once everything else is gone (so a retry can finish the job).
@@ -563,6 +632,7 @@ export function normalizeSettings(s: Partial<AppSettings> | null | undefined): A
     attentionThreshold: Math.max(0, Math.min(100, Number(v.attentionThreshold))),
     attentionNoLogDays: Math.max(1, Math.min(60, Math.round(Number(v.attentionNoLogDays)))),
     defaultReminderTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(v.defaultReminderTime) ? v.defaultReminderTime : '20:00',
+    fajrReportTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(v.fajrReportTime) ? v.fajrReportTime : '08:00',
   };
 }
 

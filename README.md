@@ -5,7 +5,9 @@
 Mamūlāt is an offline-first PWA for students to track their daily **mamoolaat** (daily routines and practices), with one **admin** (the teacher) who reviews them.
 
 - Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
-- Progress and streaks are private: only the student and the admin can see them.
+- Progress and streaks are private: only the student and the admin can see them. (Exception: a class's Fajr monitor, chosen by the admin on the class page, sees classmates' Fajr status only.)
+- Salah tab: each of the five prayers marked Takbir / Jamaat / Qadha / Missed, stored in `users/{uid}/salah/{day}`.
+- Fajr roll: each student's Fajr status is also written to `classes/{classId}/fajrRoll/{day}` (own key only, must match their salah record). The Fajr monitor sees who missed, prayed qadha or hasn't logged, and the Notifications job pushes them a summary each morning at **Settings → Fajr report time**. It also keeps `classes/{classId}/meta/roster` (names of active students) current.
 - **Hosting: GitHub Pages** (built and published by a GitHub Action on every push to `main`). Firebase is the backend only: sign-in, Firestore, push messaging and the reminder function.
 - Stack: React + Vite + TypeScript, Tailwind v4, vite-plugin-pwa, Firebase JS SDK (modular), Firestore with a persistent offline cache, Google sign-in, standard Web Push, and a scheduled GitHub Action that sends the notifications.
 - **Access control lives entirely in `firestore.rules`.** The UI is never trusted. The rules are tested with the Emulator Suite (`tests/rules`).
@@ -212,7 +214,7 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 **What gets sent:**
 - **Reminders:** a general "please log your mamoolaat" message **every day at 23:00 and on Fridays at 12:00** (project timezone) to every active student who turned reminders on in **Me → Daily reminder**. The times and wording are in `push.config.json` → `reminders` (`weekday`: 0 = Sunday … 5 = Friday). Each one is sent once, by the first run within an hour of its time; `pushState/reminders` records what was sent.
 - **Nudge:** when the admin taps **Remind** on Overview → *Not logged today*, the student is told on the next run, within about 15 minutes.
-- **Message:** on a student's page → **Notes**, leave a note with **Also send it to their phone** ticked. The note shows on their home page and is pushed on the next run as "Message from <your name>" (first 300 characters). `pushMessages/{id}` holds it until it's sent.
+- **Message:** on a student's page → **Notes**, leave a note with **Also send it to their phone** ticked. The note shows in their Inbox and is pushed on the next run as "Message from <your name>" (first 300 characters). `pushMessages/{id}` holds it until it's sent.
 - **New sign-up:** every admin with notifications on (**Settings → Notifications**) is told when someone finishes signing up.
 - **Approved:** a student is told when they're approved, if they turned on notifications on the waiting screen.
 
@@ -245,7 +247,7 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 
 **Progress.** Each mamool counts as 100% when done, a proportional share when partly done, and 0% when missed. A day keeps the streak alive at ≥50% completion. If today isn't logged yet, the streak counts back from yesterday. Removing a mamool is a soft delete, so past percentages stay correct.
 
-**Sign-up.** A new student signs in with Google, then types their **name** (this becomes their name everywhere in the app; it is never overwritten from Google) and picks their **class** from the classes the admin created. That is only a *request*: the student stays pending until the admin approves, and the admin sees the requested class pre-selected (and can change it). Because the class list must be readable before approval, **class names are readable by any signed-in user**; classes contain nothing but a name. Students can later rename themselves under **Me**, and add, edit, reorder or remove their own mamoolaat at any time (**Add a mamool** on the Today screen, or **Me → My mamoolaat**); additions apply from the day they're added and don't change past days.
+**Sign-up.** A new student signs in with Google, then types their **name** (this becomes their name everywhere in the app; it is never overwritten from Google) and picks their **class** from the classes the admin created. That is only a *request*: the student stays pending until the admin approves, and the admin sees the requested class pre-selected (and can change it). Because the class list must be readable before approval, **class names are readable by any signed-in user**; classes contain nothing but a name. Students can later rename themselves under **Me**, and add, edit, reorder or remove their own mamoolaat at any time (**Add a mamool** on the Log screen, or **Me → My mamoolaat**); additions apply from the day they're added and don't change past days.
 
 **Deleting a student** (Admin → student → Delete) removes their mamoolaat, logs, comments, changes and tokens, then the profile. The `cleanupDeletedUser` function also deletes any leftovers and their Firebase Auth account. Without that Cloud Function their Google sign-in still works and would create a fresh sign-up request, so use **Deactivate** or **Reject** to keep someone out. A student who is signed in when deleted sees an "account removed" screen and is signed out.
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dueSlots, hasLogged, isDue, localNow, toMinutes, userChangeNotice, weekdayOf } from './reminders';
+import { dueSlots, fajrReport, hasLogged, isDue, localNow, toMinutes, userChangeNotice, weekdayOf } from './reminders';
 
 test('localNow uses the project timezone', () => {
   const t = new Date('2026-11-07T22:30:00Z');
@@ -49,4 +49,13 @@ test('dueSlots: daily 23:00 and Friday 12:00, each sent once', () => {
   assert.deepEqual(keys('2026-11-12', 12 * 60 + 4), []); // Thursday: no noon reminder
   assert.deepEqual(keys('2026-11-12', 23 * 60 + 4), ['2026-11-12 23:00']);
   assert.deepEqual(keys('2026-11-12', 23 * 60 + 59), ['2026-11-12 23:00']);
+});
+
+test('fajrReport counts only the roster and treats absent entries as not logged', () => {
+  const roster = { a: 'A', b: 'B', c: 'C', d: 'D', e: 'E' };
+  const roll = { r: { a: { status: 'missed' }, b: { status: 'qadha' }, c: { status: 'takbir' }, d: { status: 'jamaat' }, gone: { status: 'missed' } } };
+  const r = fajrReport(roster, roll);
+  assert.deepEqual([r.missed, r.qadha, r.notLogged, r.inJamaat], [1, 1, 1, 2]);
+  assert.equal(r.body, '1 missed · 1 qadha · 1 not logged yet · 2 in jamaat');
+  assert.equal(fajrReport(roster, undefined).notLogged, 5);
 });

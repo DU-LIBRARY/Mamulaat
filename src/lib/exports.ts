@@ -1,4 +1,5 @@
-import type { DayLog, Mamool, UserProfile } from '../types';
+import { SALAH_NAMES, type DayLog, type Mamool, type SalahDay, type UserProfile } from '../types';
+import { SALAH_LABEL, STATUS_LABEL } from './salah';
 import { dayStats, entryFraction, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
 import { studentWeek } from './reports';
 
@@ -12,6 +13,20 @@ function targetText(m: Pick<Mamool, 'target' | 'unit'>) {
 export interface StudentData {
   mamoolaat: Mamool[];
   logs: Map<string, DayLog>;
+  salah?: Map<string, SalahDay>;
+}
+
+/** One row per salah: its status each day ('' after today), then how many days were in jamaat. */
+export function salahRows(salah: Map<string, SalahDay>, days: string[], today: string, lead: Cell[] = []): Cell[][] {
+  return SALAH_NAMES.map((n) => {
+    const cells = days.map((d) => {
+      if (d > today) return '';
+      const st = salah.get(d)?.entries?.[n];
+      return st ? STATUS_LABEL[st] : 'not logged';
+    });
+    const inJamaat = days.filter((d) => d <= today && ['takbir', 'jamaat'].includes(salah.get(d)?.entries?.[n] ?? '')).length;
+    return [...lead, SALAH_LABEL[n], ...cells, inJamaat];
+  });
 }
 
 /**
@@ -28,13 +43,14 @@ export function registerRows(
   const header: Cell[] = ['Student', 'Class', 'Mamool', 'Target', ...days, 'Overall %', 'Full days', 'Days logged'];
   const rows: Cell[][] = [header];
   for (const s of students) {
-    const d = data.get(s.id) ?? { mamoolaat: [], logs: new Map() };
+    const d: StudentData = data.get(s.id) ?? { mamoolaat: [], logs: new Map() };
     const w = studentWeek(s, days, d.mamoolaat, d.logs, today);
     const logged = days.filter((day) => day <= today && dayStats(day, d.logs.get(day), d.mamoolaat).hasLog).length;
     const name = s.name ?? '';
     const cls = classNameOf(s);
     rows.push([name, cls, 'ALL', '', ...w.days.map((x) => pctCell(x.completion)), pctCell(w.completion), w.fullDays, logged]);
     for (const pm of w.perMamool) rows.push([name, cls, pm.mamool.name, targetText(pm.mamool), ...pm.cells.map(pctCell), pctCell(pm.completion), '', '']);
+    if (d.salah) for (const r of salahRows(d.salah, days, today, [name, cls])) rows.push([r[0], r[1], `Salah: ${r[2]}`, '', ...r.slice(3, -1), `${r[r.length - 1]} in jamaat`, '', '']);
   }
   return rows;
 }

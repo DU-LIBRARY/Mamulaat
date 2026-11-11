@@ -7,6 +7,9 @@
 //  - Message: a note from the admin with "also send to their phone" ticked (pushMessages/{id}).
 //  - New sign-up: tells every admin when a student finishes signing up.
 //  - Approved: tells a student when the admin approves them.
+//  - Fajr roll: each morning (settings.fajrReportTime) tells a class's Fajr monitor how many
+//    classmates missed Fajr, prayed it as qadha or haven't logged it. Also keeps each such
+//    class's roster (names of its active students) current for the monitor's screen.
 //
 // Env:
 //   FIREBASE_SERVICE_ACCOUNT  service-account JSON key (the same secret the backend deploy uses)
@@ -16,7 +19,7 @@
 import { readFileSync } from 'node:fs';
 import admin from 'firebase-admin';
 import webpush from 'web-push';
-import { dueSlots, hasLogged, localNow, safeTz, userChangeNotice } from '../../functions/src/reminders.ts';
+import { dueSlots, fajrReport, hasLogged, localNow, safeTz, userChangeNotice } from '../../functions/src/reminders.ts';
 
 const addDaysYmd = (ymd, n) => new Date(Date.parse(`${ymd}T00:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
 
@@ -159,8 +162,38 @@ for (const uid of Object.keys(seenActive)) {
 }
 if (!dry) await stateRef.set({ initialized: true, signups: seenSignups, active: seenActive, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
+// 5. Fajr roll → each class's Fajr monitor, once a day at settings.fajrReportTime.
+let fajrReports = 0;
+const classes = await db.collection('classes').get();
+const fajrRef = db.doc('pushState/fajr');
+const fajrSent = (await fajrRef.get()).data()?.sent ?? {};
+for (const c of classes.docs) {
+  const monitor = c.get('fajrMonitorId');
+  if (typeof monitor !== 'string' || !monitor) continue;
+  const roster = Object.fromEntries(
+    [...byId].filter(([, d]) => d.role === 'student' && d.status === 'active' && d.classId === c.id).map(([uid, d]) => [uid, typeof d.name === 'string' && d.name ? d.name : d.email ?? 'Unnamed']),
+  );
+  // Keep the roster the monitor's screen reads in step (written only when it changed).
+  const rosterRef = db.doc(`classes/${c.id}/meta/roster`);
+  const saved = (await rosterRef.get()).data()?.names ?? {};
+  const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+  if (!same(saved, roster) && !dry) await rosterRef.set({ names: roster });
+
+  const m = byId.get(monitor);
+  if (!m || m.status !== 'active' || m.classId !== c.id) continue; // not (or no longer) in the class
+  const time = typeof settings.fajrReportTime === 'string' ? settings.fajrReportTime : '08:00';
+  const due = dueSlots([{ time, body: '' }], today, minutes, Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.startsWith(`${c.id} `)).map(([k, v]) => [k.slice(c.id.length + 1), v])));
+  if (!due.length) continue;
+  fajrSent[`${c.id} ${due[0].key}`] = Date.now(); // record first, so a crash can't cause repeated pings
+  if (!dry) await fajrRef.set({ sent: Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.split(' ')[1] >= addDaysYmd(today, -7))) });
+  const roll = (await db.doc(`classes/${c.id}/fajrRoll/${today}`).get()).data();
+  const rep = fajrReport(roster, roll);
+  const cls = typeof c.get('name') === 'string' ? c.get('name') : 'your class';
+  if (await pushToUser(monitor, { title: `Fajr today · ${cls}`, body: rep.body, url: 'salah/fajr', tag: `fajr-${c.id}-${today}` })) fajrReports++;
+}
+
 console.log(
   `${today} ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${tz}: ` +
-    `${reminded} reminder(s), ${nudged} nudge(s), ${messages} message(s), ${signups} sign-up notice(s), ${approvals} approval(s)${firstRun ? ' (first run: existing students recorded)' : ''}. ` +
+    `${reminded} reminder(s), ${nudged} nudge(s), ${messages} message(s), ${signups} sign-up notice(s), ${approvals} approval(s), ${fajrReports} Fajr report(s)${firstRun ? ' (first run: existing students recorded)' : ''}. ` +
     `Sent ${stats.sent} push(es); removed ${stats.removed} expired device(s); ${stats.failed} failed.`,
 );

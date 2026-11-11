@@ -1,8 +1,9 @@
 import { IconCheck, IconChevronLeft, IconChevronRight, IconHalf, IconX } from '../../components/icons';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
-import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
+import { useAllUsers, useClasses, useStudentsRange, useStudentsSalah } from '../../hooks/useAdminData';
+import { useDocData } from '../../hooks/useFirestore';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { DateLine } from '../../components/DateLine';
 import { EmptyState, Spinner, cellClass } from '../../components/ui';
@@ -11,10 +12,11 @@ import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays,
 import { dayStats, entryFraction, pct, scheduledFor } from '../../lib/scoring';
 import { studentWeek } from '../../lib/reports';
 import { downloadCsv } from '../../lib/csv';
-import { fetchStudentsRange } from '../../lib/db';
+import { fetchStudentsRange, rosterRef, setFajrMonitor, syncRoster } from '../../lib/db';
+import { fajrRollSummary } from '../../lib/salah';
 import { fileSafe, registerRows } from '../../lib/exports';
 import { ExportBar } from '../../components/ExportBar';
-import type { LogEntry } from '../../types';
+import type { ClassRoster, FajrRoll, LogEntry } from '../../types';
 import { displayName } from '../../lib/display';
 
 function entryText(e: LogEntry | undefined) {
@@ -27,7 +29,7 @@ function entryText(e: LogEntry | undefined) {
 export function ClassView() {
   const { classId = '' } = useParams();
   const [sp, setSp] = useSearchParams();
-  const { today, settings } = useActiveSession();
+  const { today, settings, actor } = useActiveSession();
   const users = useAllUsers();
   const classes = useClasses();
   const cls = classes.data.find((c) => c.id === classId);
@@ -41,6 +43,15 @@ export function ClassView() {
   // Next is only useful when there is something after what is shown: after today (day view) or after the week containing today (week view).
   const nextDisabled = view === 'week' ? days[6] >= today : date >= today;
   const range = useStudentsRange(students.map((s) => s.id), from, to);
+  const salah = useStudentsSalah(students.map((s) => s.id), date, date);
+  const roster = useDocData<ClassRoster>(classId ? rosterRef(classId) : null, `roster:${classId}`);
+  const rosterNames = useMemo(() => Object.fromEntries(students.map((s) => [s.id, displayName(s)])), [students]);
+  const monitorId = cls?.fajrMonitorId ?? null;
+  // The monitor's "not logged yet" list needs the class's names; keep them current while a monitor is set.
+  useEffect(() => {
+    if (monitorId && !roster.loading && !users.loading) syncRoster(classId, roster.data?.names, rosterNames);
+  }, [monitorId, classId, roster.loading, roster.data, rosterNames, users.loading]);
+  const [monitorErr, setMonitorErr] = useState<string | null>(null);
 
   const setParam = (k: string, v: string) => {
     const n = new URLSearchParams(sp);
@@ -115,6 +126,53 @@ export function ClassView() {
             <DateLine day={date} />
             {students.length > 0 && <ExportBar month={exportMonth} monthLabel={formatMonth(date)} />}
           </div>
+          {students.length > 0 && (() => {
+            const roll: FajrRoll = { id: date, r: {} };
+            for (const st of students) {
+              const f = salah.get(st.id)?.get(date)?.entries?.fajr;
+              if (f) roll.r![st.id] = { name: displayName(st), status: f };
+            }
+            const sum = fajrRollSummary(rosterNames, roll);
+            const names = (l: { name: string }[]) => l.map((p) => p.name).join(', ');
+            return (
+              <section className="card flex flex-col gap-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="section-title mb-0">Fajr</h2>
+                  <span className="num text-sm text-slate-600">
+                    {sum.inJamaat.length} in jamaat · {sum.qadha.length} qadha · {sum.missed.length} missed · {sum.notLogged.length} not logged
+                  </span>
+                </div>
+                {sum.missed.length > 0 && <p className="text-sm" dir="auto"><span className="font-medium text-red-800">Missed:</span> {names(sum.missed)}</p>}
+                {sum.qadha.length > 0 && <p className="text-sm" dir="auto"><span className="font-medium text-amber-800">Qadha:</span> {names(sum.qadha)}</p>}
+                {sum.notLogged.length > 0 && <p className="text-sm text-slate-600" dir="auto"><span className="font-medium">Not logged:</span> {names(sum.notLogged)}</p>}
+                <label className="no-print flex flex-col gap-1 border-t border-slate-200 pt-3 text-sm">
+                  <span className="text-slate-900">Fajr monitor</span>
+                  <span className="text-xs text-slate-500">
+                    This student sees the class's daily Fajr roll (missed, qadha, not logged) in their app and gets a push each morning at {settings.fajrReportTime}. They see nothing else of anyone's. Every student in the class is told who it is.
+                  </span>
+                  <select
+                    className="input mt-1"
+                    value={monitorId ?? ''}
+                    onChange={(e) => {
+                      const next = students.find((x) => x.id === e.target.value) ?? null;
+                      setFajrMonitor(cls, next, rosterNames, actor).then(() => setMonitorErr(null), (er) => setMonitorErr((er as Error).message));
+                    }}
+                  >
+                    <option value="">Nobody</option>
+                    {monitorId && !students.some((x) => x.id === monitorId) && (
+                      <option value={monitorId}>{cls.fajrMonitorName ?? 'Someone'} (no longer in this class)</option>
+                    )}
+                    {students.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {displayName(st)}
+                      </option>
+                    ))}
+                  </select>
+                  {monitorErr && <span className="text-sm text-red-700">{monitorErr}</span>}
+                </label>
+              </section>
+            );
+          })()}
           <ul className="flex flex-col gap-3">
             {students.map((s) => {
               const r = range.get(s.id);

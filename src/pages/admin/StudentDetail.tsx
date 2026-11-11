@@ -8,14 +8,17 @@ import { MamoolEditor, MamoolForm } from '../../components/MamoolEditor';
 import { EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
 import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { Checklist, targetLabel } from '../../components/Checklist';
+import { SalahChecklist } from '../../components/SalahChecklist';
+import { SalahWeek } from '../../components/SalahWeek';
+import { salahStats } from '../../lib/salah';
 import { DateLine } from '../../components/DateLine';
 import { useDialog } from '../../components/Dialog';
 import { useUndo } from '../../components/Undo';
 import { ExportBar } from '../../components/ExportBar';
 import { downloadCsv } from '../../lib/csv';
-import { fileSafe, studentDetailRows } from '../../lib/exports';
+import { fileSafe, salahRows, studentDetailRows } from '../../lib/exports';
 import { getDocs } from 'firebase/firestore';
-import { addComment, addMamool, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
+import { addComment, addMamool, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
 import type { Mamool } from '../../types';
 import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
@@ -120,7 +123,9 @@ export function StudentDetail() {
   useEffect(() => {
     getDocs(pushSubsCol(uid)).then((s) => setDevices(s.size), () => setDevices(null));
   }, [uid]);
-  const [tab, setTab] = useState<'week' | 'day' | 'mamoolaat' | 'comments' | 'profile'>(sp.get('tab') === 'day' ? 'day' : 'week');
+  const [tab, setTab] = useState<'week' | 'day' | 'salah' | 'mamoolaat' | 'comments' | 'profile'>(
+    sp.get('tab') === 'day' ? 'day' : sp.get('tab') === 'salah' ? 'salah' : 'week',
+  );
   const { confirm, notify } = useDialog();
   const undo = useUndo();
   // Deletes wait a few seconds (with Undo) before they happen; hide them meanwhile.
@@ -193,6 +198,7 @@ export function StudentDetail() {
           [
             ['week', 'Weekly'],
             ['day', 'Day'],
+            ['salah', 'Salah'],
             ['mamoolaat', 'Mamoolaat'],
             ['comments', `Notes (${data.comments.length})`],
             ['profile', 'Profile'],
@@ -269,6 +275,47 @@ export function StudentDetail() {
                 Clear this day's log
               </button>
             )}
+          </>
+        );
+      })()}
+
+      {tab === 'salah' && (() => {
+        const dayId = d && isValidYmd(d) ? d : today;
+        const rec = data.salah.get(dayId);
+        const wk = weekDays(weekStartOf(dayId, settings.weekStart));
+        const st = salahStats(rec);
+        const owner = { uid, name: student.name ?? student.email, classId: student.classId };
+        return (
+          <>
+            <div className="no-print flex items-center justify-between">
+              <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Previous week" onClick={() => setAnchor(addDays(wk[0], -7))}>
+                <IconChevronLeft size={20} />
+              </button>
+              <div className="num text-sm font-medium text-slate-800">
+                {formatGregorian(wk[0], { year: undefined })} – {formatGregorian(wk[6])}
+              </div>
+              <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Next week" disabled={wk[6] >= today} onClick={() => setAnchor([addDays(wk[0], 7), today].sort()[0])}>
+                <IconChevronRight size={20} />
+              </button>
+            </div>
+            <ExportBar
+              week={() => downloadCsv(`salah-${fileSafe(displayName(student))}-${wk[0]}.csv`, [['Salah', ...wk, 'Days in jamaat'], ...salahRows(data.salah, wk, today)])}
+              monthLabel={formatMonth(dayId)}
+              month={() => {
+                const md = monthDays(dayId);
+                downloadCsv(`salah-${fileSafe(displayName(student))}-${dayId.slice(0, 7)}.csv`, [['Salah', ...md, 'Days in jamaat'], ...salahRows(data.salah, md, today)]);
+              }}
+            />
+            <div className="rounded-xl bg-surface p-2">
+              <SalahWeek days={wk} salah={data.salah} today={today} onPick={setAnchor} />
+            </div>
+            <div className="flex items-center justify-between">
+              <DateLine day={dayId} />
+              <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.inJamaat}/5 in jamaat</span>
+            </div>
+            <p className="text-sm text-slate-500">Correct this student's salah for any day. Each change is stamped with your name and recorded in the audit log. Fajr changes also update the class's Fajr roll.</p>
+            {rec?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {rec.editedByName ?? 'the teacher'}.</div>}
+            <SalahChecklist day={dayId} record={rec} editable onChange={(n, s) => adminSaveSalah(owner, dayId, n, s, actor)} />
           </>
         );
       })()}
