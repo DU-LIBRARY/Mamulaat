@@ -222,15 +222,24 @@ export function adminSaveSalah(student: RollOwner, day: string, name: SalahName,
   fire(batch.commit());
 }
 
-/** Make one student of a class its Fajr monitor (or nobody, with null). */
-export function setFajrMonitor(cls: ClassDoc, student: Pick<UserProfile, 'id' | 'name' | 'email'> | null, roster: Record<string, string>, actor: Actor) {
+/**
+ * Make one student the Fajr monitor of one or more classes (or nobody, with null). They need not
+ * be in those classes. Each class's roster (names of its active students) is saved with it.
+ */
+export function setFajrMonitor(
+  targets: { cls: ClassDoc; roster: Record<string, string> }[],
+  student: Pick<UserProfile, 'id' | 'name' | 'email'> | null,
+  actor: Actor,
+) {
   const batch = writeBatch(db);
-  batch.update(doc(classesCol(), cls.id), {
-    fajrMonitorId: student?.id ?? null,
-    fajrMonitorName: student ? (student.name ?? student.email).slice(0, 200) : null,
-  });
-  if (student) batch.set(rosterRef(cls.id), { names: roster });
-  addAudit(batch, actor, 'class.fajrMonitor', { classId: cls.id, className: cls.name, monitorId: student?.id ?? null, monitorName: student?.name ?? null });
+  for (const { cls, roster } of targets) {
+    batch.update(doc(classesCol(), cls.id), {
+      fajrMonitorId: student?.id ?? null,
+      fajrMonitorName: student ? (student.name ?? student.email).slice(0, 200) : null,
+    });
+    if (student) batch.set(rosterRef(cls.id), { names: roster });
+    addAudit(batch, actor, 'class.fajrMonitor', { classId: cls.id, className: cls.name, monitorId: student?.id ?? null, monitorName: student?.name ?? null });
+  }
   return track(batch.commit());
 }
 

@@ -227,6 +227,12 @@ export function Classes() {
                     <div className="text-sm text-slate-500">
                       {members.length} active students{c.template?.length ? ` · ${c.template.length} class mamoolaat` : ''}
                     </div>
+                    <div className="text-sm text-slate-500" dir="auto">
+                      Fajr monitor: {c.fajrMonitorName ?? 'nobody'} ·{' '}
+                      <Link className="link" to={`/admin/class/${c.id}#fajr-monitor`}>
+                        {c.fajrMonitorId ? 'change' : 'choose'}
+                      </Link>
+                    </div>
                   </div>
                   <Link className="btn-secondary px-3" to={`/admin/class/${c.id}`}>
                     Day

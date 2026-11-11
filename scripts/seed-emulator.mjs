@@ -90,9 +90,9 @@ await db.doc('settings/app').set({
   defaultReminderTime: '20:00',
   fajrReportTime: '08:00',
 });
-// Yusuf is Class A's Fajr monitor: he sees the class's daily Fajr roll (Salah tab).
+// Yusuf is the Fajr monitor of both classes: he sees the class's daily Fajr roll (Salah tab).
 await db.doc('classes/demo-class-a').set({ name: 'Class A — Girls', fajrMonitorId: 'demo-yusuf', fajrMonitorName: 'Yusuf Ali' });
-await db.doc('classes/demo-class-b').set({ name: 'Class B — Boys' });
+await db.doc('classes/demo-class-b').set({ name: 'Class B — Boys', fajrMonitorId: 'demo-yusuf', fajrMonitorName: 'Yusuf Ali' });
 
 for (const p of people) {
   await db.doc(`users/${p.uid}`).set({
@@ -152,7 +152,7 @@ for (const p of people.filter((x) => lists[x.uid])) {
     await db.doc(`classes/${p.classId}/fajrRoll/${daysAgo(d)}`).set({ r: { [p.uid]: { name: p.name, status: entries.fajr } } }, { merge: true });
   }
 }
-for (const c of ['demo-class-a']) {
+for (const c of ['demo-class-a', 'demo-class-b']) {
   const names = Object.fromEntries(people.filter((p) => p.classId === c && p.status === 'active').map((p) => [p.uid, p.name]));
   await db.doc(`classes/${c}/meta/roster`).set({ names });
 }

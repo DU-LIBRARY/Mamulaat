@@ -816,9 +816,17 @@ describe('Fajr roll and monitor', () => {
     await assertFails(getDoc(doc(db(C), roll(A, today))));
   });
 
-  it('the monitor loses access when moved to another class', async () => {
+  it('the monitor need not be in the class, but loses access when deactivated', async () => {
     await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${TEACHER}`), { classId: 'class-2' }));
+    await assertSucceeds(getDoc(doc(db(TEACHER), roll(A, today))));
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${TEACHER}`), { status: 'inactive' }));
     await assertFails(getDoc(doc(db(TEACHER), roll(A, today))));
+  });
+
+  it('one monitor can cover several classes', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'classes/class-2'), { name: 'Class 2', fajrMonitorId: TEACHER }));
+    await assertSucceeds(getDoc(doc(db(TEACHER), 'classes/class-2/fajrRoll/' + today)));
+    await assertSucceeds(getDoc(doc(db(TEACHER), roll(A, today))));
   });
 
   it('a monitor in another class cannot read this class', async () => {
@@ -826,9 +834,11 @@ describe('Fajr roll and monitor', () => {
     await assertFails(getDoc(doc(db(C), roll(A, today))));
   });
 
-  it('only the admin sets the monitor, who must be in the class; the monitor cannot write the roster', async () => {
+  it('only the admin sets the monitor, who must be an active user; the monitor cannot write the roster', async () => {
     await assertSucceeds(updateDoc(doc(db(ADMIN), 'classes/class-1'), { fajrMonitorId: A, fajrMonitorName: 'A' }));
-    await assertFails(updateDoc(doc(db(ADMIN), 'classes/class-1'), { fajrMonitorId: C, fajrMonitorName: 'C' }));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'classes/class-1'), { fajrMonitorId: C, fajrMonitorName: 'C' }));
+    await assertFails(updateDoc(doc(db(ADMIN), 'classes/class-1'), { fajrMonitorId: PENDING, fajrMonitorName: 'P' }));
+    await assertFails(updateDoc(doc(db(ADMIN), 'classes/class-1'), { fajrMonitorId: 'nobody', fajrMonitorName: 'N' }));
     await assertFails(updateDoc(doc(db(A), 'classes/class-1'), { fajrMonitorId: A }));
     await assertFails(setDoc(doc(db(TEACHER), 'classes/class-1/meta/roster'), { names: {} }));
     await assertSucceeds(setDoc(doc(db(ADMIN), 'classes/class-1/meta/roster'), { names: { [A]: 'A' } }));

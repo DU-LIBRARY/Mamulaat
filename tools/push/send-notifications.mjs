@@ -7,8 +7,8 @@
 //  - Message: a note from the admin with "also send to their phone" ticked (pushMessages/{id}).
 //  - New sign-up: tells every admin when a student finishes signing up.
 //  - Approved: tells a student when the admin approves them.
-//  - Fajr roll: each morning (settings.fajrReportTime) tells a class's Fajr monitor how many
-//    classmates missed Fajr, prayed it as qadha or haven't logged it. Also keeps each such
+//  - Fajr roll: each morning (settings.fajrReportTime) tells each Fajr monitor, for every class
+//    they look after, how many missed Fajr, prayed it as qadha or haven't logged it. Also keeps each such
 //    class's roster (names of its active students) current for the monitor's screen.
 //
 // Env:
@@ -162,11 +162,12 @@ for (const uid of Object.keys(seenActive)) {
 }
 if (!dry) await stateRef.set({ initialized: true, signups: seenSignups, active: seenActive, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
-// 5. Fajr roll → each class's Fajr monitor, once a day at settings.fajrReportTime.
+// 5. Fajr roll → Fajr monitors, once a day at settings.fajrReportTime. One monitor may look after
+// several classes; they get a single push with a line per class.
 let fajrReports = 0;
 const classes = await db.collection('classes').get();
-const fajrRef = db.doc('pushState/fajr');
-const fajrSent = (await fajrRef.get()).data()?.sent ?? {};
+const byMonitor = new Map(); // monitor uid → [{ name, report }]
+const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 for (const c of classes.docs) {
   const monitor = c.get('fajrMonitorId');
   if (typeof monitor !== 'string' || !monitor) continue;
@@ -176,20 +177,26 @@ for (const c of classes.docs) {
   // Keep the roster the monitor's screen reads in step (written only when it changed).
   const rosterRef = db.doc(`classes/${c.id}/meta/roster`);
   const saved = (await rosterRef.get()).data()?.names ?? {};
-  const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
   if (!same(saved, roster) && !dry) await rosterRef.set({ names: roster });
-
-  const m = byId.get(monitor);
-  if (!m || m.status !== 'active' || m.classId !== c.id) continue; // not (or no longer) in the class
-  const time = typeof settings.fajrReportTime === 'string' ? settings.fajrReportTime : '08:00';
-  const due = dueSlots([{ time, body: '' }], today, minutes, Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.startsWith(`${c.id} `)).map(([k, v]) => [k.slice(c.id.length + 1), v])));
-  if (!due.length) continue;
-  fajrSent[`${c.id} ${due[0].key}`] = Date.now(); // record first, so a crash can't cause repeated pings
-  if (!dry) await fajrRef.set({ sent: Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.split(' ')[1] >= addDaysYmd(today, -7))) });
+  if (byId.get(monitor)?.status !== 'active') continue;
   const roll = (await db.doc(`classes/${c.id}/fajrRoll/${today}`).get()).data();
-  const rep = fajrReport(roster, roll);
-  const cls = typeof c.get('name') === 'string' ? c.get('name') : 'your class';
-  if (await pushToUser(monitor, { title: `Fajr today · ${cls}`, body: rep.body, url: 'salah/fajr', tag: `fajr-${c.id}-${today}` })) fajrReports++;
+  const list = byMonitor.get(monitor) ?? [];
+  list.push({ name: typeof c.get('name') === 'string' ? c.get('name') : 'Class', report: fajrReport(roster, roll) });
+  byMonitor.set(monitor, list);
+}
+const fajrRef = db.doc('pushState/fajr');
+const fajrSent = (await fajrRef.get()).data()?.sent ?? {};
+const fajrTime = typeof settings.fajrReportTime === 'string' ? settings.fajrReportTime : '08:00';
+for (const [monitor, list] of byMonitor) {
+  const sentForMonitor = Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.startsWith(`${monitor} `)).map(([k, v]) => [k.slice(monitor.length + 1), v]));
+  const due = dueSlots([{ time: fajrTime, body: '' }], today, minutes, sentForMonitor);
+  if (!due.length) continue;
+  fajrSent[`${monitor} ${due[0].key}`] = Date.now(); // record first, so a crash can't cause repeated pings
+  if (!dry) await fajrRef.set({ sent: Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.split(' ')[1] >= addDaysYmd(today, -7))) });
+  list.sort((x, y) => x.name.localeCompare(y.name, undefined, { numeric: true }));
+  const body = list.length === 1 ? list[0].report.body : list.map((x) => `${x.name}: ${x.report.missed} missed, ${x.report.qadha} qadha, ${x.report.notLogged} not logged`).join('\n');
+  const title = list.length === 1 ? `Fajr today · ${list[0].name}` : 'Fajr today';
+  if (await pushToUser(monitor, { title, body, url: 'salah/fajr', tag: `fajr-${today}` })) fajrReports++;
 }
 
 console.log(
