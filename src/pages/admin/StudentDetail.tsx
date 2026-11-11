@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses } from '../../hooks/useAdminData';
-import { sortMamoolaat, useStudentLive } from '../../hooks/useStudentData';
+import { useStudentLive } from '../../hooks/useStudentData';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
-import { MamoolEditor, MamoolForm } from '../../components/MamoolEditor';
+import { MamoolEditor } from '../../components/MamoolEditor';
 import { EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
 import { IconChevronLeft, IconChevronRight } from '../../components/icons';
-import { Checklist, targetLabel } from '../../components/Checklist';
+import { Checklist } from '../../components/Checklist';
 import { SalahChecklist } from '../../components/SalahChecklist';
 import { SalahWeek } from '../../components/SalahWeek';
 import { salahStats } from '../../lib/salah';
@@ -18,8 +18,7 @@ import { ExportBar } from '../../components/ExportBar';
 import { downloadCsv } from '../../lib/csv';
 import { fileSafe, salahRows, studentDetailRows } from '../../lib/exports';
 import { getDocs } from 'firebase/firestore';
-import { addComment, addMamool, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, removeMamool, renameUser, restoreMamool, setPending, type Actor } from '../../lib/db';
-import type { Mamool } from '../../types';
+import { addComment, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, renameUser, setPending } from '../../lib/db';
 import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
 import { bestStreak, currentStreak, dayStats, pct, scheduledFor } from '../../lib/scoring';
@@ -29,84 +28,6 @@ import { displayName } from '../../lib/display';
 
 function when(ts?: { toDate(): Date } | null) {
   return ts ? ts.toDate().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'pending sync';
-}
-
-/** Quick add / remove / restore of a student's mamoolaat, shown under the weekly grid. */
-function WeekMamoolaat({ uid, all, today, actor }: { uid: string; all: Mamool[]; today: string; actor: Actor }) {
-  const undo = useUndo();
-  const [adding, setAdding] = useState(false);
-  const active = sortMamoolaat(all.filter((m) => m.active));
-  const removed = sortMamoolaat(all.filter((m) => !m.active));
-  const nextOrder = all.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
-
-  return (
-    <section className="card flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="section-title mb-0">Mamoolaat</h2>
-        {!adding && (
-          <button className="btn-secondary min-h-11 px-3" onClick={() => setAdding(true)}>
-            Add
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-slate-500">Changes apply from today; past days keep their history. Each change is recorded and shown to the student.</p>
-      {adding && (
-        <MamoolForm
-          submitLabel="Add"
-          onCancel={() => setAdding(false)}
-          onSubmit={(v) => {
-            addMamool(uid, v, nextOrder, today, actor);
-            setAdding(false);
-          }}
-        />
-      )}
-      {active.length === 0 ? (
-        <EmptyState>No active mamoolaat.</EmptyState>
-      ) : (
-        <ul className="flex flex-col divide-y divide-slate-200">
-          {active.map((m) => (
-            <li key={m.id} className="flex items-center gap-2 py-1">
-              <div className="min-w-0 flex-1">
-                <div className="font-medium break-words text-slate-900" dir="auto">
-                  {m.name}
-                </div>
-                <div className="text-sm text-slate-500" dir="auto">
-                  {targetLabel(m)}
-                </div>
-              </div>
-              <button
-                className="btn-ghost min-h-11 px-3 text-red-700"
-                aria-label={`Remove ${m.name}`}
-                onClick={() => {
-                  removeMamool(uid, m, today, actor);
-                  undo.undoable(`Removed “${m.name}”`, () => restoreMamool(uid, { ...m, active: false, removedDate: today }, today, actor));
-                }}
-              >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {removed.length > 0 && (
-        <details>
-          <summary className="cursor-pointer text-sm font-medium text-slate-600">Removed ({removed.length})</summary>
-          <ul className="mt-2 flex flex-col gap-1">
-            {removed.map((m) => (
-              <li key={m.id} className="flex items-center justify-between gap-2">
-                <span className="min-w-0 break-words text-slate-500 line-through" dir="auto">
-                  {m.name} – {targetLabel(m)}
-                </span>
-                <button className="btn-ghost min-h-11 shrink-0 px-3 text-sm" onClick={() => restoreMamool(uid, m, today, actor)} aria-label={`Restore ${m.name}`}>
-                  Restore
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </section>
-  );
 }
 
 export function StudentDetail() {
@@ -179,9 +100,7 @@ export function StudentDetail() {
             <div className="truncate font-serif text-[28px] leading-tight text-slate-900" dir="auto">
               {displayName(student)}
             </div>
-            <div className="truncate text-sm text-slate-500">
-              {student.status}
-            </div>
+            {student.status !== 'active' && <div className="truncate text-sm text-amber-800">{student.status}</div>}
           </div>
         </div>
       </div>
@@ -193,18 +112,18 @@ export function StudentDetail() {
         <Stat label="Logged" value={[...data.logs.entries()].filter(([d, l]) => d <= today && dayStats(d, l, data.all).hasLog).length} sub="days in total" />
       </StatRow>
 
-      <div className="no-print -mx-4 flex overflow-x-auto border-b border-slate-200 px-4" role="tablist" aria-label="Student sections">
+      <div className="no-print flex overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Student sections">
         {(
           [
-            ['week', 'Weekly'],
+            ['week', 'Week'],
             ['day', 'Day'],
             ['salah', 'Salah'],
             ['mamoolaat', 'Mamoolaat'],
-            ['comments', `Notes (${data.comments.length})`],
+            ['comments', 'Notes'],
             ['profile', 'Profile'],
           ] as const
         ).map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={`-mb-px min-h-11 shrink-0 border-b-2 px-3 text-sm font-medium whitespace-nowrap ${tab === k ? 'border-brand-700 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={() => setTab(k)}>
+          <button key={k} role="tab" aria-selected={tab === k} className={`-mb-px min-h-11 flex-1 border-b-2 px-1 text-[13px] font-medium whitespace-nowrap sm:flex-none sm:px-3 sm:text-sm ${tab === k ? 'border-brand-700 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={() => setTab(k)}>
             {l}
           </button>
         ))}
@@ -235,9 +154,6 @@ export function StudentDetail() {
             }}
           />
           <div className="rounded-xl bg-surface p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
-          <div className="no-print">
-            <WeekMamoolaat uid={uid} all={data.all} today={today} actor={actor} />
-          </div>
         </>
       )}
 

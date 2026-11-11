@@ -1,11 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDialog } from './Dialog';
 
-/** "Week CSV · Month CSV · Print" buttons. Hidden when printing. */
+/** One quiet "Export" button that opens Week CSV · Month CSV · Print. Hidden when printing. */
 export function ExportBar({ week, month, monthLabel }: { week?: () => void; month?: () => Promise<void> | void; monthLabel?: string }) {
   const { notify } = useDialog();
   const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDetailsElement>(null);
+  // Close when tapping anywhere else.
+  useEffect(() => {
+    const close = (e: PointerEvent) => {
+      if (ref.current?.open && !ref.current.contains(e.target as Node)) ref.current.open = false;
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, []);
   const run = async (fn: () => Promise<void> | void) => {
+    if (ref.current) ref.current.open = false;
     setBusy(true);
     try {
       await fn();
@@ -15,21 +25,25 @@ export function ExportBar({ week, month, monthLabel }: { week?: () => void; mont
       setBusy(false);
     }
   };
+  const item = 'flex min-h-11 w-full items-center px-4 text-left text-[15px] text-slate-800 hover:bg-slate-100 disabled:opacity-50';
   return (
-    <div className="no-print flex flex-wrap items-center justify-end gap-2" role="group" aria-label="Export">
-      {week && (
-        <button className="btn-secondary min-h-11 px-3 text-sm" disabled={busy} onClick={() => run(week)}>
-          Week CSV
+    <details ref={ref} className="no-print relative ml-auto self-end">
+      <summary className="btn-ghost min-h-11 cursor-pointer list-none px-3 text-sm [&::-webkit-details-marker]:hidden">{busy ? 'Preparing…' : 'Export ▾'}</summary>
+      <div className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-surface py-1 shadow-lg" role="menu">
+        {week && (
+          <button role="menuitem" className={item} disabled={busy} onClick={() => run(week)}>
+            Week CSV
+          </button>
+        )}
+        {month && (
+          <button role="menuitem" className={item} disabled={busy} onClick={() => run(month)}>
+            {monthLabel ? `Month CSV (${monthLabel})` : 'Month CSV'}
+          </button>
+        )}
+        <button role="menuitem" className={item} onClick={() => run(() => window.print())}>
+          Print
         </button>
-      )}
-      {month && (
-        <button className="btn-secondary min-h-11 px-3 text-sm" disabled={busy} onClick={() => run(month)} aria-label={monthLabel ? `Month CSV for ${monthLabel}` : undefined}>
-          {busy ? 'Preparing…' : 'Month CSV'}
-        </button>
-      )}
-      <button className="btn-secondary min-h-11 px-3 text-sm" onClick={() => window.print()}>
-        Print
-      </button>
-    </div>
+      </div>
+    </details>
   );
 }
