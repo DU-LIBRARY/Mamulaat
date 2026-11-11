@@ -20,6 +20,8 @@ import {
   PencilSimple,
   Clock,
   Info,
+  Mosque,
+  Users,
   type IconProps,
 } from '@phosphor-icons/react';
 
@@ -56,5 +58,7 @@ export const IconLock = make(LockSimple, 'regular');
 export const IconPencil = make(PencilSimple, 'regular');
 export const IconClock = make(Clock, 'regular');
 export const IconInfo = make(Info, 'regular');
+export const IconSalah = make(Mosque, 'light');
+export const IconUsers = make(Users, 'regular');
 
 export type AppIconProps = ComponentProps<typeof IconToday>;

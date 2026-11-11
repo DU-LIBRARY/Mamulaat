@@ -111,3 +111,23 @@ export function userChangeNotice(before: UserSnapshotLike | undefined, after: Us
   if (after.role === 'student' && after.status === 'active' && before?.status !== 'active' && before?.status != null) return 'student-approved';
   return null;
 }
+
+/**
+ * The Fajr monitor's morning push: counts for one class and day. `roster` is uid → name of the
+ * class's active students; `roll` is the class's fajrRoll doc (r.<uid>.status).
+ */
+export function fajrReport(roster: Record<string, string>, roll: { r?: Record<string, { status?: unknown }> } | undefined) {
+  let missed = 0;
+  let qadha = 0;
+  let notLogged = 0;
+  let inJamaat = 0;
+  for (const uid of Object.keys(roster)) {
+    const s = roll?.r?.[uid]?.status;
+    if (s === 'missed') missed++;
+    else if (s === 'qadha') qadha++;
+    else if (s === 'takbir' || s === 'jamaat') inJamaat++;
+    else notLogged++;
+  }
+  const body = `${missed} missed · ${qadha} qadha · ${notLogged} not logged yet · ${inJamaat} in jamaat`;
+  return { missed, qadha, notLogged, inJamaat, body };
+}

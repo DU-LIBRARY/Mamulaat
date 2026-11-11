@@ -137,6 +137,7 @@ describe('student isolation', () => {
     await assertFails(getDoc(doc(f, `users/${B}/logs/${daysAgo(1)}`)));
     await assertFails(getDocs(collection(f, `users/${B}/logs`)));
     await assertFails(getDocs(collection(f, `users/${B}/comments`)));
+    await assertFails(getDocs(collection(f, `users/${B}/salah`)));
   });
 
   it('student cannot list all users', async () => {
@@ -730,5 +731,106 @@ describe('last seen and device tokens', () => {
     const t = { createdAt: serverTimestamp(), lastSeen: serverTimestamp(), userAgent: 'test' };
     await assertSucceeds(setDoc(doc(db(ADMIN), `users/${ADMIN}/fcmTokens/tok1`), t));
     await assertSucceeds(updateDoc(doc(db(ADMIN), `users/${ADMIN}`), { reminderEnabled: true }));
+  });
+});
+
+describe('salah', () => {
+  const salah = (day: string, entries: Record<string, string> = { fajr: 'takbir' }) => ({ date: day, entries, updatedAt: serverTimestamp() });
+
+  it('a student can log their own salah within the window, with the four statuses only', async () => {
+    const f = db(A);
+    await assertSucceeds(setDoc(doc(f, `users/${A}/salah/${today}`), salah(today, { fajr: 'takbir', zuhr: 'jamaat', asr: 'qadha', maghrib: 'missed' })));
+    await assertSucceeds(setDoc(doc(f, `users/${A}/salah/${daysAgo(2)}`), salah(daysAgo(2))));
+    await assertFails(setDoc(doc(f, `users/${A}/salah/${daysAgo(4)}`), salah(daysAgo(4))));
+    await assertFails(setDoc(doc(f, `users/${A}/salah/${tomorrow}`), salah(tomorrow)));
+    await assertFails(setDoc(doc(f, `users/${A}/salah/${today}`), salah(today, { fajr: 'done' })));
+    await assertFails(setDoc(doc(f, `users/${A}/salah/${today}`), salah(today, { tahajjud: 'takbir' })));
+    await assertFails(setDoc(doc(f, `users/${A}/salah/${today}`), { ...salah(today), editedBy: ADMIN }));
+  });
+
+  it("students cannot read or write another student's salah; the admin can, stamped", async () => {
+    await assertSucceeds(setDoc(doc(db(A), `users/${A}/salah/${today}`), salah(today)));
+    await assertFails(getDoc(doc(db(B), `users/${A}/salah/${today}`)));
+    await assertFails(setDoc(doc(db(B), `users/${A}/salah/${today}`), salah(today)));
+    await assertSucceeds(getDoc(doc(db(ADMIN), `users/${A}/salah/${today}`)));
+    await assertSucceeds(setDoc(doc(db(ADMIN), `users/${A}/salah/${daysAgo(9)}`), { ...salah(daysAgo(9)), editedBy: ADMIN, editedByName: 'Admin' }));
+    await assertFails(setDoc(doc(db(ADMIN), `users/${A}/salah/${daysAgo(9)}`), salah(daysAgo(9))));
+  });
+});
+
+describe('Fajr roll and monitor', () => {
+  const C = 'student-c'; // in class-2
+  const roll = (uid: string, day: string) => `classes/class-1/fajrRoll/${day}`;
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const f = ctx.firestore();
+      await setDoc(doc(f, `users/${C}`), profile('student', 'active', { classId: 'class-2' }));
+      await setDoc(doc(f, 'classes/class-1'), { name: 'Class 1', fajrMonitorId: TEACHER, fajrMonitorName: 'Teacher' });
+      await setDoc(doc(f, 'classes/class-1/meta/roster'), { names: { [A]: 'A', [B]: 'B', [TEACHER]: 'Teacher' } });
+    });
+  });
+
+  /** What the app does: the salah record and the roll entry in one batch. */
+  function logFajr(uid: string, day: string, status: string | null, classId = 'class-1', rollStatus = status) {
+    const f = db(uid);
+    const b = writeBatch(f);
+    b.set(doc(f, `users/${uid}/salah/${day}`), { date: day, entries: { fajr: status ?? deleteField() }, updatedAt: serverTimestamp() }, { merge: true });
+    b.set(doc(f, `classes/${classId}/fajrRoll/${day}`), { r: { [uid]: rollStatus ? { name: uid, status: rollStatus } : deleteField() } }, { merge: true });
+    return b.commit();
+  }
+
+  it('students write their own roll entry together with their salah', async () => {
+    await assertSucceeds(logFajr(A, today, 'missed'));
+    await assertSucceeds(logFajr(B, today, 'takbir'));
+    await assertSucceeds(logFajr(A, today, 'qadha'));
+    await assertSucceeds(logFajr(A, today, null)); // cleared
+    await assertSucceeds(logFajr(A, daysAgo(1), 'jamaat'));
+  });
+
+  it('a roll entry that does not match the salah record is refused', async () => {
+    await assertFails(logFajr(A, today, 'missed', 'class-1', 'takbir'));
+    const f = db(A); // roll only, without the salah record
+    await assertFails(setDoc(doc(f, roll(A, today)), { r: { [A]: { name: 'A', status: 'takbir' } } }, { merge: true }));
+  });
+
+  it("a student cannot write a classmate's key, another class's roll, or a locked day", async () => {
+    await assertSucceeds(logFajr(A, today, 'takbir'));
+    const f = db(B);
+    const b = writeBatch(f);
+    b.set(doc(f, `users/${B}/salah/${today}`), { date: today, entries: { fajr: 'takbir' }, updatedAt: serverTimestamp() }, { merge: true });
+    b.set(doc(f, roll(B, today)), { r: { [A]: { name: 'A', status: 'missed' } } }, { merge: true });
+    await assertFails(b.commit());
+    await assertFails(logFajr(A, today, 'takbir', 'class-2'));
+    await assertFails(logFajr(A, daysAgo(5), 'takbir'));
+  });
+
+  it('only the admin and the class monitor can read the roll and roster', async () => {
+    await assertSucceeds(logFajr(A, today, 'missed'));
+    await assertSucceeds(getDoc(doc(db(TEACHER), roll(A, today))));
+    await assertSucceeds(getDoc(doc(db(TEACHER), roll(A, daysAgo(3))))); // no doc yet: still allowed
+    await assertSucceeds(getDoc(doc(db(TEACHER), 'classes/class-1/meta/roster')));
+    await assertSucceeds(getDoc(doc(db(ADMIN), roll(A, today))));
+    await assertFails(getDoc(doc(db(A), roll(A, today))));
+    await assertFails(getDoc(doc(db(B), 'classes/class-1/meta/roster')));
+    await assertFails(getDoc(doc(db(C), roll(A, today))));
+  });
+
+  it('the monitor loses access when moved to another class', async () => {
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${TEACHER}`), { classId: 'class-2' }));
+    await assertFails(getDoc(doc(db(TEACHER), roll(A, today))));
+  });
+
+  it('a monitor in another class cannot read this class', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'classes/class-2'), { name: 'Class 2', fajrMonitorId: C }));
+    await assertFails(getDoc(doc(db(C), roll(A, today))));
+  });
+
+  it('only the admin sets the monitor, who must be in the class; the monitor cannot write the roster', async () => {
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'classes/class-1'), { fajrMonitorId: A, fajrMonitorName: 'A' }));
+    await assertFails(updateDoc(doc(db(ADMIN), 'classes/class-1'), { fajrMonitorId: C, fajrMonitorName: 'C' }));
+    await assertFails(updateDoc(doc(db(A), 'classes/class-1'), { fajrMonitorId: A }));
+    await assertFails(setDoc(doc(db(TEACHER), 'classes/class-1/meta/roster'), { names: {} }));
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'classes/class-1/meta/roster'), { names: { [A]: 'A' } }));
   });
 });

@@ -261,6 +261,11 @@ export function AdminSettings() {
             <label className="label" htmlFor="set-nolog">Flag after no logs for (days)</label>
             <input id="set-nolog" className="input" type="number" min={1} max={60} value={s.attentionNoLogDays} onChange={(e) => set('attentionNoLogDays', Number(e.target.value))} />
           </div>
+          <div className="col-span-2">
+            <label className="label" htmlFor="set-fajr">Fajr report time</label>
+            <input id="set-fajr" className="input" type="time" value={s.fajrReportTime} onChange={(e) => e.target.value && set('fajrReportTime', e.target.value)} />
+            <p className="mt-1 text-xs text-slate-500">When each class's Fajr monitor gets the day's Fajr summary on their phone. Set it after Fajr ends.</p>
+          </div>
         </div>
         <button className="btn-primary" type="submit" disabled={!tzOk}>
           Save settings

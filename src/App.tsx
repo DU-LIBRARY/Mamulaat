@@ -12,6 +12,8 @@ import { Signup } from './pages/Signup';
 import { Onboarding } from './pages/student/Onboarding';
 import { LogDay } from './pages/student/LogDay';
 import { Week } from './pages/student/Week';
+import { Salah } from './pages/student/Salah';
+import { FajrRoll } from './pages/student/FajrRoll';
 import { Messages } from './pages/student/Messages';
 import { ManageMamoolaat } from './pages/student/ManageMamoolaat';
 import { Me } from './pages/student/Me';
@@ -20,7 +22,7 @@ import { UndoProvider } from './components/Undo';
 import { touchLastSeen } from './lib/db';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { onForegroundMessage, refreshToken } from './lib/messaging';
-import { IconInbox, IconLog, IconPerson, IconWeek } from './components/icons';
+import { IconInbox, IconLog, IconPerson, IconSalah, IconWeek } from './components/icons';
 import { Toast } from './components/Toast';
 
 // The teacher's side loads only for the teacher, so students never parse it.
@@ -57,6 +59,7 @@ function StudentRoutes() {
     <Layout
       nav={[
         { to: '/', label: 'Log', icon: <IconLog />, end: true, also: ['/log', '/mamoolaat'] },
+        { to: '/salah', label: 'Salah', icon: <IconSalah /> },
         { to: '/week', label: 'Week', icon: <IconWeek /> },
         { to: '/messages', label: 'Inbox', icon: <IconInbox />, badge: data.unreadComments + data.unseenChanges },
         { to: '/me', label: 'Me', icon: <IconPerson /> },
@@ -67,6 +70,9 @@ function StudentRoutes() {
         <Route path="/" element={<LogDay />} />
         <Route path="/log" element={<Navigate to="/" replace />} />
         <Route path="/log/:day" element={<LogDay />} />
+        <Route path="/salah" element={<Salah />} />
+        <Route path="/salah/fajr" element={<FajrRoll />} />
+        <Route path="/salah/:day" element={<Salah />} />
         <Route path="/week" element={<Week />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/mamoolaat" element={<ManageMamoolaat />} />

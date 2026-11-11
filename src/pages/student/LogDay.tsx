@@ -14,7 +14,8 @@ import { MamoolForm } from '../../components/MamoolEditor';
 import { useDocData } from '../../hooks/useFirestore';
 import { addMamool, nudgeRef } from '../../lib/db';
 import type { Nudge } from '../../types';
-import { addDays, formatGregorian, isDayEditable, isValidYmd, lastEditableDay, shortDay, dayNumber } from '../../lib/dates';
+import { isDayEditable, isValidYmd, lastEditableDay } from '../../lib/dates';
+import { DayChips } from '../../components/DayChips';
 import { dayStats, scheduledFor } from '../../lib/scoring';
 
 /** The student's main page: today's checklist (or an earlier day still open for filling in). */
@@ -28,8 +29,6 @@ export function LogDay() {
   const editable = isDayEditable(day, today, settings.backfillDays);
   const mams = scheduledFor(day, all);
   const s = dayStats(day, logs.get(day), all);
-  const chips = Array.from({ length: settings.backfillDays + 1 }, (_, i) => addDays(today, -i)).reverse();
-  const locksTonight = (d: string) => d !== today && lastEditableDay(d, settings.backfillDays) === today;
   const lastDay = lastEditableDay(day, settings.backfillDays);
   const isToday = day === today;
   const nudged = isToday && !!nudge.data && s.logged < s.scheduled;
@@ -37,23 +36,7 @@ export function LogDay() {
   return (
     <div className="flex flex-col gap-4">
       <PendingSyncNotice />
-      <nav aria-label="Days you can fill in" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
-        {chips.map((d) => (
-          <Link
-            key={d}
-            to={d === today ? '/' : `/log/${d}`}
-            aria-current={d === day ? 'page' : undefined}
-            aria-label={`${formatGregorian(d)}${d === today ? ' (today)' : ''}${locksTonight(d) ? ', locks tonight' : ''}`}
-            className={`flex min-w-14 flex-col items-center rounded-md border px-3 py-1.5 text-xs font-medium ${
-              d === day ? 'border-primary bg-primary text-on-primary' : 'border-slate-200 bg-surface text-slate-600 hover:border-slate-300'
-            }`}
-          >
-            <span>{d === today ? 'Today' : shortDay(d)}</span>
-            <span className="num text-lg leading-tight font-semibold">{dayNumber(d)}</span>
-            {locksTonight(d) && <span className={`text-[11px] ${d === day ? 'text-on-primary' : 'text-amber-800'}`}>locks tonight</span>}
-          </Link>
-        ))}
-      </nav>
+      <DayChips day={day} today={today} backfillDays={settings.backfillDays} hrefFor={(d) => (d === today ? '/' : `/log/${d}`)} />
 
       <div className="flex items-center justify-between">
         <DateLine day={day} size="lg" />

@@ -88,8 +88,10 @@ await db.doc('settings/app').set({
   attentionThreshold: 60,
   attentionNoLogDays: 3,
   defaultReminderTime: '20:00',
+  fajrReportTime: '08:00',
 });
-await db.doc('classes/demo-class-a').set({ name: 'Class A — Girls' });
+// Yusuf is Class A's Fajr monitor: he sees the class's daily Fajr roll (Salah tab).
+await db.doc('classes/demo-class-a').set({ name: 'Class A — Girls', fajrMonitorId: 'demo-yusuf', fajrMonitorName: 'Yusuf Ali' });
 await db.doc('classes/demo-class-b').set({ name: 'Class B — Boys' });
 
 for (const p of people) {
@@ -133,6 +135,26 @@ for (const p of people) {
     }
     await db.doc(`users/${p.uid}/logs/${daysAgo(d)}`).set({ date: daysAgo(d), entries, updatedAt: FieldValue.serverTimestamp() });
   }
+}
+
+// Salah for the last week (today included), and the matching Fajr roll entries.
+const SALAH = ['fajr', 'zuhr', 'asr', 'maghrib', 'isha'];
+const pickSalah = (good) => {
+  const r = rand();
+  return r < good * 0.6 ? 'takbir' : r < good ? 'jamaat' : r < good + 0.15 ? 'qadha' : 'missed';
+};
+for (const p of people.filter((x) => lists[x.uid])) {
+  const good = { 'demo-aisha': 0.9, 'demo-yusuf': 0.7, 'demo-maryam': 0.6, 'demo-bilal': 0.4 }[p.uid];
+  for (let d = 7; d >= 0; d--) {
+    if (p.uid === 'demo-maryam' && d === 0) continue; // hasn't logged today: shows as "not logged"
+    const entries = Object.fromEntries(SALAH.filter((_, i) => d > 0 || i === 0).map((n) => [n, pickSalah(good)]));
+    await db.doc(`users/${p.uid}/salah/${daysAgo(d)}`).set({ date: daysAgo(d), entries, updatedAt: FieldValue.serverTimestamp() });
+    await db.doc(`classes/${p.classId}/fajrRoll/${daysAgo(d)}`).set({ r: { [p.uid]: { name: p.name, status: entries.fajr } } }, { merge: true });
+  }
+}
+for (const c of ['demo-class-a']) {
+  const names = Object.fromEntries(people.filter((p) => p.classId === c && p.status === 'active').map((p) => [p.uid, p.name]));
+  await db.doc(`classes/${c}/meta/roster`).set({ names });
 }
 
 await db.doc('users/demo-aisha/comments/welcome').set({
