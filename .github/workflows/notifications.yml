@@ -14,9 +14,9 @@ on:
   workflow_dispatch:
     inputs:
       test:
-        description: 'Send a test notification instead'
+        description: 'Send a test notification instead (fajr = sample Fajr report to each Fajr monitor)'
         type: choice
-        options: [none, admins, all]
+        options: [none, admins, all, fajr]
         default: none
       dry_run:
         description: 'Only log what would be sent'
