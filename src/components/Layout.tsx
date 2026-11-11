@@ -69,10 +69,11 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
                   aria-current={alsoActive ? 'page' : undefined}
                   className={({ isActive: routeActive }) => {
                     const isActive = routeActive || alsoActive;
-                    return
+                    return (
                     `relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 pt-2 text-[11px] transition-colors duration-200 ${
                       isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'
-                    }`;
+                    }`
+                    );
                   }}
                 >
                   {({ isActive: routeActive }) => {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { addDays, dayNumber, formatGregorian, lastEditableDay, shortDay } from '../lib/dates';
 
@@ -21,9 +22,14 @@ export function DayChips({
   showLocks?: boolean;
 }) {
   const chips = Array.from({ length: count ?? backfillDays + 1 }, (_, i) => addDays(today, -i)).reverse();
+  const navRef = useRef<HTMLElement>(null);
+  // Keep the chosen day in view when the row is wider than the screen.
+  useEffect(() => {
+    navRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [day]);
   const locksTonight = (d: string) => showLocks && d !== today && lastEditableDay(d, backfillDays) === today;
   return (
-    <nav aria-label="Days" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
+    <nav ref={navRef} aria-label="Days" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1">
       {chips.map((d) => (
         <Link
           key={d}
