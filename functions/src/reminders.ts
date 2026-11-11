@@ -128,6 +128,6 @@ export function fajrReport(roster: Record<string, string>, roll: { r?: Record<st
     else if (s === 'takbir' || s === 'jamaat') inJamaat++;
     else notLogged++;
   }
-  const body = `${missed} missed · ${qadha} qadha · ${notLogged} not logged yet · ${inJamaat} in jamaat`;
+  const body = `${missed} missed · ${qadha} qadha · ${notLogged} not logged yet`;
   return { missed, qadha, notLogged, inJamaat, body };
 }

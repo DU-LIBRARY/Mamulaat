@@ -5,6 +5,7 @@ import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses, useStudentsRange, useStudentsSalah } from '../../hooks/useAdminData';
 import { useDocData } from '../../hooks/useFirestore';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
+import { FajrWeekGrid } from '../../components/FajrWeekGrid';
 import { DateLine } from '../../components/DateLine';
 import { useDialog } from '../../components/Dialog';
 import { EmptyState, Spinner, cellClass } from '../../components/ui';
@@ -44,7 +45,7 @@ export function ClassView() {
   // Next is only useful when there is something after what is shown: after today (day view) or after the week containing today (week view).
   const nextDisabled = view === 'week' ? days[6] >= today : date >= today;
   const range = useStudentsRange(students.map((s) => s.id), from, to);
-  const salah = useStudentsSalah(students.map((s) => s.id), date, date);
+  const salah = useStudentsSalah(students.map((s) => s.id), days[0], days[6]);
   const roster = useDocData<ClassRoster>(classId ? rosterRef(classId) : null, `roster:${classId}`);
   const rosterNames = useMemo(() => Object.fromEntries(students.map((s) => [s.id, displayName(s)])), [students]);
   const monitorId = cls?.fajrMonitorId ?? null;
@@ -208,6 +209,14 @@ export function ClassView() {
             </div>
           )}
           <p className="text-xs text-slate-500">Percent of each student's own mamoolaat completed per day. Tap a student for the per-mamool breakdown.</p>
+          {students.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="section-title mb-0">Fajr this week</h2>
+              <div className="rounded-xl bg-surface p-2">
+                <FajrWeekGrid days={days} students={students} salah={salah} today={today} />
+              </div>
+            </section>
+          )}
         </>
       )}
       <section id="fajr-monitor-card" className="no-print card flex scroll-mt-4 flex-col gap-2">

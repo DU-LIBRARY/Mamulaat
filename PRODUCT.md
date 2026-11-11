@@ -21,7 +21,7 @@ Success means students log every day, and the teacher can see at a glance who is
 
 ## Positioning
 
-The app is about **accountability to the teacher**. The log exists so the teacher can see each student's consistency and step in, so streaks, percentages and the teacher's "needs attention" view matter. At the same time it is strictly private: only the student and the admin ever see a student's data, never other students, and there are no backdoors. The one deliberate exception is the **Fajr roll**: the admin may make a student the Fajr monitor of one or more classes (they need not be in them), who then sees those students' Fajr status only (missed, qadha, not logged, or how many prayed in jamaat), nothing else. Every student in that class is told who the monitor is.
+The app is about **accountability to the teacher**. The log exists so the teacher can see each student's consistency and step in, so streaks, percentages and the teacher's "needs attention" view matter. At the same time it is strictly private: only the student and the admin ever see a student's data, never other students, and there are no backdoors. The one deliberate exception is the **Fajr roll**: the admin may make a student the Fajr monitor of one or more classes (they need not be in them), who then sees those students' Fajr status only (missed, qadha or not logged), nothing else. Every student in that class is told who the monitor is.
 
 ## Operating Context
 

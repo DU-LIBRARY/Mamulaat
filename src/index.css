@@ -37,6 +37,11 @@
   --color-gold-50: #eee5d2;
   --color-gold-900: #55421a;
 
+  /* Green — only for "prayed in jamaat" marks on the Fajr grid. */
+  --color-green-100: #dce6d2;
+  --color-green-600: #4f7a3a;
+  --color-green-800: #36552a;
+
   /* Solid fills. Clay buttons carry dark text (on-primary), as in the reference. */
   --color-surface: #f1eee8;
   --color-ink: #20251d;
@@ -135,6 +140,10 @@
     --color-gold-50: #2a2619;
     --color-gold-400: #a88d55;
     --color-gold-900: #e3cf9f;
+
+    --color-green-100: #26301f;
+    --color-green-600: #8fbf72;
+    --color-green-800: #b5d8a0;
 
     --color-amber-50: #2a2516;
     --color-amber-100: #393018;
