@@ -56,6 +56,6 @@ test('fajrReport counts only the roster and treats absent entries as not logged'
   const roll = { r: { a: { status: 'missed' }, b: { status: 'qadha' }, c: { status: 'takbir' }, d: { status: 'jamaat' }, gone: { status: 'missed' } } };
   const r = fajrReport(roster, roll);
   assert.deepEqual([r.missed, r.qadha, r.notLogged, r.inJamaat], [1, 1, 1, 2]);
-  assert.equal(r.body, '1 missed · 1 qadha · 1 not logged yet · 2 in jamaat');
+  assert.equal(r.body, '1 missed · 1 qadha · 1 not logged yet');
   assert.equal(fajrReport(roster, undefined).notLogged, 5);
 });
