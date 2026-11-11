@@ -12,9 +12,13 @@ import { IconChevronRight } from '../../components/icons';
 import { Notice } from '../../components/ui';
 import { ThemePicker } from '../../components/ThemePicker';
 import { InstallApp } from '../../components/InstallApp';
+import { useDialog } from '../../components/Dialog';
+import { useSyncState } from '../../lib/sync';
 
 export function Me() {
   const { profile, settings, signOut } = useActiveSession();
+  const sync = useSyncState();
+  const { confirm } = useDialog();
   const cls = useDocData<ClassDoc>(profile.classId ? doc(classesCol(), profile.classId) : null, `class:${profile.classId}`);
   const [support, setSupport] = useState<PushSupport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -126,11 +130,25 @@ export function Me() {
 
       <PrivacyNote />
 
-      <button className="min-h-11 self-start text-[15px] text-brand-700 hover:text-brand-900" onClick={() => signOut()}>
+      <button
+        className="min-h-11 self-start text-[15px] text-brand-700 hover:text-brand-900"
+        onClick={async () => {
+          if (sync.pending > 0 && !sync.online) {
+            const ok = await confirm({
+              title: 'Sign out while offline?',
+              message: 'Some of your changes are only saved on this phone and haven’t uploaded yet. Signing out now deletes them. Connect to the internet first to keep them.',
+              confirmLabel: 'Sign out anyway',
+              danger: true,
+            });
+            if (!ok) return;
+          }
+          signOut();
+        }}
+      >
         Sign out
       </button>
       <p className="-mt-4 text-xs text-slate-500">
-        Signing out on this device removes offline access until you sign in again.
+        Signing out removes your data from this device. It stays safe on the server and comes back when you sign in again.
       </p>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { waitForPendingWrites } from 'firebase/firestore';
+import { clearIndexedDbPersistence, terminate, waitForPendingWrites } from 'firebase/firestore';
 import { db } from '../firebase';
 
 /**
@@ -65,4 +65,22 @@ export function useSyncState() {
     },
     () => snapshot,
   );
+}
+
+/**
+ * Remove every copy of this account's data from the device (the offline cache in IndexedDB),
+ * so the next person to use this phone or browser can't dig it out. First gives queued
+ * changes a few seconds to upload. The Firestore instance can't be used afterwards, so the
+ * caller must reload the page.
+ */
+export async function wipeDeviceData(waitMs = 5000) {
+  if (navigator.onLine) {
+    await Promise.race([waitForPendingWrites(db), new Promise((r) => setTimeout(r, waitMs))]).catch(() => undefined);
+  }
+  try {
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+  } catch {
+    // Another tab still has the cache open: it is cleared when that tab signs out or the next sign-in starts fresh.
+  }
 }

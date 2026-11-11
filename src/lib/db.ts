@@ -3,6 +3,8 @@ import {
   deleteField,
   doc,
   documentId,
+  FieldPath,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -582,7 +584,7 @@ export async function bulkUpdateUsers(uids: string[], action: BulkAction, actor:
   }
 }
 
-/** Delete a student and ALL their data (mamoolaat, logs, comments, changes, tokens). Must be online. */
+/** Delete a student and ALL their data (mamoolaat, logs, salah, comments, changes, devices, nudges, Fajr roll entries). Must be online. */
 export async function deleteStudent(uid: string, actor: Actor, name: string) {
   const subs = ['mamoolaat', 'logs', 'salah', 'comments', 'changes', 'fcmTokens', 'pushSubs'];
   const failed: string[] = [];
@@ -609,6 +611,26 @@ export async function deleteStudent(uid: string, actor: Actor, name: string) {
     }
   } catch (e) {
     failed.push(`nudges: ${(e as Error).message}`);
+  }
+  // Their Fajr entries in every class's Fajr roll, and their name on class rosters.
+  try {
+    const classes = await getDocs(classesCol());
+    for (const c of classes.docs) {
+      const rolls = await getDocs(
+        query(collection(db, 'classes', c.id, 'fajrRoll'), where(new FieldPath('r', uid, 'status'), 'in', ['takbir', 'jamaat', 'qadha', 'missed'])),
+      );
+      for (let i = 0; i < rolls.docs.length; i += 400) {
+        const batch = writeBatch(db);
+        rolls.docs.slice(i, i + 400).forEach((d) => batch.update(d.ref, new FieldPath('r', uid), deleteField()));
+        await track(batch.commit());
+      }
+      const roster = await getDoc(rosterRef(c.id));
+      if (roster.exists() && roster.get(new FieldPath('names', uid)) !== undefined) {
+        await track(updateDoc(rosterRef(c.id), new FieldPath('names', uid), deleteField()));
+      }
+    }
+  } catch (e) {
+    failed.push(`Fajr roll: ${(e as Error).message}`);
   }
   if (failed.length) throw new Error(`Could not delete everything (${failed.join('; ')}). The student was NOT removed; try again.`);
   const batch = writeBatch(db);

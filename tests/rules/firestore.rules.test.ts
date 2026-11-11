@@ -15,11 +15,14 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  FieldPath,
   getDoc,
   getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
+  query,
+  where,
   writeBatch,
   Timestamp,
 } from 'firebase/firestore';
@@ -832,6 +835,19 @@ describe('Fajr roll and monitor', () => {
   it('a monitor in another class cannot read this class', async () => {
     await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'classes/class-2'), { name: 'Class 2', fajrMonitorId: C }));
     await assertFails(getDoc(doc(db(C), roll(A, today))));
+  });
+
+  it('the admin can find and remove a deleted student\'s roll entries and roster name; students cannot', async () => {
+    await assertSucceeds(logFajr(A, today, 'missed'));
+    await assertSucceeds(logFajr(B, today, 'takbir'));
+    await assertFails(updateDoc(doc(db(B), roll(A, today)), new FieldPath('r', A), deleteField()));
+    const f = db(ADMIN);
+    const found = await assertSucceeds(
+      getDocs(query(collection(f, 'classes/class-1/fajrRoll'), where(new FieldPath('r', A, 'status'), 'in', ['takbir', 'jamaat', 'qadha', 'missed']))),
+    );
+    if (found.size !== 1) throw new Error(`expected 1 roll doc, got ${found.size}`);
+    await assertSucceeds(updateDoc(found.docs[0].ref, new FieldPath('r', A), deleteField()));
+    await assertSucceeds(updateDoc(doc(f, 'classes/class-1/meta/roster'), new FieldPath('names', A), deleteField()));
   });
 
   it('only the admin sets the monitor, who must be an active user; the monitor cannot write the roster', async () => {

@@ -5,7 +5,8 @@
 Mamūlāt is an offline-first PWA for students to track their daily **mamoolaat** (daily routines and practices), with one **admin** (the teacher) who reviews them.
 
 - Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
-- Progress and streaks are private: only the student and the admin can see them. (Exception: a Fajr monitor, chosen by the admin on a class page and able to cover several classes, sees those students' Fajr status only.)
+- Progress and streaks are private: only the student and the admin can see them.
+- Signing out deletes the offline copy of the account's data from that phone or browser (it stays on the server). Deleting a student also removes their entries from class Fajr rolls and rosters. (Exception: a Fajr monitor, chosen by the admin on a class page and able to cover several classes, sees those students' Fajr status only.)
 - Salah tab: each of the five prayers marked Takbir / Jamaat / Qadha / Missed, stored in `users/{uid}/salah/{day}`.
 - Fajr roll: each student's Fajr status is also written to `classes/{classId}/fajrRoll/{day}` (own key only, must match their salah record). A class's Fajr monitor (any active student; one person can cover several classes) sees who missed, prayed qadha or hasn't logged, and the Notifications job pushes each monitor one summary each morning, with a line per class, at **Settings → Fajr report time**. It also keeps `classes/{classId}/meta/roster` (names of active students) current.
 - **Hosting: GitHub Pages** (built and published by a GitHub Action on every push to `main`). Firebase is the backend only: sign-in, Firestore, push messaging and the reminder function.

@@ -15,6 +15,7 @@ import {
 } from 'firebase/auth';
 import { onSnapshot } from 'firebase/firestore';
 import { auth, googleProvider } from '../firebase';
+import { wipeDeviceData } from '../lib/sync';
 import {
   createPendingProfile,
   normalizeSettings,
@@ -87,6 +88,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setRemoved(true);
             setProfile(null);
             fbSignOut(auth).catch(() => undefined);
+            wipeDeviceData(0); // their data is gone from the server; remove the device copy too
             return;
           }
           if (!creating) {
@@ -220,7 +222,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setUser(auth.currentUser);
     },
     async signOut() {
-      await fbSignOut(auth);
+      // Clear this account's offline copy from the device, then start the app fresh.
+      await wipeDeviceData();
+      await fbSignOut(auth).catch(() => undefined);
+      window.location.assign(import.meta.env.BASE_URL);
     },
   };
 
