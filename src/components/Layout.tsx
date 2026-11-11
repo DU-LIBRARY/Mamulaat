@@ -12,6 +12,8 @@ export interface NavItem {
   icon: ReactNode;
   badge?: number;
   end?: boolean;
+  /** Other paths (and everything under them) that also count as this tab. */
+  also?: string[];
 }
 
 export function Wordmark({ className = '' }: { className?: string }) {
@@ -57,18 +59,25 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
         </main>
         <nav aria-label="Main" className="no-print pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-slate-200/70 bg-sand-100/90 backdrop-blur-lg">
           <ul className="mx-auto flex max-w-3xl justify-around">
-            {nav.map((n) => (
+            {nav.map((n) => {
+              const alsoActive = !!n.also?.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+              return (
               <li key={n.to} className="flex-1">
                 <NavLink
                   to={n.to}
                   end={n.end}
-                  className={({ isActive }) =>
+                  aria-current={alsoActive ? 'page' : undefined}
+                  className={({ isActive: routeActive }) => {
+                    const isActive = routeActive || alsoActive;
+                    return
                     `relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 pt-2 text-[11px] transition-colors duration-200 ${
                       isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'
-                    }`
-                  }
+                    }`;
+                  }}
                 >
-                  {({ isActive }) => (
+                  {({ isActive: routeActive }) => {
+                    const isActive = routeActive || alsoActive;
+                    return (
                     <>
                       <span className="relative leading-none">
                         {isActive && isValidElement(n.icon) ? cloneElement(n.icon as ReactElement<{ weight?: string }>, { weight: 'regular' }) : n.icon}
@@ -85,10 +94,12 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
                         {isActive && <motion.span layoutId="tab-rule" className="absolute inset-0 bg-brand-700" transition={snap} />}
                       </span>
                     </>
-                  )}
+                    );
+                  }}
                 </NavLink>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </nav>
       </div>
