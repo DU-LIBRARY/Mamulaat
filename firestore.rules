@@ -291,10 +291,10 @@ service cloud.firestore {
 
     // ---------- classes ----------
     function classPath(classId) { return /databases/$(database)/documents/classes/$(classId); }
-    // The one student of a class whom the admin made its Fajr monitor (must still be in the class).
+    // The student the admin made this class's Fajr monitor. They need not be in the class (one
+    // monitor may cover several classes), but they must still be active.
     function isFajrMonitorOf(classId) {
-      return isActive() && me().get('classId', null) == classId
-        && get(classPath(classId)).data.get('fajrMonitorId', null) == request.auth.uid;
+      return isActive() && get(classPath(classId)).data.get('fajrMonitorId', null) == request.auth.uid;
     }
 
     match /classes/{classId} {
@@ -313,7 +313,7 @@ service cloud.firestore {
                             && (request.resource.data.get('fajrMonitorId', null) == null
                                 || (request.resource.data.fajrMonitorId is string
                                     && exists(userPath(request.resource.data.fajrMonitorId))
-                                    && get(userPath(request.resource.data.fajrMonitorId)).data.get('classId', null) == classId));
+                                    && get(userPath(request.resource.data.fajrMonitorId)).data.status == 'active'));
       allow delete: if isAdmin();
 
       // ----- the daily Fajr roll: r.<uid> = { name, status } -----

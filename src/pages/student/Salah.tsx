@@ -1,9 +1,9 @@
-import { doc } from 'firebase/firestore';
+import { doc, query, where } from 'firebase/firestore';
 import { useParams } from 'react-router-dom';
 import { db } from '../../firebase';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
-import { useDocData } from '../../hooks/useFirestore';
+import { useCollectionData, useDocData } from '../../hooks/useFirestore';
 import { DayChips } from '../../components/DayChips';
 import { DateLine } from '../../components/DateLine';
 import { SalahChecklist } from '../../components/SalahChecklist';
@@ -12,7 +12,7 @@ import { Row, Rows } from '../../components/quiet';
 import { IconInfo, IconPencil } from '../../components/icons';
 import { LockedDayNotice, PendingSyncNotice } from '../../components/LockNotices';
 import { isDayEditable, isValidYmd, lastEditableDay } from '../../lib/dates';
-import { saveSalah } from '../../lib/db';
+import { classesCol, saveSalah } from '../../lib/db';
 import { salahStats } from '../../lib/salah';
 import type { ClassDoc } from '../../types';
 
@@ -23,17 +23,26 @@ export function useMyClass() {
   return useDocData<ClassDoc>(id ? doc(db, 'classes', id) : null, `class:${id ?? ''}`).data;
 }
 
+/** The classes whose Fajr roll this student may see (the admin made them its Fajr monitor). */
+export function useMonitoredClasses() {
+  const { profile } = useActiveSession();
+  const r = useCollectionData<ClassDoc>(query(classesCol(), where('fajrMonitorId', '==', profile.id)), `monitored:${profile.id}`);
+  const data = [...r.data].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  return { ...r, data };
+}
+
 export function Salah() {
   const { profile, today, settings } = useActiveSession();
   const { salah } = useMyData();
   const cls = useMyClass();
+  const monitored = useMonitoredClasses().data;
   const params = useParams();
   const day = params.day && isValidYmd(params.day) && params.day <= today ? params.day : today;
   const editable = isDayEditable(day, today, settings.backfillDays);
   const record = salah.get(day);
   const s = salahStats(record);
   const monitorId = cls?.fajrMonitorId ?? null;
-  const isMonitor = monitorId === profile.id;
+  const isMonitor = monitored.length > 0;
   const owner = { uid: profile.id, name: profile.name ?? profile.email, classId: profile.classId };
 
   return (
@@ -67,16 +76,19 @@ export function Salah() {
       {isMonitor && (
         <Rows className="mt-2">
           <Row to={`/salah/fajr${day === today ? '' : `?date=${day}`}`} sub="Who missed Fajr, prayed qadha or hasn’t logged">
-            Fajr roll · {cls?.name}
+            Fajr roll · {monitored.length === 1 ? monitored[0].name : `${monitored.length} classes`}
           </Row>
         </Rows>
       )}
 
-      {monitorId && (
+      {isMonitor && (
         <Notice icon={<IconInfo size={18} />}>
-          {isMonitor
-            ? 'As your class’s Fajr monitor, you can see each classmate’s Fajr status. Nothing else of theirs is shared with you.'
-            : `Your Fajr status is shared with your class’s Fajr monitor${cls?.fajrMonitorName ? `, ${cls.fajrMonitorName}` : ''}. Your other salah and your mamoolaat stay between you and your teacher.`}
+          As Fajr monitor, you can see each student’s Fajr status in the classes you look after. Nothing else of theirs is shared with you.
+        </Notice>
+      )}
+      {monitorId && monitorId !== profile.id && (
+        <Notice icon={<IconInfo size={18} />}>
+          Your Fajr status is shared with your class’s Fajr monitor{cls?.fajrMonitorName ? `, ${cls.fajrMonitorName}` : ''}. Your other salah and your mamoolaat stay between you and your teacher.
         </Notice>
       )}
     </div>
