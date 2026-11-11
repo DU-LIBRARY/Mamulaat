@@ -75,6 +75,27 @@ const users = await db.collection('users').get();
 const byId = new Map(users.docs.map((d) => [d.id, d.data()]));
 const admins = users.docs.filter((d) => d.get('role') === 'admin' && d.get('status') === 'active').map((d) => d.id);
 
+// TEST=fajr: every Fajr monitor gets a sample morning report with made-up numbers, clearly marked
+// as a test. Reads class names and monitors only; writes nothing.
+if (TEST === 'fajr') {
+  const classes = await db.collection('classes').get();
+  const byMonitor = new Map();
+  for (const c of classes.docs) {
+    const m = c.get('fajrMonitorId');
+    if (typeof m !== 'string' || byId.get(m)?.status !== 'active') continue;
+    byMonitor.set(m, [...(byMonitor.get(m) ?? []), typeof c.get('name') === 'string' ? c.get('name') : 'Class']);
+  }
+  for (const [uid, names] of byMonitor) {
+    names.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const body = names.map((n, i) => `${n}: ${(i % 3) + 1} missed, ${i % 2} qadha, ${(i % 4) + 2} not logged`).join('\n');
+    const ok = await pushToUser(uid, { title: 'TEST · Fajr today (sample numbers)', body, url: 'salah/fajr', tag: 'fajr-test' });
+    console.log(`Fajr test → ${byId.get(uid)?.name ?? uid} (${names.length} class(es)): ${ok ? 'sent' : 'NOT sent (no device with notifications on)'}`);
+  }
+  if (!byMonitor.size) console.log('::warning::No class has an active Fajr monitor.');
+  console.log(`Fajr test: sent ${stats.sent}, removed ${stats.removed} expired device(s), ${stats.failed} failed.`);
+  process.exit(0);
+}
+
 if (TEST === 'admins' || TEST === 'all') {
   const uids = TEST === 'all' ? [...byId.keys()] : admins;
   for (const uid of uids) await pushToUser(uid, { title: 'Mamūlāt', body: 'Test notification: notifications are working.', url: '.', tag: 'test' });
