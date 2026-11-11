@@ -2,10 +2,10 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
-import { applyTemplate, approveUser, bulkUpdateUsers, deactivateUser, deleteStudent, moveUser, reactivateUser, rejectUser, type Actor, type BulkAction } from '../../lib/db';
-import { EmptyState, Spinner, cellClass } from '../../components/ui';
+import { applyTemplate, approveUser, bulkUpdateUsers, deleteStudent, reactivateUser, rejectUser, type Actor, type BulkAction } from '../../lib/db';
+import { EmptyState, Spinner } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
-import { IconCheck } from '../../components/icons';
+import { IconCheck, IconChevronRight } from '../../components/icons';
 import type { ClassDoc, UserProfile } from '../../types';
 import { displayName } from '../../lib/display';
 import { daysAgoLabel, diffDays, todayIn, weekDays, weekStartOf } from '../../lib/dates';
@@ -120,7 +120,7 @@ export function useDeleteUsers(actor: Actor) {
   };
 }
 
-function UserRow({ u, classes, actor, selected, onToggle, week, today }: { u: UserProfile; classes: ClassDoc[]; actor: Actor; selected: boolean; onToggle: () => void; week?: number | null; today: string }) {
+function UserRow({ u, classes, actor, selected, onToggle, selecting, week, today }: { u: UserProfile; classes: ClassDoc[]; actor: Actor; selected: boolean; onToggle: () => void; selecting: boolean; week?: number | null; today: string }) {
   const { confirm } = useDialog();
   const { settings } = useActiveSession();
   const tz = settings.timezone;
@@ -131,23 +131,41 @@ function UserRow({ u, classes, actor, selected, onToggle, week, today }: { u: Us
   const [err, setErr] = useState<string | null>(null);
   const run = (p: Promise<unknown>) => p.catch((e) => setErr((e as Error).message));
   const requestedName = classes.find((c) => c.id === u.requestedClassId)?.name;
+  const checkbox = selecting && (
+    <label className="flex h-11 w-8 shrink-0 cursor-pointer items-center justify-center">
+      <input type="checkbox" className="h-5 w-5 accent-brand-700" checked={selected} onChange={onToggle} aria-label={`Select ${displayName(u)}`} />
+    </label>
+  );
+  // Active students: one quiet line each. Moving, deactivating and deleting live on their own page.
+  if (u.status === 'active') {
+    return (
+      <li className={`flex items-center gap-3 py-2 ${selected ? 'bg-brand-50/60' : ''}`}>
+        {checkbox}
+        <Link to={`/admin/student/${u.id}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3">
+          <Avatar u={u} />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[15px] text-slate-900" dir="auto">
+              {displayName(u)}
+            </div>
+            <div className="text-[13px] text-slate-500">
+              {week !== undefined && <span className="num">{pct(week)} this week · </span>}
+              <span className={seen == null || seen >= STALE_DAYS ? 'text-amber-800' : ''}>opened {daysAgoLabel(seen)}</span>
+            </div>
+          </div>
+          <IconChevronRight size={16} className="shrink-0 text-slate-400" />
+        </Link>
+      </li>
+    );
+  }
   return (
     <li className={`card flex flex-col gap-2 p-3 ${selected ? 'border-brand-500 ring-1 ring-brand-500' : ''}`}>
       <div className="flex items-center gap-3">
-        <label className="flex h-11 w-8 shrink-0 cursor-pointer items-center justify-center">
-          <input type="checkbox" className="h-5 w-5 accent-brand-700" checked={selected} onChange={onToggle} aria-label={`Select ${displayName(u)}`} />
-        </label>
+        {checkbox}
         <Avatar u={u} />
         <div className="min-w-0 flex-1">
           <Link to={`/admin/student/${u.id}`} className="block truncate font-semibold text-brand-700" dir="auto">
             {displayName(u)}
           </Link>
-          {u.status === 'active' && (
-            <div className="flex flex-wrap items-center gap-x-2 text-sm text-slate-500">
-              {week !== undefined && <span className={`chip num ${cellClass(week)}`}>{pct(week)} this week</span>}
-              <span className={seen == null || seen >= STALE_DAYS ? 'text-amber-800' : ''}>Last opened: {daysAgoLabel(seen)}</span>
-            </div>
-          )}
           {u.status === 'pending' && (
             <div className="text-sm text-slate-600" dir="auto">
               {u.signupComplete ? (requestedName ? `Requested: ${requestedName}` : 'Their requested class no longer exists. Pick one below.') : 'Has not entered their name/class yet'}
@@ -171,19 +189,6 @@ function UserRow({ u, classes, actor, selected, onToggle, week, today }: { u: Us
           </button>
         </div>
       )}
-      {u.status === 'active' && (
-        <div className="flex flex-wrap gap-2">
-          <div className="min-w-40 flex-1">
-            <ClassSelect classes={classes} value={u.classId ?? ''} onChange={(v) => v && run(moveUser(u.id, v, actor))} placeholder="No class" />
-          </div>
-          <button
-            className="btn-ghost"
-            onClick={async () => (await confirm({ title: `Deactivate ${displayName(u)}?`, message: 'They lose access until you reactivate them. Their data is kept.', confirmLabel: 'Deactivate', danger: true })) && run(deactivateUser(u.id, actor))}
-          >
-            Deactivate
-          </button>
-        </div>
-      )}
       {(u.status === 'inactive' || u.status === 'rejected') && (
         <div className="flex flex-wrap gap-2">
           {u.status === 'inactive' && !u.handedOverTo && (
@@ -203,11 +208,13 @@ function UserRow({ u, classes, actor, selected, onToggle, week, today }: { u: Us
           )}
         </div>
       )}
-      <div>
-        <button className="btn-ghost min-h-11 px-2 text-sm text-red-700" onClick={() => del([u])}>
-          Delete {u.status === 'active' ? 'student' : 'user'} and all data…
-        </button>
-      </div>
+      {u.status !== 'pending' && (
+        <div>
+          <button className="btn-ghost min-h-11 px-2 text-sm text-red-700" onClick={() => del([u])}>
+            Delete user and all data…
+          </button>
+        </div>
+      )}
       {u.handedOverTo && <div className="text-xs text-slate-500">Former admin (handed over).</div>}
       {err && <div className="text-sm text-red-700">{err}</div>}
     </li>
@@ -303,6 +310,7 @@ export function Students() {
   const [sort, setSort] = useState<Sort>('name');
   const [staleOnly, setStaleOnly] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [selecting, setSelecting] = useState(false);
   const tz = settings.timezone;
 
   const everyone = useMemo(() => users.data.filter((u) => u.id !== profile.id), [users.data, profile.id]);
@@ -350,7 +358,7 @@ export function Students() {
     });
 
   const rows = (group: UserProfile[]) => (
-    <ul className="flex flex-col gap-2">
+    <ul className={group.every((u) => u.status === 'active') ? 'divide-y divide-slate-200 border-y border-slate-200' : 'flex flex-col gap-2'}>
       {sorted(group).map((u) => (
         <UserRow
           key={u.id}
@@ -359,6 +367,7 @@ export function Students() {
           actor={actor}
           selected={sel.has(u.id)}
           onToggle={() => toggle(u.id)}
+          selecting={selecting}
           week={u.status === 'active' ? weekOf(u) : undefined}
           today={today}
         />
@@ -372,7 +381,7 @@ export function Students() {
       </h2>
       <div className="flex flex-wrap gap-2">
         {extra}
-        {group.length > 0 && (
+        {selecting && group.length > 0 && (
           <button className="btn-ghost min-h-11 px-3 text-sm" onClick={() => toggleAll(group)}>
             {group.every((u) => sel.has(u.id)) ? 'Unselect all' : 'Select all'}
           </button>
@@ -400,6 +409,16 @@ export function Students() {
             onClick={() => setStaleOnly((v) => !v)}
           >
             Not opened in {STALE_DAYS}+ days ({staleCount})
+          </button>
+          <button
+            className="btn-ghost ml-auto min-h-11 px-3 text-sm"
+            aria-pressed={selecting}
+            onClick={() => {
+              if (selecting) setSel(new Set());
+              setSelecting((v) => !v);
+            }}
+          >
+            {selecting ? 'Done' : 'Select…'}
           </button>
         </div>
       </div>
@@ -447,7 +466,7 @@ export function Students() {
         </section>
       )}
       {(q || staleOnly) && list.length === 0 && <EmptyState>{staleOnly ? 'Everyone has opened the app recently.' : `Nobody matches “${filter}”.`}</EmptyState>}
-      <p className="text-xs text-slate-500">“Last opened” is updated when a student opens the app (from this version on).</p>
+      <p className="text-xs text-slate-500">Tap a student to see their logs, change their class, deactivate or delete them. Use “Select…” to move or approve several at once.</p>
       {selected.length > 0 && <BulkBar selected={selected} users={everyone} classes={classes.data} actor={actor} clear={() => setSel(new Set())} today={today} />}
     </div>
   );

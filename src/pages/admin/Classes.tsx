@@ -8,7 +8,7 @@ import { useDialog } from '../../components/Dialog';
 import { useUndo } from '../../components/Undo';
 import { MamoolForm, SUGGESTIONS } from '../../components/MamoolEditor';
 import { targetLabel } from '../../components/Checklist';
-import { IconPlus } from '../../components/icons';
+import { IconChevronRight, IconPlus } from '../../components/icons';
 import { ClassSelect } from './Students';
 import type { ClassDoc, TemplateItem, UserProfile } from '../../types';
 
@@ -167,6 +167,7 @@ export function Classes() {
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState('');
   const [templateFor, setTemplateFor] = useState<string | null>(null);
+  const [moreFor, setMoreFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (classes.loading || users.loading) return <Spinner />;
@@ -219,54 +220,59 @@ export function Classes() {
                   </button>
                 </form>
               ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold break-words" dir="auto">
-                      {c.name}
+                <>
+                  <Link to={`/admin/class/${c.id}`} className="-m-1 flex items-center gap-3 rounded-lg p-1 hover:bg-slate-100/60">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold break-words text-slate-900" dir="auto">
+                        {c.name}
+                      </div>
+                      <div className="mt-0.5 text-sm text-slate-500" dir="auto">
+                        <span className="num">{members.length}</span> student{members.length === 1 ? '' : 's'}
+                        {c.template?.length ? <> · <span className="num">{c.template.length}</span> class mamoolaat</> : null}
+                        {' · '}Fajr monitor: {c.fajrMonitorName ?? 'none'}
+                      </div>
                     </div>
-                    <div className="text-sm text-slate-500">
-                      {members.length} active students{c.template?.length ? ` · ${c.template.length} class mamoolaat` : ''}
-                    </div>
-                    <div className="text-sm text-slate-500" dir="auto">
-                      Fajr monitor: {c.fajrMonitorName ?? 'nobody'} ·{' '}
-                      <Link className="link" to={`/admin/class/${c.id}#fajr-monitor`}>
-                        {c.fajrMonitorId ? 'change' : 'choose'}
-                      </Link>
-                    </div>
-                  </div>
-                  <Link className="btn-secondary px-3" to={`/admin/class/${c.id}`}>
-                    Day
+                    <IconChevronRight size={18} className="shrink-0 text-slate-400" />
                   </Link>
-                  <Link className="btn-secondary px-3" to={`/admin/class/${c.id}?view=week`}>
-                    Week
-                  </Link>
-                  <button className="btn-ghost px-3" aria-expanded={templateFor === c.id} onClick={() => setTemplateFor(templateFor === c.id ? null : c.id)}>
-                    Mamoolaat
-                  </button>
-                  <button
-                    className="btn-ghost px-3"
-                    onClick={() => {
-                      setEditing(c.id);
-                      setEditName(c.name);
-                    }}
-                  >
-                    Rename
-                  </button>
-                  {classes.data.length > 1 && related.some((u) => u.classId === c.id) && (
-                    <button
-                      className="btn-ghost px-3"
-                      onClick={() => {
-                        setMoveFrom(moveFrom === c.id ? null : c.id);
-                        setMoveTo('');
-                      }}
-                    >
-                      Move all…
+                  <div className="mt-2 -ml-2 flex flex-wrap items-center gap-x-1 border-t border-slate-200 pt-1 text-sm">
+                    <button className="btn-ghost min-h-11 px-2 text-sm" aria-expanded={templateFor === c.id} onClick={() => setTemplateFor(templateFor === c.id ? null : c.id)}>
+                      Class mamoolaat
                     </button>
+                    <button className="btn-ghost ml-auto min-h-11 px-2 text-sm" aria-expanded={moreFor === c.id} onClick={() => setMoreFor(moreFor === c.id ? null : c.id)}>
+                      {moreFor === c.id ? 'Less' : 'More…'}
+                    </button>
+                  </div>
+                  {moreFor === c.id && (
+                    <div className="-ml-2 flex flex-wrap items-center gap-x-1 text-sm">
+                      <Link className="btn-ghost min-h-11 px-2 text-sm" to={`/admin/class/${c.id}#fajr-monitor`}>
+                        Fajr monitor
+                      </Link>
+                      <button
+                        className="btn-ghost min-h-11 px-2 text-sm"
+                        onClick={() => {
+                          setEditing(c.id);
+                          setEditName(c.name);
+                        }}
+                      >
+                        Rename
+                      </button>
+                      {classes.data.length > 1 && related.some((u) => u.classId === c.id) && (
+                        <button
+                          className="btn-ghost min-h-11 px-2 text-sm"
+                          onClick={() => {
+                            setMoveFrom(moveFrom === c.id ? null : c.id);
+                            setMoveTo('');
+                          }}
+                        >
+                          Move all students…
+                        </button>
+                      )}
+                      <button className="btn-ghost ml-auto min-h-11 px-2 text-sm text-red-700" onClick={() => setDeleting(deleting === c.id ? null : c.id)}>
+                        Delete class
+                      </button>
+                    </div>
                   )}
-                  <button className="btn-ghost px-3 text-red-700" onClick={() => setDeleting(deleting === c.id ? null : c.id)}>
-                    Delete
-                  </button>
-                </div>
+                </>
               )}
               {moveFrom === c.id && (
                 <div className="mt-3 flex flex-wrap gap-2 rounded-xl bg-slate-50 p-3">
