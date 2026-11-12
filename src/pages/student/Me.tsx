@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useDocData } from '../../hooks/useFirestore';
@@ -14,6 +14,48 @@ import { ThemePicker } from '../../components/ThemePicker';
 import { InstallApp } from '../../components/InstallApp';
 import { useDialog } from '../../components/Dialog';
 import { useSyncState } from '../../lib/sync';
+import { useMyData } from '../../hooks/useStudentData';
+import { YearChart, type WeekPoint } from '../../components/YearChart';
+import { addDays, weekDays, weekStartOf } from '../../lib/dates';
+import { periodCompletion } from '../../lib/scoring';
+import { jamaatRate } from '../../lib/salah';
+
+/** This calendar year by week: mamoolaat completion and salah in jamaat, with a figure for the year. */
+function ThisYear() {
+  const { today, settings } = useActiveSession();
+  const { logs, all, salah } = useMyData();
+  const year = today.slice(0, 4);
+  const data = useMemo(() => {
+    const first = `${year}-01-01`;
+    const last = `${year}-12-31`;
+    const inYear = (d: string) => d >= first && d <= last;
+    const salahFrom = [...salah.keys()].sort()[0] ?? null;
+    const mamool: WeekPoint[] = [];
+    const prayed: WeekPoint[] = [];
+    const yearDays: string[] = [];
+    for (let start = weekStartOf(first, settings.weekStart); start <= last; start = addDays(start, 7)) {
+      const days = weekDays(start).filter(inYear);
+      yearDays.push(...days);
+      mamool.push({ start, value: periodCompletion(days, logs, all, today) });
+      prayed.push({ start, value: jamaatRate(salah, days, today, salahFrom) });
+    }
+    return {
+      mamool,
+      prayed,
+      mamoolTotal: periodCompletion(yearDays, logs, all, today),
+      salahTotal: jamaatRate(salah, yearDays, today, salahFrom),
+    };
+  }, [year, today, settings.weekStart, logs, all, salah]);
+
+  return (
+    <section className="card flex flex-col gap-5">
+      <h2 className="section-title -mb-2">{year}</h2>
+      <YearChart title="Mamoolaat" weeks={data.mamool} total={data.mamoolTotal} today={today} />
+      <YearChart title="Salah in jamaat" weeks={data.prayed} total={data.salahTotal} today={today} />
+      <p className="-mt-2 text-xs text-slate-500">One bar per week. Salah counts from the first day you logged it; a day not logged counts as missed.</p>
+    </section>
+  );
+}
 
 export function Me() {
   const { profile, settings, signOut } = useActiveSession();
@@ -72,6 +114,8 @@ export function Me() {
           {cls.data && <div className="text-sm text-slate-600" dir="auto">Class: {cls.data.name}</div>}
         </div>
       </div>
+
+      <ThisYear />
 
       <section className="card">
         <h2 className="section-title">My name</h2>

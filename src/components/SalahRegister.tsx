@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { SALAH_NAMES, type SalahDay, type SalahStatus, type UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
-import { displayName } from '../lib/display';
+import { displayName, shortName } from '../lib/display';
 import { missedCount, SALAH_LABEL, STATUS_DESC } from '../lib/salah';
 
 /** F D A M I: Fajr, Dhuhr (Zuhr), Asr, Maghrib, Isha. */
@@ -32,7 +32,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto">
-        <table className="w-full border-separate border-spacing-x-[2px] border-spacing-y-[2px]">
+        <table className="border-separate border-spacing-x-[2px] border-spacing-y-[2px]">
           <caption className="sr-only">
             Salah per student, {formatGregorian(days[0])} to {formatGregorian(days[6])}: for each day Fajr, Dhuhr, Asr, Maghrib and Isha
           </caption>
@@ -45,7 +45,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                   <div className="num text-[11px]">{dayNumber(d)}</div>
                   <div className="mt-0.5 flex justify-center gap-px text-[7px] leading-none font-normal text-slate-400" aria-hidden>
                     {LETTER.map((l, i) => (
-                      <span key={i} className="w-[5px] text-center">
+                      <span key={i} className="w-[6px] text-center">
                         {l}
                       </span>
                     ))}
@@ -69,9 +69,9 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                   const by = salah.get(st.id);
                   return (
                     <tr key={st.id}>
-                      <th scope="row" className="sticky left-0 z-10 max-w-[4.5rem] truncate bg-surface pr-1 text-left text-[12px] font-normal text-slate-800" dir="auto">
-                        <Link to={`/admin/student/${st.id}?tab=salah`} className="hover:underline">
-                          {displayName(st)}
+                      <th scope="row" className="sticky left-0 z-10 bg-surface pr-1 text-left text-[12px] font-normal text-slate-800" dir="auto">
+                        <Link to={`/admin/student/${st.id}?tab=salah`} className="block max-w-[4.5rem] truncate hover:underline" title={displayName(st)}>
+                          {shortName(st)}
                         </Link>
                       </th>
                       {days.map((d) => {
@@ -84,7 +84,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                                 return (
                                   <span
                                     key={n}
-                                    className={`h-4 w-[5px] rounded-[1.5px] ${bar(s, future, d < today)}`}
+                                    className={`h-5 w-[6px] rounded-[1.5px] ${bar(s, future, d < today)}`}
                                     title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[s] : d < today ? 'missed (not logged)' : 'not logged yet'}`}
                                   />
                                 );
@@ -103,10 +103,10 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500" aria-hidden>
         <span>F D A M I = Fajr, Dhuhr, Asr, Maghrib, Isha</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-gold-400" /> Takbir Ula</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-green-600" /> Jamaat</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-red-400" /> Missed, qadha or not logged</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-slate-200" /> Not logged yet today</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-gold-400" /> Takbir Ula</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-green-600" /> Jamaat</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-red-400" /> Missed, qadha or not logged</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-slate-200" /> Not logged yet today</span>
       </div>
     </div>
   );

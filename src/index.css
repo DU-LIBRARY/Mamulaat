@@ -67,10 +67,11 @@
   --color-red-100: #e9cbc1;
   --color-red-200: #dcaea1;
   /* Grid cells for nothing done / missed: a clearer red than the soft tints. */
-  --color-red-300: #e8a091;
-  --color-red-400: #c27766;
+  --color-red-300: #d9725f;
+  --color-red-400: #b94a37;
   --color-red-700: #8e3426;
   --color-red-800: #772b20;
+  --color-red-950: #3d120b;
 
   /* Olive neutrals; 500 and darker pass WCAG AA on paper. */
   --color-slate-50: #ebe8e1;
@@ -164,10 +165,11 @@
     --color-red-50: #2d1d18;
     --color-red-100: #3b231d;
     --color-red-200: #553028;
-    --color-red-300: #6e2a20;
-    --color-red-400: #b8695a;
+    --color-red-300: #8c3022;
+    --color-red-400: #c25a47;
     --color-red-700: #eba597;
     --color-red-800: #f1b9ad;
+    --color-red-950: #fde6e0;
   }
 }
 
