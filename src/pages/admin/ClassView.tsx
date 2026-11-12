@@ -18,7 +18,7 @@ import { fetchStudentsRange, rosterRef, setFajrMonitor, syncRoster } from '../..
 import { fajrRollSummary } from '../../lib/salah';
 import { fileSafe, registerRows } from '../../lib/exports';
 import { ExportBar } from '../../components/ExportBar';
-import type { ClassRoster, FajrRoll, LogEntry } from '../../types';
+import type { ClassRoster, LogEntry } from '../../types';
 import { displayName } from '../../lib/display';
 
 function entryText(e: LogEntry | undefined) {
@@ -137,10 +137,11 @@ export function ClassView() {
             {students.length > 0 && <ExportBar month={exportMonth} monthLabel={formatMonth(date)} />}
           </div>
           {students.length > 0 && (() => {
-            const roll: FajrRoll = { id: date, r: {} };
+            // The admin sees full statuses (qadha apart from missed), built from each student's salah.
+            const roll: { r: Record<string, { name: string; status: string }> } = { r: {} };
             for (const st of students) {
               const f = salah.get(st.id)?.get(date)?.entries?.fajr;
-              if (f) roll.r![st.id] = { name: displayName(st), status: f };
+              if (f) roll.r[st.id] = { name: displayName(st), status: f };
             }
             const sum = fajrRollSummary(rosterNames, roll);
             const names = (l: { name: string }[]) => l.map((p) => p.name).join(', ');

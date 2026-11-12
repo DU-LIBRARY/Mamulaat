@@ -149,7 +149,7 @@ for (const p of people.filter((x) => lists[x.uid])) {
     if (p.uid === 'demo-maryam' && d === 0) continue; // hasn't logged today: shows as "not logged"
     const entries = Object.fromEntries(SALAH.filter((_, i) => d > 0 || i === 0).map((n) => [n, pickSalah(good)]));
     await db.doc(`users/${p.uid}/salah/${daysAgo(d)}`).set({ date: daysAgo(d), entries, updatedAt: FieldValue.serverTimestamp() });
-    await db.doc(`classes/${p.classId}/fajrRoll/${daysAgo(d)}`).set({ r: { [p.uid]: { name: p.name, status: entries.fajr } } }, { merge: true });
+    await db.doc(`classes/${p.classId}/fajrRoll/${daysAgo(d)}`).set({ r: { [p.uid]: { name: p.name, status: entries.fajr === 'missed' || entries.fajr === 'qadha' ? 'missed' : 'prayed' } } }, { merge: true });
   }
 }
 for (const c of ['demo-class-a', 'demo-class-b']) {

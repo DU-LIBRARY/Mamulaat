@@ -147,13 +147,19 @@ export interface SalahDay {
 }
 
 /**
- * classes/{classId}/fajrRoll/{YYYY-MM-DD}: each student's Fajr status only, readable by the
+ * classes/{classId}/fajrRoll/{YYYY-MM-DD}: each student's Fajr as missed/prayed only, readable by the
  * admin and the class's Fajr monitor. Each student writes only their own key.
  */
 export interface FajrRoll {
   id: string;
-  r?: Record<string, { name: string; status: SalahStatus }>;
+  r?: Record<string, { name: string; status: RollStatus }>;
 }
+
+/**
+ * What the Fajr register stores per student: only whether they missed (missed or qadha) or
+ * prayed (with or without the opening takbir). The monitor never receives anything finer.
+ */
+export type RollStatus = 'missed' | 'prayed';
 
 /** classes/{classId}/meta/roster: names of the class's active students, for "not logged yet". */
 export interface ClassRoster {

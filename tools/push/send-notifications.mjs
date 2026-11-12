@@ -8,7 +8,7 @@
 //  - New sign-up: tells every admin when a student finishes signing up.
 //  - Approved: tells a student when the admin approves them.
 //  - Fajr roll: each morning (settings.fajrReportTime) tells each Fajr monitor, for every class
-//    they look after, how many missed Fajr, prayed it as qadha or haven't logged it. Also keeps each such
+//    they look after (combined), how many missed Fajr (incl. qadha) or haven't logged it. Also keeps each such
 //    class's roster (names of its active students) current for the monitor's screen.
 //
 // Env:
@@ -86,8 +86,7 @@ if (TEST === 'fajr') {
     byMonitor.set(m, [...(byMonitor.get(m) ?? []), typeof c.get('name') === 'string' ? c.get('name') : 'Class']);
   }
   for (const [uid, names] of byMonitor) {
-    names.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    const body = names.map((n, i) => `${n}: ${(i % 3) + 1} missed, ${i % 2} qadha, ${(i % 4) + 2} not logged`).join('\n');
+    const body = '3 missed · 5 not logged yet';
     const ok = await pushToUser(uid, { title: 'TEST · Fajr today (sample numbers)', body, url: 'salah/fajr', tag: 'fajr-test' });
     console.log(`Fajr test → ${byId.get(uid)?.name ?? uid} (${names.length} class(es)): ${ok ? 'sent' : 'NOT sent (no device with notifications on)'}`);
   }
@@ -214,9 +213,11 @@ for (const [monitor, list] of byMonitor) {
   if (!due.length) continue;
   fajrSent[`${monitor} ${due[0].key}`] = Date.now(); // record first, so a crash can't cause repeated pings
   if (!dry) await fajrRef.set({ sent: Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.split(' ')[1] >= addDaysYmd(today, -7))) });
-  list.sort((x, y) => x.name.localeCompare(y.name, undefined, { numeric: true }));
-  const body = list.length === 1 ? list[0].report.body : list.map((x) => `${x.name}: ${x.report.missed} missed, ${x.report.qadha} qadha, ${x.report.notLogged} not logged`).join('\n');
-  const title = list.length === 1 ? `Fajr today · ${list[0].name}` : 'Fajr today';
+  // One line across all their classes; missed includes qadha.
+  const missed = list.reduce((n, x) => n + x.report.missed + x.report.qadha, 0);
+  const notLogged = list.reduce((n, x) => n + x.report.notLogged, 0);
+  const body = `${missed} missed · ${notLogged} not logged yet`;
+  const title = 'Fajr today';
   if (await pushToUser(monitor, { title, body, url: 'salah/fajr', tag: `fajr-${today}` })) fajrReports++;
 }
 
