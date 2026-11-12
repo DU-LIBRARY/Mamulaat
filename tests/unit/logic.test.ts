@@ -1,4 +1,4 @@
-import { fajrRollSummary, salahStats } from '../../src/lib/salah';
+import { fajrRollSummary, missedCount, salahStats } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, formatHijri } from '../../src/lib/dates';
 import { currentStreak, dayStats, logsByDay, scheduledFor } from '../../src/lib/scoring';
@@ -206,5 +206,24 @@ describe('salah', () => {
     expect(sum.notLogged.map((p) => p.name)).toEqual(['Zaid']);
     expect(sum.inJamaat.map((p) => p.name)).toEqual(['Umar']);
     expect(fajrRollSummary({ a: 'A', b: 'B' }, null).notLogged).toHaveLength(2);
+  });
+});
+
+describe('missedCount', () => {
+  const day = (entries: Record<string, string>) => ({ entries }) as never;
+  const by = new Map([
+    ['2026-11-10', day({ fajr: 'missed', zuhr: 'qadha', asr: 'jamaat', maghrib: 'takbir' })], // isha not logged
+    ['2026-11-12', day({ fajr: 'missed' })], // today: the rest not logged yet
+  ]);
+  const days = ['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'];
+  it('counts missed, qadha and past unlogged, not today’s unlogged or future days', () => {
+    // 11-10: missed+qadha+isha = 3; 11-11: nothing logged = 5; 11-12: fajr missed = 1
+    expect(missedCount(by, days, '2026-11-12')).toBe(9);
+  });
+  it('can count Fajr only', () => {
+    expect(missedCount(by, days, '2026-11-12', ['fajr'])).toBe(3);
+  });
+  it('a student with no records misses every past salah', () => {
+    expect(missedCount(undefined, days, '2026-11-12')).toBe(10);
   });
 });

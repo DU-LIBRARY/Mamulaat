@@ -89,3 +89,19 @@ export function fajrRollSummary(roster: Record<string, string>, roll: { r?: Reco
   out.inJamaat.sort(byName);
   return out;
 }
+
+/**
+ * How many salah a student missed over these days, for ranking: missed and qadha count, and so
+ * does nothing logged on a day that is over. Today's unlogged salah are not counted yet.
+ */
+export function missedCount(by: Map<string, SalahDay> | undefined, days: string[], today: string, only?: SalahName[]): number {
+  let n = 0;
+  for (const d of days) {
+    if (d > today) continue;
+    for (const name of only ?? SALAH_NAMES) {
+      const s = by?.get(d)?.entries?.[name];
+      if (s === 'missed' || s === 'qadha' || (!s && d < today)) n++;
+    }
+  }
+  return n;
+}

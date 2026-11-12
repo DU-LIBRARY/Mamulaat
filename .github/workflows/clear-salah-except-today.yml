@@ -1,0 +1,27 @@
+# One-off: permanently delete all salah records and Fajr registers except today's
+# (tools/push/clear-salah-except-today.mjs). Run by hand only; type DELETE to confirm.
+name: Clear salah records except today
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DELETE to permanently delete every salah record and Fajr register except today'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  clear:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund --omit=dev
+        working-directory: tools/push
+      - run: node --experimental-strip-types --no-warnings tools/push/clear-salah-except-today.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CONFIRM: ${{ github.event.inputs.confirm }}

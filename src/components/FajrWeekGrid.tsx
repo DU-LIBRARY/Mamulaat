@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 import type { SalahDay, SalahStatus, UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { displayName } from '../lib/display';
-import { STATUS_DESC } from '../lib/salah';
+import { missedCount, STATUS_DESC } from '../lib/salah';
 import { IconCheck, IconX } from './icons';
 
-/** Gold tick: from the opening takbir. Green tick: in jamaat. Red ✗: missed or qadha. Dot: not logged. */
+/** Gold tick: from the opening takbir. Green tick: in jamaat. Red ✗: missed, qadha, or not logged on a past day. Dot: not logged yet today. */
 function Mark({ s }: { s: SalahStatus | undefined }) {
   if (s === 'takbir') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[#2a2410]"><IconCheck size={13} weight="bold" /></span>;
   if (s === 'jamaat') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-800"><IconCheck size={13} weight="bold" /></span>;
@@ -40,7 +40,10 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
             </tr>
           </thead>
           <tbody>
-            {students.map((st) => {
+            {[...students]
+              .map((st) => ({ st, missed: missedCount(salah.get(st.id), days, today, ['fajr']) }))
+              .sort((a, b) => b.missed - a.missed || displayName(a.st).localeCompare(displayName(b.st)))
+              .map(({ st }) => {
               const by = salah.get(st.id);
               const past = days.filter((d) => d <= today);
               const inJamaat = past.filter((d) => ['takbir', 'jamaat'].includes(by?.get(d)?.entries?.fajr ?? '')).length;
@@ -52,12 +55,14 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
                     </Link>
                   </th>
                   {days.map((d) => {
-                    const s = by?.get(d)?.entries?.fajr;
+                    const logged = by?.get(d)?.entries?.fajr;
+                    const s = logged ?? (d < today ? 'missed' : undefined);
                     const future = d > today;
+                    const desc = future ? 'not yet' : logged ? STATUS_DESC[logged] : s ? 'missed (not logged)' : 'not logged yet';
                     return (
-                      <td key={d} title={future ? '' : s ? STATUS_DESC[s] : 'Not logged'}>
+                      <td key={d} title={future ? '' : desc}>
                         {future ? null : <Mark s={s} />}
-                        <span className="sr-only">{future ? 'not yet' : s ? STATUS_DESC[s] : 'not logged'}</span>
+                        <span className="sr-only">{desc}</span>
                       </td>
                     );
                   })}
@@ -73,8 +78,8 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500" aria-hidden>
         <span className="inline-flex items-center gap-1.5"><Mark s="takbir" /> Takbir</span>
         <span className="inline-flex items-center gap-1.5"><Mark s="jamaat" /> Jamaat</span>
-        <span className="inline-flex items-center gap-1.5"><Mark s="missed" /> Missed or qadha</span>
-        <span className="inline-flex items-center gap-1.5"><Mark s={undefined} /> Not logged</span>
+        <span className="inline-flex items-center gap-1.5"><Mark s="missed" /> Missed, qadha or not logged</span>
+        <span className="inline-flex items-center gap-1.5"><Mark s={undefined} /> Not logged yet today</span>
       </div>
     </div>
   );
