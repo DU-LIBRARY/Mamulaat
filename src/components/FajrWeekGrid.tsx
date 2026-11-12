@@ -78,7 +78,7 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500" aria-hidden>
         <span className="inline-flex items-center gap-1.5"><Mark s="takbir" /> Takbir</span>
         <span className="inline-flex items-center gap-1.5"><Mark s="jamaat" /> Jamaat</span>
-        <span className="inline-flex items-center gap-1.5"><Mark s="missed" /> Missed, qadha or not logged</span>
+        <span className="inline-flex items-center gap-1.5"><Mark s="missed" /> Missed or not logged</span>
         <span className="inline-flex items-center gap-1.5"><Mark s={undefined} /> Not logged yet today</span>
       </div>
     </div>

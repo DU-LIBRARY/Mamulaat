@@ -1,5 +1,8 @@
-import { addDays, formatGregorian } from '../lib/dates';
-import { pct } from '../lib/scoring';
+import { useMemo } from 'react';
+import type { DayLog, Mamool, SalahDay } from '../types';
+import { addDays, formatGregorian, weekDays, weekStartOf } from '../lib/dates';
+import { pct, periodCompletion } from '../lib/scoring';
+import { jamaatRate } from '../lib/salah';
 
 export interface WeekPoint {
   /** First day of the week (YYYY-MM-DD). */
@@ -82,5 +85,58 @@ export function YearChart({ title, weeks, total, today }: { title: string; weeks
         </tbody>
       </table>
     </figure>
+  );
+}
+
+/**
+ * One student's calendar year by week: mamoolaat completion and salah in jamaat, each with the
+ * year's figure. Used on the student's Me tab and under the admin's week view of a student.
+ */
+export function YearSummary({
+  today,
+  weekStart,
+  logs,
+  mamoolaat,
+  salah,
+  quiet = false,
+}: {
+  today: string;
+  weekStart: number;
+  logs: Map<string, DayLog>;
+  mamoolaat: Mamool[];
+  salah: Map<string, SalahDay>;
+  /** Secondary placement (admin): a smaller heading. */
+  quiet?: boolean;
+}) {
+  const year = today.slice(0, 4);
+  const data = useMemo(() => {
+    const first = `${year}-01-01`;
+    const last = `${year}-12-31`;
+    const inYear = (d: string) => d >= first && d <= last;
+    const salahFrom = [...salah.keys()].sort()[0] ?? null;
+    const mamool: WeekPoint[] = [];
+    const prayed: WeekPoint[] = [];
+    const yearDays: string[] = [];
+    for (let start = weekStartOf(first, weekStart); start <= last; start = addDays(start, 7)) {
+      const days = weekDays(start).filter(inYear);
+      yearDays.push(...days);
+      mamool.push({ start, value: periodCompletion(days, logs, mamoolaat, today) });
+      prayed.push({ start, value: jamaatRate(salah, days, today, salahFrom) });
+    }
+    return {
+      mamool,
+      prayed,
+      mamoolTotal: periodCompletion(yearDays, logs, mamoolaat, today),
+      salahTotal: jamaatRate(salah, yearDays, today, salahFrom),
+    };
+  }, [year, today, weekStart, logs, mamoolaat, salah]);
+
+  return (
+    <section className={`flex flex-col gap-5 ${quiet ? 'rounded-xl bg-surface p-4' : 'card'}`}>
+      <h2 className="section-title -mb-2">{quiet ? `This year (${year})` : year}</h2>
+      <YearChart title="Mamoolaat" weeks={data.mamool} total={data.mamoolTotal} today={today} />
+      <YearChart title="Salah in jamaat" weeks={data.prayed} total={data.salahTotal} today={today} />
+      <p className="-mt-2 text-xs text-slate-500">One bar per week. Salah counts from the first day logged; a day not logged counts as missed.</p>
+    </section>
   );
 }

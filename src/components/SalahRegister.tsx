@@ -105,7 +105,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
         <span>F D A M I = Fajr, Dhuhr, Asr, Maghrib, Isha</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-gold-400" /> Takbir Ula</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-green-600" /> Jamaat</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-red-400" /> Missed, qadha or not logged</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-red-400" /> Missed or not logged</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-slate-200" /> Not logged yet today</span>
       </div>
     </div>
