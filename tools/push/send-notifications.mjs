@@ -87,7 +87,7 @@ if (TEST === 'fajr') {
     byMonitor.set(m, [...(byMonitor.get(m) ?? []), typeof c.get('name') === 'string' ? c.get('name') : 'Class']);
   }
   for (const [uid, names] of byMonitor) {
-    const body = '3 missed · 5 not logged yet';
+    const body = '8 missed';
     const ok = await pushToUser(uid, { title: 'TEST · Fajr today (sample numbers)', body, url: 'salah/fajr', tag: 'fajr-test' });
     console.log(`Fajr test → ${byId.get(uid)?.name ?? uid} (${names.length} class(es)): ${ok ? 'sent' : 'NOT sent (no device with notifications on)'}`);
   }
@@ -236,10 +236,9 @@ for (const [monitor, list] of byMonitor) {
   if (!due.length) continue;
   fajrSent[`${monitor} ${due[0].key}`] = Date.now(); // record first, so a crash can't cause repeated pings
   if (!dry) await fajrRef.set({ sent: Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.split(' ')[1] >= addDaysYmd(today, -7))) });
-  // One line across all their classes; missed includes qadha.
-  const missed = list.reduce((n, x) => n + x.report.missed + x.report.qadha, 0);
-  const notLogged = list.reduce((n, x) => n + x.report.notLogged, 0);
-  const body = `${missed} missed · ${notLogged} not logged yet`;
+  // One line across all their classes; missed includes qadha and not logged.
+  const missed = list.reduce((n, x) => n + x.report.missed + x.report.qadha + x.report.notLogged, 0);
+  const body = `${missed} missed`;
   const title = 'Fajr today';
   if (await pushToUser(monitor, { title, body, url: 'salah/fajr', tag: `fajr-${today}` })) fajrReports++;
 }
