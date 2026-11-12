@@ -58,6 +58,10 @@ export interface ReminderSlot {
   weekday?: number;
   title?: string;
   body: string;
+  /** Fajr reminder: skip students who have already logged today's Fajr. */
+  fajr?: boolean;
+  /** Where tapping the notification goes (relative to the app). */
+  url?: string;
 }
 
 /** How long after a slot's time a late run may still send it (GitHub can start scheduled jobs late). */
