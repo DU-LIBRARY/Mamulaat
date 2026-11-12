@@ -172,33 +172,38 @@
 }
 
 /*
- * Green (trial theme): the paper palette with green in place of clay. Same light/dark
- * pairings as paper, so every tint + text combination keeps its contrast.
+ * Green (trial theme): emerald and beige. Cream/beige paper, deep emerald for ticks,
+ * buttons and the active day (with cream on top), gold kept for Takbir Ula.
+ * Same light/dark pairings as paper, so every tint + text combination keeps its contrast.
  */
 @media screen {
   :root.green {
-    --color-brand-50: #e1eadb;
-    --color-brand-100: #d0dfc7;
-    --color-brand-200: #b4cca6;
-    --color-brand-300: #93b583;
-    --color-brand-500: #5e8a4c;
-    --color-brand-600: #4b7539;
-    --color-brand-700: #3c612c;
-    --color-brand-800: #2f4e22;
-    --color-brand-900: #213818;
+    --color-brand-50: #e7e6d6;
+    --color-brand-100: #d6dccb;
+    --color-brand-200: #b9c9b4;
+    --color-brand-300: #8fac98;
+    --color-brand-500: #3f735d;
+    --color-brand-600: #2c5f4a;
+    --color-brand-700: #1f4d3b;
+    --color-brand-800: #173d2f;
+    --color-brand-900: #102c22;
 
-    --color-primary: #9fc48c;
-    --color-primary-strong: #8cb778;
-    --color-on-primary: #1d2a16;
+    --color-primary: #1f4d3b;
+    --color-primary-strong: #173d2f;
+    --color-on-primary: #f3ead8;
 
-    --color-sand-50: #e9efe4;
-    --color-sand-100: #e2e9dc;
-    --color-sand-200: #d3dccb;
-    --color-surface: #edf2e8;
+    /* Done cells on the week grids: emerald with cream numbers. */
+    --color-green-300: #1f4d3b;
+    --color-green-900: #f3ead8;
+
+    --color-sand-50: #f4eee2;
+    --color-sand-100: #ede4d3;
+    --color-sand-200: #dfd3bd;
+    --color-surface: #f6f0e4;
   }
   :root.green .sky {
-    --sky-a: #cfdec5;
-    --sky-b: #dbe6d3;
+    --sky-a: #d7d9c4;
+    --sky-b: #e6dcc8;
   }
 }
 

@@ -6,7 +6,7 @@ export type ThemePref = 'system' | 'light' | 'dark' | 'green';
 const KEY = 'mamulaat-theme';
 const LIGHT_BAR = '#e9e5dd';
 const DARK_BAR = '#191b16';
-const GREEN_BAR = '#e2e9dc';
+const GREEN_BAR = '#ede4d3';
 const media = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
 export function getThemePref(): ThemePref {

@@ -19,7 +19,7 @@
         var t = localStorage.getItem('mamulaat-theme');
         if (t === 'green') {
           document.documentElement.classList.add('green');
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#e2e9dc');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ede4d3');
         } else if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
           document.documentElement.classList.add('dark');
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#191b16');

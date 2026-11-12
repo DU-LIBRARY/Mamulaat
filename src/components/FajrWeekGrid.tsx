@@ -7,7 +7,7 @@ import { IconCheck, IconX } from './icons';
 
 /** Gold tick: from the opening takbir. Green tick: in jamaat. Red ✗: missed or qadha. Dot: not logged. */
 function Mark({ s }: { s: SalahStatus | undefined }) {
-  if (s === 'takbir') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-on-primary"><IconCheck size={13} weight="bold" /></span>;
+  if (s === 'takbir') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[#2a2410]"><IconCheck size={13} weight="bold" /></span>;
   if (s === 'jamaat') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-800"><IconCheck size={13} weight="bold" /></span>;
   if (s === 'missed' || s === 'qadha') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-800"><IconX size={12} weight="bold" /></span>;
   return <span className="inline-flex h-6 w-6 items-center justify-center text-slate-400">·</span>;
