@@ -36,16 +36,32 @@ const db = admin.firestore();
 webpush.setVapidDetails(CFG.subject, CFG.publicKey, VAPID_PRIVATE_KEY.trim());
 
 const STALE_DAYS = 60; // a device not seen for this long has probably stopped using the app
+const MAX_DEVICES = 10; // per person: the most recently seen ones. Nobody has more phones than this.
+const PUSH_TIMEOUT_MS = 10000; // a push service that doesn't answer must not hold up everyone else
+// Device records are written by each person's own app, so never trust their shape.
+const seenMs = (v) => (v && v.lastSeen && typeof v.lastSeen.toMillis === 'function' ? v.lastSeen.toMillis() : 0);
 const stats = { sent: 0, removed: 0, failed: 0 };
 
 /** Send to every device of one user; drops subscriptions the push service says are gone. */
 async function pushToUser(uid, msg) {
-  const subs = await db.collection(`users/${uid}/pushSubs`).get();
+  // One person's bad data or unreachable phone must never stop the run for everyone after them.
+  try {
+    return await pushToDevices(uid, msg);
+  } catch (e) {
+    stats.failed++;
+    console.log(`::warning::push to ${uid} failed: ${e.message}`);
+    return false;
+  }
+}
+async function pushToDevices(uid, msg) {
+  const all = (await db.collection(`users/${uid}/pushSubs`).get()).docs;
+  const subs = all.slice().sort((a, b) => seenMs(b.data()) - seenMs(a.data())).slice(0, MAX_DEVICES);
+  if (all.length > subs.length) console.log(`::warning::${uid} has ${all.length} devices registered; using the ${MAX_DEVICES} most recent.`);
   const staleBefore = Date.now() - STALE_DAYS * 86400e3;
   let ok = false;
-  for (const s of subs.docs) {
+  for (const s of subs) {
     const v = s.data();
-    if (v.lastSeen && v.lastSeen.toMillis() < staleBefore) {
+    if (seenMs(v) && seenMs(v) < staleBefore) {
       if (!dry) await s.ref.delete();
       stats.removed++;
       continue;
@@ -56,7 +72,7 @@ async function pushToUser(uid, msg) {
       continue;
     }
     try {
-      await webpush.sendNotification({ endpoint: v.endpoint, keys: { p256dh: v.p256dh, auth: v.auth } }, JSON.stringify(msg), { TTL: 4 * 3600, urgency: 'high' });
+      await webpush.sendNotification({ endpoint: v.endpoint, keys: { p256dh: v.p256dh, auth: v.auth } }, JSON.stringify(msg), { TTL: 4 * 3600, urgency: 'high', timeout: PUSH_TIMEOUT_MS });
       stats.sent++;
       ok = true;
     } catch (e) {

@@ -95,6 +95,8 @@ service cloud.firestore {
         && optString(d.get('photoURL', null), 2000)
         && validTime(d.get('reminderTime', null))
         && d.get('reminderEnabled', false) is bool
+        // typed, so a made-up value can't break the screens and jobs that read it
+        && (d.get('lastSeenAt', null) == null || d.lastSeenAt is timestamp)
         && (changed().hasOnly(basic)
             || (resource.data.status == 'pending' && changed().hasOnly(basic.concat(pendingOnly)))
             || (resource.data.status == 'active' && changed().hasOnly(basic.concat(activeOnly))));
@@ -153,6 +155,7 @@ service cloud.firestore {
           && (d.target is int || d.target is float) && d.target > 0 && d.target <= 1000000
           && d.unit is string && d.unit.size() <= 40
           && d.active is bool
+          && (d.get('order', 0) is number)
           && d.createdDate is string && validDayId(d.createdDate)
           && (d.get('removedDate', null) == null || (d.removedDate is string && validDayId(d.removedDate)))
           && d.updatedBy == request.auth.uid
@@ -274,6 +277,9 @@ service cloud.firestore {
                               && request.resource.data.endpoint.matches('^https://.*')
                               && request.resource.data.p256dh is string && request.resource.data.p256dh.size() <= 200
                               && request.resource.data.auth is string && request.resource.data.auth.size() <= 100
+                              // the notifications job reads these as times
+                              && (request.resource.data.get('createdAt', null) == null || request.resource.data.createdAt is timestamp)
+                              && (request.resource.data.get('lastSeen', null) == null || request.resource.data.lastSeen is timestamp)
                               && optString(request.resource.data.get('userAgent', null), 300);
         allow delete: if isActiveOrPendingSelf(uid) || isAdmin();
       }

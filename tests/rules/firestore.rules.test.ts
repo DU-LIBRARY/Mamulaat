@@ -489,6 +489,13 @@ describe('admin deletes records outright', () => {
   });
 });
 
+describe('mamool order', () => {
+  it('must be a number', async () => {
+    await assertSucceeds(updateDoc(doc(db(A), `users/${A}/mamoolaat/m1`), { order: 3, updatedBy: A, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db(A), `users/${A}/mamoolaat/m1`), { order: 'first', updatedBy: A, updatedAt: serverTimestamp() }));
+  });
+});
+
 describe('restoring a removed mamool keeps a gap', () => {
   it('a student can save the gap list on restore', async () => {
     const f = db(A);
@@ -589,6 +596,10 @@ describe('admin deleting a student (full control)', () => {
     await assertSucceeds(setDoc(doc(db(A), `users/${A}/pushSubs/s1`), sub));
     await assertSucceeds(setDoc(doc(db(PENDING), `users/${PENDING}/pushSubs/s1`), sub));
     await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s2`), { ...sub, extra: 1 }));
+    // the notifications job reads these as times: anything else is refused
+    await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s4`), { ...sub, lastSeen: 'yesterday' }));
+    await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s5`), { ...sub, createdAt: 5 }));
+    await assertSucceeds(setDoc(doc(db(A), `users/${A}/pushSubs/s6`), { ...sub, createdAt: serverTimestamp(), lastSeen: serverTimestamp() }));
     await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s3`), { ...sub, endpoint: 'http://insecure' }));
     await assertFails(setDoc(doc(db(A), `users/${B}/pushSubs/s1`), sub));
     await assertFails(getDocs(collection(db(B), `users/${A}/pushSubs`)));
@@ -720,6 +731,11 @@ describe('class templates', () => {
 describe('last seen and device tokens', () => {
   it('a student can record when they last opened the app', async () => {
     await assertSucceeds(updateDoc(doc(db(A), `users/${A}`), { lastSeenAt: serverTimestamp() }));
+  });
+
+  it('last seen must be a time', async () => {
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { lastSeenAt: 'x'.repeat(5000) }));
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { lastSeenAt: { toMillis: 1 } }));
   });
 
   it('a pending sign-up can register a device (to hear about approval); inactive users cannot', async () => {
