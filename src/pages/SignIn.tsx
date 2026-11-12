@@ -15,7 +15,7 @@ export function SignIn() {
     <div className="relative isolate flex min-h-dvh flex-col px-6 pt-safe">
       <Sky />
       <div className="mx-auto flex w-full max-w-sm items-center gap-2.5 pt-8">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-7 w-7 rounded-[6px]" />
+        <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="h-7 w-7 rounded-[6px]" />
         <span className="font-serif text-[24px] leading-none text-slate-900">Mamūlāt</span>
       </div>
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
