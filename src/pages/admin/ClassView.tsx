@@ -31,7 +31,7 @@ function entryText(e: LogEntry | undefined) {
 export function ClassView() {
   const { classId = '' } = useParams();
   const [sp, setSp] = useSearchParams();
-  const { today, settings, actor } = useActiveSession();
+  const { today, settings, actor, limited } = useActiveSession();
   const users = useAllUsers();
   const classes = useClasses();
   const cls = classes.data.find((c) => c.id === classId);
@@ -44,8 +44,10 @@ export function ClassView() {
   const to = view === 'week' ? days[6] : date;
   // Next is only useful when there is something after what is shown: after today (day view) or after the week containing today (week view).
   const nextDisabled = view === 'week' ? days[6] >= today : date >= today;
-  const range = useStudentsRange(students.map((s) => s.id), from, to);
-  const salah = useStudentsSalah(students.map((s) => s.id), days[0], days[6]);
+  // A limited admin never loads anyone's mamoolaat, logs or salah (the rules refuse them too).
+  const recordIds = limited ? [] : students.map((s) => s.id);
+  const range = useStudentsRange(recordIds, from, to);
+  const salah = useStudentsSalah(recordIds, days[0], days[6]);
   const roster = useDocData<ClassRoster>(classId ? rosterRef(classId) : null, `roster:${classId}`);
   const rosterNames = useMemo(() => Object.fromEntries(students.map((s) => [s.id, displayName(s)])), [students]);
   const monitorId = cls?.fajrMonitorId ?? null;
@@ -101,6 +103,100 @@ export function ClassView() {
     logged: w.days.map((d) => d.hasLog),
     total: w.completion,
   }));
+
+  const monitorCard = (
+    <section id="fajr-monitor-card" className="no-print card flex scroll-mt-4 flex-col gap-2">
+      <label htmlFor="fajr-monitor" className="section-title mb-0">
+        Fajr monitor
+      </label>
+      <p className="text-xs text-slate-500">
+        A student who sees this class's daily Fajr roll in their app (qadha and not logged count as missed), and gets a push each morning at {settings.fajrReportTime}. They can be in any class and can cover several classes. They see nothing else of anyone's. Every student in this class is told who it is.
+      </p>
+      <select
+        id="fajr-monitor"
+        className="input"
+        value={monitorId ?? ''}
+        onChange={(e) => {
+          const next = everyone.find((x) => x.id === e.target.value) ?? null;
+          setFajrMonitor([{ cls, roster: rosterNames }], next, actor).then(() => setMonitorErr(null), (er) => setMonitorErr((er as Error).message));
+        }}
+      >
+        <option value="">Nobody</option>
+        {monitorId && !everyone.some((x) => x.id === monitorId) && <option value={monitorId}>{users.data.find((u) => u.id === monitorId)?.name ?? 'Someone'} (no longer active)</option>}
+        {students.length > 0 && (
+          <optgroup label="In this class">
+            {students.map((st) => (
+              <option key={st.id} value={st.id}>
+                {displayName(st)}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        <optgroup label="Other classes">
+          {everyone
+            .filter((x) => x.classId !== classId)
+            .map((st) => (
+              <option key={st.id} value={st.id}>
+                {displayName(st)}
+                {classes.data.find((c) => c.id === st.classId)?.name ? ` (${classes.data.find((c) => c.id === st.classId)?.name})` : ''}
+              </option>
+            ))}
+        </optgroup>
+      </select>
+      {monitorId && classes.data.some((c) => c.fajrMonitorId !== monitorId) && (
+        <button
+          type="button"
+          className="btn-secondary self-start"
+          onClick={async () => {
+            const who = everyone.find((x) => x.id === monitorId);
+            if (!who) return;
+            const others = classes.data.filter((c) => c.fajrMonitorId !== monitorId);
+            const ok = await confirm({
+              title: `Make ${displayName(who)} Fajr monitor of every class?`,
+              message: `They will also see the Fajr roll of ${others.map((c) => c.name).join(', ')}.`,
+              confirmLabel: 'Use for all classes',
+            });
+            if (!ok) return;
+            const targets = others.map((c) => ({
+              cls: c,
+              roster: Object.fromEntries(
+                users.data.filter((u) => u.classId === c.id && u.status === 'active' && u.role === 'student').map((u) => [u.id, displayName(u)]),
+              ),
+            }));
+            setFajrMonitor(targets, who, actor).then(() => setMonitorErr(null), (er) => setMonitorErr((er as Error).message));
+          }}
+        >
+          Use for all classes
+        </button>
+      )}
+      {monitorErr && <p className="text-sm text-red-700">{monitorErr}</p>}
+    </section>
+  );
+
+  // A limited admin sees who is in the class and can choose its Fajr monitor, nothing of their records.
+  if (limited)
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="display text-[34px] leading-tight" dir="auto">
+          {cls.name}
+        </h1>
+        {students.length === 0 ? (
+          <EmptyState>No active students in this class.</EmptyState>
+        ) : (
+          <ul className="sheet">
+            {students.map((st) => (
+              <li key={st.id}>
+                <Link to={`/admin/student/${st.id}`} className="flex min-h-12 items-center justify-between gap-3 px-3 py-2 text-slate-900" dir="auto">
+                  {displayName(st)}
+                  <IconChevronRight size={16} className="shrink-0 text-slate-400" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {monitorCard}
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-4">
@@ -220,72 +316,7 @@ export function ClassView() {
           )}
         </>
       )}
-      <section id="fajr-monitor-card" className="no-print card flex scroll-mt-4 flex-col gap-2">
-        <label htmlFor="fajr-monitor" className="section-title mb-0">
-          Fajr monitor
-        </label>
-        <p className="text-xs text-slate-500">
-          A student who sees this class's daily Fajr roll in their app (qadha and not logged count as missed), and gets a push each morning at {settings.fajrReportTime}. They can be in any class and can cover several classes. They see nothing else of anyone's. Every student in this class is told who it is.
-        </p>
-        <select
-          id="fajr-monitor"
-          className="input"
-          value={monitorId ?? ''}
-          onChange={(e) => {
-            const next = everyone.find((x) => x.id === e.target.value) ?? null;
-            setFajrMonitor([{ cls, roster: rosterNames }], next, actor).then(() => setMonitorErr(null), (er) => setMonitorErr((er as Error).message));
-          }}
-        >
-          <option value="">Nobody</option>
-          {monitorId && !everyone.some((x) => x.id === monitorId) && <option value={monitorId}>{cls.fajrMonitorName ?? 'Someone'} (no longer active)</option>}
-          {students.length > 0 && (
-            <optgroup label="In this class">
-              {students.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {displayName(st)}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          <optgroup label="Other classes">
-            {everyone
-              .filter((x) => x.classId !== classId)
-              .map((st) => (
-                <option key={st.id} value={st.id}>
-                  {displayName(st)}
-                  {classes.data.find((c) => c.id === st.classId)?.name ? ` (${classes.data.find((c) => c.id === st.classId)?.name})` : ''}
-                </option>
-              ))}
-          </optgroup>
-        </select>
-        {monitorId && classes.data.some((c) => c.fajrMonitorId !== monitorId) && (
-          <button
-            type="button"
-            className="btn-secondary self-start"
-            onClick={async () => {
-              const who = everyone.find((x) => x.id === monitorId);
-              if (!who) return;
-              const others = classes.data.filter((c) => c.fajrMonitorId !== monitorId);
-              const ok = await confirm({
-                title: `Make ${displayName(who)} Fajr monitor of every class?`,
-                message: `They will also see the Fajr roll of ${others.map((c) => c.name).join(', ')}.`,
-                confirmLabel: 'Use for all classes',
-              });
-              if (!ok) return;
-              const targets = others.map((c) => ({
-                cls: c,
-                roster: Object.fromEntries(
-                  users.data.filter((u) => u.classId === c.id && u.status === 'active' && u.role === 'student').map((u) => [u.id, displayName(u)]),
-                ),
-              }));
-              setFajrMonitor(targets, who, actor).then(() => setMonitorErr(null), (er) => setMonitorErr((er as Error).message));
-            }}
-          >
-            Use for all classes
-          </button>
-        )}
-        {monitorErr && <p className="text-sm text-red-700">{monitorErr}</p>}
-      </section>
+      {monitorCard}
     </div>
   );
 }

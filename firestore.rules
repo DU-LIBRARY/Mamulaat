@@ -8,7 +8,11 @@ rules_version = '2';
 // be written by the current admin (or by the one-off bootstrap script, which
 // uses the Admin SDK and therefore needs Google Cloud project access).
 //
-// Roles:  'student' | 'admin'   (keep the list in validRole() to add e.g. 'teacher' later)
+// Roles:  'student' | 'admin' | 'assistant'   (keep the list in validRole())
+//   'assistant' is a LIMITED ADMIN: it can do what the admin does (approve and manage students,
+//   classes, settings, notes to students, the audit log of those actions) EXCEPT see or change any
+//   individual's mamoolaat, logs or salah (including the Fajr roll), delete a student, or hand
+//   out roles. Only the admin can make someone an assistant. isStaff() = admin or assistant.
 // Status: 'pending' | 'active' | 'inactive' | 'rejected'
 
 service cloud.firestore {
@@ -21,12 +25,14 @@ service cloud.firestore {
     function me() { return get(userPath(request.auth.uid)).data; }
     function isActive() { return hasProfile() && me().status == 'active'; }
     function isAdmin() { return isActive() && me().role == 'admin'; }
+    function isAssistant() { return isActive() && me().role == 'assistant'; }
+    function isStaff() { return isActive() && me().role in ['admin', 'assistant']; }
     function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
     function isActiveSelf(uid) { return isSelf(uid) && isActive(); }
     function isActiveOrPendingSelf(uid) { return isSelf(uid) && hasProfile() && me().status in ['active', 'pending']; }
     function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
-    function validRole(r) { return r in ['student', 'admin']; }
+    function validRole(r) { return r in ['student', 'admin', 'assistant']; }
     function validStatus(s) { return s in ['pending', 'active', 'inactive', 'rejected']; }
     function validTime(t) { return t == null || (t is string && t.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')); }
     function optString(v, max) { return v == null || (v is string && v.size() <= max); }
@@ -85,8 +91,9 @@ service cloud.firestore {
     // What a non-admin may change on their own profile. Never role/status/classId.
     function selfUpdateOk() {
       let d = request.resource.data;
-      let basic = ['name', 'photoURL', 'lastSeenAt'];
-      let pendingOnly = ['requestedClassId', 'signupComplete'];
+      // The name is typed at sign-up; once approved, only the teacher can change it.
+      let basic = ['photoURL', 'lastSeenAt'];
+      let pendingOnly = ['name', 'requestedClassId', 'signupComplete'];
       let activeOnly = ['reminderEnabled', 'reminderTime', 'onboarded'];
       return optString(d.get('name', null), 100)
         && (d.get('name', null) == null || d.name.trim().size() > 0)
@@ -118,8 +125,21 @@ service cloud.firestore {
         && (d.get('classId', null) == null
             || (d.classId is string && exists(/databases/$(database)/documents/classes/$(d.classId))))
         && (d.get('requestedClassId', null) == null || d.requestedClassId is string)
+        && (d.role != 'assistant' || d.status == 'active')
         && (!promoting || (d.status == 'active'
                            && getAfter(userPath(request.auth.uid)).data.role != 'admin'));
+    }
+
+    // An assistant (limited admin) editing a student: the same profile fields, never the role,
+    // and never the admin or another assistant.
+    function assistantUpdateOtherOk() {
+      let d = request.resource.data;
+      return resource.data.role == 'student' && d.role == 'student' && validStatus(d.status)
+        && changed().hasOnly(['name', 'status', 'classId', 'requestedClassId', 'signupComplete', 'onboarded'])
+        && (!('name' in changed()) || (d.name is string && d.name.trim().size() > 0 && d.name.size() <= 100))
+        && (d.get('classId', null) == null
+            || (d.classId is string && exists(/databases/$(database)/documents/classes/$(d.classId))))
+        && (d.get('requestedClassId', null) == null || d.requestedClassId is string);
     }
 
     // Admin editing their own profile. They can only give up the admin role by
@@ -139,10 +159,11 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if isSelf(uid) || isAdmin();
+      allow read: if isSelf(uid) || isStaff();
       allow create: if isSelf(uid) && validNewProfile(uid);
       allow update: if (isSelf(uid) && !isAdmin() && selfUpdateOk())
                     || (isAdmin() && !isSelf(uid) && adminUpdateOtherOk())
+                    || (isAssistant() && !isSelf(uid) && assistantUpdateOtherOk())
                     || (isAdmin() && isSelf(uid) && adminUpdateSelfOk());
       allow delete: if isAdmin() && !isSelf(uid);
 
@@ -236,8 +257,8 @@ service cloud.firestore {
 
       // ----- comments from the admin -----
       match /comments/{cid} {
-        allow read: if isActiveSelf(uid) || isAdmin();
-        allow create: if isAdmin()
+        allow read: if isActiveSelf(uid) || isStaff();
+        allow create: if isStaff()
                       && request.resource.data.keys().hasOnly(['text', 'authorId', 'authorName', 'createdAt', 'readAt'])
                       && request.resource.data.text is string
                       && request.resource.data.text.size() > 0
@@ -249,7 +270,7 @@ service cloud.firestore {
         allow update: if isActiveSelf(uid) && !isAdmin()
                       && changed().hasOnly(['readAt'])
                       && request.resource.data.readAt == request.time;
-        allow delete: if isAdmin();
+        allow delete: if isStaff();
       }
 
       // ----- record of changes the admin made to the student's mamoolaat -----
@@ -304,11 +325,14 @@ service cloud.firestore {
     }
 
     match /classes/{classId} {
-      // Class names and who the Fajr monitor is are readable by any signed-in user, so a new
-      // student can pick their class and every student can see who sees their Fajr status.
-      allow read: if signedIn();
+      // Class names are readable by anyone who has signed up (waiting or approved), so a new
+      // student can pick their class. Someone who merely has a Google account reads nothing.
+      // The Fajr monitor's NAME is not kept here but in meta/monitor (below), which only the
+      // class itself can read. `fajrMonitorName` is still accepted so a copy of the app that
+      // hasn't updated yet keeps working; the current app and the Notifications job remove it.
+      allow read: if hasProfile() && me().status in ['active', 'pending'];
       // `template`: mamoolaat the admin adds to each student's own list (never replacing it).
-      allow create, update: if isAdmin()
+      allow create, update: if isStaff()
                             && request.resource.data.keys().hasOnly(['name', 'template', 'fajrMonitorId', 'fajrMonitorName'])
                             && request.resource.data.name is string
                             && request.resource.data.name.size() > 0
@@ -320,7 +344,7 @@ service cloud.firestore {
                                 || (request.resource.data.fajrMonitorId is string
                                     && exists(userPath(request.resource.data.fajrMonitorId))
                                     && get(userPath(request.resource.data.fajrMonitorId)).data.status == 'active'));
-      allow delete: if isAdmin();
+      allow delete: if isStaff();
 
       // ----- the daily Fajr roll: r.<uid> = { name, status } -----
       // Read only by the admin and this class's Fajr monitor. A student writes only their own key,
@@ -333,7 +357,10 @@ service cloud.firestore {
         // The register keeps only missed (missed or qadha) or prayed (takbir or jamaat).
         let expected = fajr in ['missed', 'qadha'] ? 'missed' : 'prayed';
         return (mine in r)
-          ? (r[mine].keys().hasOnly(['name', 'status']) && r[mine].name is string && r[mine].name.size() <= 200
+          // `name` is no longer written or shown (names come from the roster the teacher's side
+          // keeps); it is still accepted from a copy of the app that hasn't updated yet.
+          ? (r[mine].keys().hasOnly(['name', 'status'])
+             && (!('name' in r[mine]) || (r[mine].name is string && r[mine].name.size() <= 200))
              && fajr != null && r[mine].status == expected)
           : fajr == null;
       }
@@ -358,13 +385,25 @@ service cloud.firestore {
       }
 
       // ----- meta/roster: { names: { uid: name } } of the class's active students -----
-      // Kept up to date by the admin's app and the Notifications job, so the monitor can see who hasn't logged.
-      match /meta/{docId} {
-        allow read: if isAdmin() || isFajrMonitorOf(classId);
-        allow write: if isAdmin() && docId == 'roster'
-                     && request.resource.data.keys().hasOnly(['names'])
-                     && request.resource.data.names is map
-                     && request.resource.data.names.size() <= 500;
+      // Kept up to date by the teacher's app and the Notifications job, so the monitor can see who hasn't logged.
+      match /meta/roster {
+        allow read: if isStaff() || isFajrMonitorOf(classId);
+        allow create, update: if isStaff()
+                              && request.resource.data.keys().hasOnly(['names'])
+                              && request.resource.data.names is map
+                              && request.resource.data.names.size() <= 500;
+      }
+      // ----- meta/monitor: { name } of the class's Fajr monitor -----
+      // Readable only by the class's own students (who are told who sees their Fajr status),
+      // the monitor and the staff.
+      match /meta/monitor {
+        allow read: if isStaff() || isFajrMonitorOf(classId)
+                    || (isActive() && me().get('classId', null) == classId);
+        allow create, update: if isStaff()
+                              && request.resource.data.keys().hasOnly(['name'])
+                              && request.resource.data.name is string
+                              && request.resource.data.name.size() <= 200;
+        allow delete: if isStaff();
       }
     }
 
@@ -372,8 +411,8 @@ service cloud.firestore {
     // id = <uid>_<day>, so there is at most one nudge per student per day. The "Notifications"
     // GitHub Action sends the push on its next run. The student can read their own (for the in-app note).
     match /nudges/{id} {
-      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid && isActive());
-      allow create: if isAdmin()
+      allow read: if isStaff() || (signedIn() && resource.data.uid == request.auth.uid && isActive());
+      allow create: if isStaff()
                     && request.resource.data.keys().hasOnly(['uid', 'day', 'actorId', 'actorName', 'createdAt'])
                     && request.resource.data.uid is string
                     && request.resource.data.day is string
@@ -385,13 +424,13 @@ service cloud.firestore {
                     && request.resource.data.actorName.size() <= 200
                     && request.resource.data.createdAt == request.time;
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if isStaff();
     }
 
     // ---------- pushMessages (a note from the admin, also sent to the student's phone) ----------
     // The "Notifications" GitHub Action sends each one and then deletes it. Nobody reads them in the app.
     match /pushMessages/{id} {
-      allow create: if isAdmin()
+      allow create: if isStaff()
                     && request.resource.data.keys().hasOnly(['uid', 'text', 'actorId', 'actorName', 'createdAt'])
                     && request.resource.data.uid is string
                     && exists(userPath(request.resource.data.uid))
@@ -403,13 +442,13 @@ service cloud.firestore {
                     && request.resource.data.actorName.size() <= 200
                     && request.resource.data.createdAt == request.time;
       allow read, update: if false;
-      allow delete: if isAdmin();
+      allow delete: if isStaff();
     }
 
     // ---------- settings ----------
     match /settings/{docId} {
       allow read: if isActive();
-      allow write: if isAdmin() && docId == 'app'
+      allow write: if isStaff() && docId == 'app'
                    && request.resource.data.backfillDays is int
                    && request.resource.data.backfillDays >= 0
                    && request.resource.data.backfillDays <= 30
@@ -429,9 +468,18 @@ service cloud.firestore {
     }
 
     // ---------- audit log (append-only) ----------
+    // An assistant sees only the kinds of entry that hold no individual's mamoolaat, logs or
+    // salah (their query must ask for exactly these kinds). Keep the list in step with
+    // ASSISTANT_AUDIT_ACTIONS in src/lib/db.ts.
+    function assistantAuditAction(a) {
+      return a in ['user.approve', 'user.reject', 'user.deactivate', 'user.reactivate', 'user.move', 'user.rename',
+                   'user.pending', 'user.delete', 'user.assistant', 'user.unassistant',
+                   'class.create', 'class.rename', 'class.delete', 'class.template', 'class.fajrMonitor',
+                   'comment.add', 'comment.delete', 'nudge.send', 'settings.update', 'admin.transfer'];
+    }
     match /auditLog/{id} {
-      allow read: if isAdmin();
-      allow create: if isAdmin()
+      allow read: if isAdmin() || (isAssistant() && assistantAuditAction(resource.data.action));
+      allow create: if (isAdmin() || (isAssistant() && assistantAuditAction(request.resource.data.action)))
                     && request.resource.data.actorId == request.auth.uid
                     && request.resource.data.action is string
                     && request.resource.data.createdAt == request.time;

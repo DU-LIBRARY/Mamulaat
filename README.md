@@ -5,7 +5,8 @@
 Mamūlāt is an offline-first PWA for students to track their daily **mamoolaat** (daily routines and practices), with one **admin** (the teacher) who reviews them.
 
 - Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
-- Progress and streaks are private: only the student and the admin can see them.
+- Progress and streaks are private: only the student and the admin can see them (a limited admin, §6b, can't).
+- A student's name is typed at sign-up. After approval only the teacher can change it.
 - Signing out deletes the offline copy of the account's data from that phone or browser (it stays on the server). Deleting a student also removes their entries from class Fajr rolls and rosters. (Exception: a Fajr monitor, chosen by the admin on a class page and able to cover several classes, sees those students' Fajr status only.)
 - Salah tab: each of the five prayers marked Takbir / Jamaat / Qadha / Missed, stored in `users/{uid}/salah/{day}`.
 - Fajr roll: each student's Fajr status is also written to `classes/{classId}/fajrRoll/{day}` (own key only, must match their salah record). A class's Fajr monitor (any active student; one person can cover several classes) sees who missed, prayed qadha or hasn't logged, and the Notifications job pushes each monitor one summary each morning, with a line per class, at **Settings → Fajr report time**. It also keeps `classes/{classId}/meta/roster` (names of active students) current.
@@ -92,6 +93,7 @@ Click **Sign in with Google**. The Auth emulator's popup lists the seeded accoun
 | `bilal@demo.test` | student, Class B. Hasn't logged for days, so he shows under "needs attention" |
 | `newstudent@demo.test` | pending (approve them as admin) |
 | `teacher@demo.test` | approved user with no class. Use this account to try **Transfer admin** |
+| `limited-admin@demo.test` | **limited admin**: manages students, classes and settings, but can't see anyone's mamoolaat, logs or salah |
 
 You can also "Add new account" in the popup to try the pending → approval flow. The seed script refuses to run against a non-`demo-` project.
 
@@ -111,6 +113,9 @@ The rules tests show that:
 - students can't make themselves admin, approve themselves, change their status or class, write comments, change settings or classes, or write the audit log;
 - new sign-ups can only create a **pending student** profile for themselves, with their own email;
 - pending and inactive users are blocked from everything except their own basic profile;
+- a **limited admin** can approve, move, rename and deactivate students, run classes and settings and leave notes, but can't read or write anyone's mamoolaat, logs, salah or the Fajr roll, delete a student, hand out roles, or see the audit entries about those records;
+- class names can be read only by people who have signed up (waiting or approved), and the Fajr monitor's name only by that class;
+- an approved student can't change their own name;
 - the admin can't create a second admin or demote themselves except through a handover;
 - after a handover, **the old admin loses all access**, can't take the role back, and the new admin has access;
 - logs can only be written for today and the backfill window (default 2 days). Older or future days are locked, and the window follows the admin setting;
@@ -201,6 +206,25 @@ Anyone with **Owner/Editor** (or Firestore/Datastore viewer) access to the Fireb
 Until steps 4–7 are done, you can still technically see data through the console. The in-app handover alone isn't enough.
 
 There are **no backdoors**: no hard-coded emails or UIDs, no "if no admin exists, the first user becomes admin" rule, and no hidden roles. Admin can only be granted by the current admin (handover) or by someone with Google Cloud access to the project (the bootstrap script or the console).
+
+## 6b. Limited admins
+
+A **limited admin** (role `assistant` in `users/{uid}`) helps run the app without seeing students' records.
+
+| | Admin | Limited admin |
+|---|---|---|
+| Approve, reject, move, rename, deactivate students | yes | yes |
+| Classes (create, rename, delete, class mamoolaat list, Fajr monitor) | yes | yes |
+| Settings, notes to students (and to their phones), reminders, sign-up notifications | yes | yes |
+| Audit log | all of it | only entries about the above |
+| See or edit anyone's mamoolaat, logs, salah, Fajr roll, Overview | yes | **no** |
+| Add the class mamoolaat to students' own lists | yes | no (it touches their lists) |
+| Delete a student, make limited admins, transfer the admin role | yes | no |
+
+**To make one:** the person signs in and is approved like anyone else. Then the admin opens them under
+**Students → Profile → Make limited admin**. They are listed, and can be removed, under **Settings → Limited admins**.
+The rules enforce all of this (`isStaff()`, `isAssistant()` in `firestore.rules`); the screens only hide what the rules refuse.
+There can still be only one admin.
 
 ## 7. Notifications (Web Push from a GitHub Action)
 

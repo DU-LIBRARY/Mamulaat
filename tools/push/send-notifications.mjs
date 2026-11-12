@@ -90,7 +90,8 @@ async function pushToDevices(uid, msg) {
 
 const users = await db.collection('users').get();
 const byId = new Map(users.docs.map((d) => [d.id, d.data()]));
-const admins = users.docs.filter((d) => d.get('role') === 'admin' && d.get('status') === 'active').map((d) => d.id);
+// The admin and any limited admins ("assistants"): both approve sign-ups, so both hear about them.
+const admins = users.docs.filter((d) => ['admin', 'assistant'].includes(d.get('role')) && d.get('status') === 'active').map((d) => d.id);
 
 // TEST=fajr: every Fajr monitor gets a sample morning report with made-up numbers, clearly marked
 // as a test. Reads class names and monitors only; writes nothing.
@@ -229,7 +230,20 @@ const byMonitor = new Map(); // monitor uid → [{ name, report }]
 const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 for (const c of classes.docs) {
   const monitor = c.get('fajrMonitorId');
-  if (typeof monitor !== 'string' || !monitor) continue;
+  // The monitor's name lives in meta/monitor (readable only by that class), never on the class
+  // document, which people still waiting for approval can read. Keep it current, and remove
+  // the name older versions of the app left on the class.
+  const monitorRef = db.doc(`classes/${c.id}/meta/monitor`);
+  const hasMonitor = typeof monitor === 'string' && !!monitor;
+  const who = hasMonitor ? byId.get(monitor) : null;
+  const wantName = hasMonitor ? String((typeof who?.name === 'string' && who.name) || c.get('fajrMonitorName') || 'Fajr monitor').slice(0, 200) : null;
+  const savedName = (await monitorRef.get()).data()?.name ?? null;
+  if (!dry) {
+    if (wantName && wantName !== savedName) await monitorRef.set({ name: wantName });
+    if (!wantName && savedName !== null) await monitorRef.delete();
+    if (c.get('fajrMonitorName') !== undefined) await c.ref.update({ fajrMonitorName: admin.firestore.FieldValue.delete() });
+  }
+  if (!hasMonitor) continue;
   const roster = Object.fromEntries(
     [...byId].filter(([, d]) => d.role === 'student' && d.status === 'active' && d.classId === c.id).map(([uid, d]) => [uid, typeof d.name === 'string' && d.name ? d.name : d.email ?? 'Unnamed']),
   );

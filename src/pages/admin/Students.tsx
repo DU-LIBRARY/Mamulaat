@@ -12,15 +12,16 @@ import { daysAgoLabel, diffDays, todayIn, weekDays, weekStartOf } from '../../li
 import { periodCompletion, pct } from '../../lib/scoring';
 
 /** Approve, then add the class template (if any) to the student's own list. */
-async function approveInto(uids: string[], cls: ClassDoc | undefined, classId: string, today: string, actor: Actor) {
+async function approveInto(uids: string[], cls: ClassDoc | undefined, classId: string, today: string, actor: Actor, limited = false) {
   if (uids.length === 1) await approveUser(uids[0], classId, actor);
   else await bulkUpdateUsers(uids, { kind: 'approve', classId }, actor);
-  if (cls?.template?.length) await applyTemplate(uids, cls.template, today, actor);
+  // A limited admin can't touch students' own lists: the admin adds the class mamoolaat from Classes.
+  if (cls?.template?.length && !limited) await applyTemplate(uids, cls.template, today, actor);
 }
 
 /** "Approve all into the class they asked for", grouped by class, with one confirmation. */
 export function useApproveAll() {
-  const { actor, today } = useActiveSession();
+  const { actor, today, limited } = useActiveSession();
   const classes = useClasses();
   const { confirm, notify } = useDialog();
   return async (list: UserProfile[]) => {
@@ -37,7 +38,7 @@ export function useApproveAll() {
             return (
               <li key={cid} dir="auto">
                 {ids.length} into {c?.name}
-                {c?.template?.length ? ` (+ ${c.template.length} class mamoolaat)` : ''}
+                {c?.template?.length && !limited ? ` (+ ${c.template.length} class mamoolaat)` : ''}
               </li>
             );
           })}
@@ -47,7 +48,7 @@ export function useApproveAll() {
     });
     if (!ok) return;
     try {
-      for (const [cid, ids] of byClass) await approveInto(ids, classes.data.find((c) => c.id === cid), cid, today, actor);
+      for (const [cid, ids] of byClass) await approveInto(ids, classes.data.find((c) => c.id === cid), cid, today, actor, limited);
     } catch (e) {
       await notify('Could not approve everyone', (e as Error).message);
     }
@@ -122,7 +123,7 @@ export function useDeleteUsers(actor: Actor) {
 
 function UserRow({ u, classes, actor, selected, onToggle, selecting, week, today }: { u: UserProfile; classes: ClassDoc[]; actor: Actor; selected: boolean; onToggle: () => void; selecting: boolean; week?: number | null; today: string }) {
   const { confirm } = useDialog();
-  const { settings } = useActiveSession();
+  const { settings, limited } = useActiveSession();
   const tz = settings.timezone;
   const seen = lastSeenDays(u, today, tz);
   const del = useDeleteUsers(actor);
@@ -178,7 +179,7 @@ function UserRow({ u, classes, actor, selected, onToggle, selecting, week, today
           <div className="min-w-40 flex-1">
             <ClassSelect classes={classes} value={cls} onChange={setCls} />
           </div>
-          <button className="btn-primary" disabled={!cls} onClick={() => run(approveInto([u.id], classes.find((c) => c.id === cls), cls, today, actor))}>
+          <button className="btn-primary" disabled={!cls} onClick={() => run(approveInto([u.id], classes.find((c) => c.id === cls), cls, today, actor, limited))}>
             Approve
           </button>
           <button
@@ -201,14 +202,14 @@ function UserRow({ u, classes, actor, selected, onToggle, selecting, week, today
               <div className="min-w-40 flex-1">
                 <ClassSelect classes={classes} value={cls} onChange={setCls} />
               </div>
-              <button className="btn-secondary" disabled={!cls} onClick={() => run(approveInto([u.id], classes.find((c) => c.id === cls), cls, today, actor))}>
+              <button className="btn-secondary" disabled={!cls} onClick={() => run(approveInto([u.id], classes.find((c) => c.id === cls), cls, today, actor, limited))}>
                 Approve
               </button>
             </>
           )}
         </div>
       )}
-      {u.status !== 'pending' && (
+      {u.status !== 'pending' && !limited && (
         <div>
           <button className="btn-ghost min-h-11 px-2 text-sm text-red-700" onClick={() => del([u])}>
             Delete user and all data…
@@ -223,6 +224,7 @@ function UserRow({ u, classes, actor, selected, onToggle, selecting, week, today
 
 function BulkBar({ selected, users, classes, actor, clear, today }: { selected: UserProfile[]; users: UserProfile[]; classes: ClassDoc[]; actor: Actor; clear: () => void; today: string }) {
   const { confirm, notify } = useDialog();
+  const { limited } = useActiveSession();
   const del = useDeleteUsers(actor);
   const [cls, setCls] = useState('');
   const [busy, setBusy] = useState(false);
@@ -238,7 +240,7 @@ function BulkBar({ selected, users, classes, actor, clear, today }: { selected: 
     if (!(await confirm({ title, message: `This applies to ${uids.length} ${uids.length === 1 ? 'person' : 'people'}.`, confirmLabel: 'Apply', danger }))) return;
     setBusy(true);
     try {
-      if (action.kind === 'approve') await approveInto(uids, classes.find((c) => c.id === action.classId), action.classId, today, actor);
+      if (action.kind === 'approve') await approveInto(uids, classes.find((c) => c.id === action.classId), action.classId, today, actor, limited);
       else await bulkUpdateUsers(uids, action, actor);
       clear();
     } catch (e) {
@@ -273,17 +275,19 @@ function BulkBar({ selected, users, classes, actor, clear, today }: { selected: 
           <button className="btn-secondary" disabled={busy || !canReactivate.length} onClick={() => go({ kind: 'reactivate' }, canReactivate, 'Reactivate these people?')}>
             Reactivate ({canReactivate.length})
           </button>
-          <button
-            className="btn-danger"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              if (await del(selected)) clear();
-              setBusy(false);
-            }}
-          >
-            Delete ({selected.length})
-          </button>
+          {!limited && (
+            <button
+              className="btn-danger"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                if (await del(selected)) clear();
+                setBusy(false);
+              }}
+            >
+              Delete ({selected.length})
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -302,7 +306,7 @@ function lastSeenDays(u: UserProfile, today: string, tz: string): number | null 
 type Sort = 'name' | 'week' | 'seen';
 
 export function Students() {
-  const { actor, profile, today, settings } = useActiveSession();
+  const { actor, profile, today, settings, limited } = useActiveSession();
   const users = useAllUsers();
   const classes = useClasses();
   const approveAll = useApproveAll();
@@ -313,10 +317,11 @@ export function Students() {
   const [selecting, setSelecting] = useState(false);
   const tz = settings.timezone;
 
-  const everyone = useMemo(() => users.data.filter((u) => u.id !== profile.id), [users.data, profile.id]);
+  // Students only: the admin and limited admins are listed under Settings.
+  const everyone = useMemo(() => users.data.filter((u) => u.id !== profile.id && u.role === 'student'), [users.data, profile.id]);
   const activeIds = everyone.filter((u) => u.status === 'active' && u.role === 'student').map((u) => u.id);
   const days = weekDays(weekStartOf(today, settings.weekStart));
-  const range = useStudentsRange(activeIds, days[0], today);
+  const range = useStudentsRange(limited ? [] : activeIds, days[0], today);
   const weekOf = (u: UserProfile) => {
     const r = range.get(u.id);
     return r?.loaded ? periodCompletion(days, r.logs, r.mamoolaat, today) : undefined;
@@ -399,7 +404,7 @@ export function Students() {
             Sort
             <select className="input min-h-11 w-auto py-1 text-sm" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
               <option value="name">by name</option>
-              <option value="week">lowest this week first</option>
+              {!limited && <option value="week">lowest this week first</option>}
               <option value="seen">longest since opened first</option>
             </select>
           </label>
@@ -466,7 +471,7 @@ export function Students() {
         </section>
       )}
       {(q || staleOnly) && list.length === 0 && <EmptyState>{staleOnly ? 'Everyone has opened the app recently.' : `Nobody matches “${filter}”.`}</EmptyState>}
-      <p className="text-xs text-slate-500">Tap a student to see their logs, change their class, deactivate or delete them. Use “Select…” to move or approve several at once.</p>
+      <p className="text-xs text-slate-500">{limited ? 'Tap a student to leave a note, change their class or deactivate them.' : 'Tap a student to see their logs, change their class, deactivate or delete them.'} Use “Select…” to move or approve several at once.</p>
       {selected.length > 0 && <BulkBar selected={selected} users={everyone} classes={classes.data} actor={actor} clear={() => setSel(new Set())} today={today} />}
     </div>
   );

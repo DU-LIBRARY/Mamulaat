@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useDocData } from '../../hooks/useFirestore';
@@ -26,21 +26,10 @@ export function Me() {
   const [support, setSupport] = useState<PushSupport | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [name, setName] = useState(profile.name ?? '');
-  const [nameSaved, setNameSaved] = useState(false);
 
   useEffect(() => {
     pushSupport().then(setSupport);
   }, []);
-
-  const saveName = (e: FormEvent) => {
-    e.preventDefault();
-    const n = name.trim().replace(/\s+/g, ' ');
-    if (!n || n === profile.name) return;
-    updateOwnProfile(profile.id, { name: n.slice(0, 100) });
-    setNameSaved(true);
-    setTimeout(() => setNameSaved(false), 2000);
-  };
 
   const toggle = async () => {
     setMsg(null);
@@ -80,12 +69,10 @@ export function Me() {
 
       <section className="card">
         <h2 className="section-title">My name</h2>
-        <form onSubmit={saveName} className="flex gap-2">
-          <input className="input" dir="auto" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} aria-label="Your name" />
-          <button className="btn-secondary" type="submit" disabled={!name.trim() || name.trim() === profile.name}>
-            {nameSaved ? 'Saved' : 'Save'}
-          </button>
-        </form>
+        <p className="text-slate-900" dir="auto">
+          {profile.name ?? profile.email}
+        </p>
+        <p className="mt-1 text-sm text-slate-500">If your name is wrong, ask your teacher to change it.</p>
       </section>
 
       <Link to="/mamoolaat" className="card group flex items-center justify-between pb-5">

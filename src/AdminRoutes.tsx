@@ -16,7 +16,7 @@ import { Audit } from './pages/admin/Audit';
 
 /** The teacher's side of the app, split into its own chunk (loaded lazily from App). */
 export default function AdminRoutes() {
-  const { profile } = useSession();
+  const { profile, limited } = useSession();
   const users = useAllUsers();
   const [toast, setToast] = useState<string | null>(null);
   const pending = users.data.filter((u) => u.status === 'pending').length;
@@ -28,18 +28,18 @@ export default function AdminRoutes() {
     return () => unsub?.();
   }, [uid, profile?.reminderEnabled]);
   return (
-    <AdminLayout pending={pending}>
+    <AdminLayout pending={pending} limited={limited}>
       {toast && <Toast text={toast} onClose={() => setToast(null)} />}
       <Routes>
-        <Route path="/admin" element={<MyMamool />} />
-        <Route path="/admin/overview" element={<Overview />} />
+        {!limited && <Route path="/admin" element={<MyMamool />} />}
+        {!limited && <Route path="/admin/overview" element={<Overview />} />}
         <Route path="/admin/classes" element={<Classes />} />
         <Route path="/admin/class/:classId" element={<ClassView />} />
         <Route path="/admin/students" element={<Students />} />
         <Route path="/admin/student/:uid" element={<StudentDetail />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/audit" element={<Audit />} />
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="*" element={<Navigate to={limited ? '/admin/students' : '/admin'} replace />} />
       </Routes>
     </AdminLayout>
   );

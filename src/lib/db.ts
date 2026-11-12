@@ -19,6 +19,7 @@ import { db } from '../firebase';
 import type { AppSettings, ClassDoc, DayLog, LogEntry, Mamool, SalahDay, SalahName, SalahStatus, TemplateItem, UserProfile } from '../types';
 import { DEFAULT_TIMEZONE, utcOffsetMinutes } from './dates';
 import { fire, track } from './sync';
+import { noteWrite } from './unsynced';
 import { sameMamoolName } from './names';
 import { rollStatusOf } from './salah';
 
@@ -53,6 +54,8 @@ export const salahCol = (uid: string) => collection(db, 'users', uid, 'salah');
 export const salahRef = (uid: string, day: string) => doc(db, 'users', uid, 'salah', day);
 export const fajrRollRef = (classId: string, day: string) => doc(db, 'classes', classId, 'fajrRoll', day);
 export const rosterRef = (classId: string) => doc(db, 'classes', classId, 'meta', 'roster');
+/** { name } of the class's Fajr monitor: readable only by the class, the monitor and the staff. */
+export const monitorRef = (classId: string) => doc(db, 'classes', classId, 'meta', 'monitor');
 
 export function salahRangeQuery(uid: string, from: string, to: string) {
   return query(salahCol(uid), where(documentId(), '>=', from), where(documentId(), '<=', to));
@@ -130,8 +133,21 @@ function stamp(self?: Actor) {
   return self ? { editedBy: self.uid, editedByName: self.name.slice(0, 200) } : CLEAR_STAMP;
 }
 
+/**
+ * Send a student's own write and remember it until the server answers, so the app can tell
+ * them if it never arrives (see unsynced.ts). The admin's own log (`self`) isn't day-limited.
+ */
+function fireOwn(uid: string, kind: 'logs' | 'salah', day: string, ids: Record<string, unknown>, p: Promise<unknown>, self?: Actor) {
+  if (!self) noteWrite(uid, kind, day, ids, p);
+  fire(p);
+}
+
 export function saveEntry(uid: string, day: string, mamoolId: string, entry: LogEntry | null, self?: Actor) {
-  fire(
+  fireOwn(
+    uid,
+    'logs',
+    day,
+    { [mamoolId]: entry },
     setDoc(
       logRef(uid, day),
       {
@@ -142,11 +158,12 @@ export function saveEntry(uid: string, day: string, mamoolId: string, entry: Log
       },
       { merge: true },
     ),
+    self,
   );
 }
 
 export function saveEntries(uid: string, day: string, entries: Record<string, LogEntry>, self?: Actor) {
-  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...stamp(self) }, { merge: true }));
+  fireOwn(uid, 'logs', day, entries, setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...stamp(self) }, { merge: true }), self);
 }
 
 /**
@@ -155,8 +172,12 @@ export function saveEntries(uid: string, day: string, entries: Record<string, Lo
  */
 export function restoreEntries(uid: string, day: string, prev: Record<string, LogEntry | undefined>, self?: Actor) {
   const entries: Record<string, unknown> = {};
-  for (const [id, e] of Object.entries(prev)) entries[id] = e ?? deleteField();
-  fire(setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...stamp(self) }, { merge: true }));
+  const ids: Record<string, unknown> = {};
+  for (const [id, e] of Object.entries(prev)) {
+    entries[id] = e ?? deleteField();
+    ids[id] = e ?? null;
+  }
+  fireOwn(uid, 'logs', day, ids, setDoc(logRef(uid, day), { date: day, entries, updatedAt: serverTimestamp(), ...stamp(self) }, { merge: true }), self);
 }
 
 /** Admin edits one entry of any student's log for ANY day. The log is stamped with who edited it, and audited. */
@@ -193,36 +214,56 @@ export interface RollOwner {
   classId: string | null;
 }
 
-function rollPatch(owner: RollOwner, status: SalahStatus | null) {
-  return { r: { [owner.uid]: status ? { name: owner.name.slice(0, 200), status: rollStatusOf(status) } : deleteField() } };
+/** The roll keeps only missed/prayed per student. Names come from the class roster, never from here. */
+function rollPatch(owner: Pick<RollOwner, 'uid'>, status: SalahStatus | null) {
+  return { r: { [owner.uid]: status ? { status: rollStatusOf(status) } : deleteField() } };
 }
 
 /**
- * Save (or clear, with null) one salah. Fajr is also copied into the class's Fajr roll in the
- * same batch, so the roll can never disagree with the student's own record (the rules check it).
+ * Copy a student's own Fajr into their class's Fajr roll. Sent on its own, after the salah
+ * record: the rules check it against that record, and if it is refused (the student was just
+ * moved to another class and this phone hasn't heard yet) the salah record itself is still
+ * saved. syncFajrRoll() below puts the roll right afterwards.
  */
+function writeOwnRoll(owner: RollOwner, day: string, status: SalahStatus | null) {
+  if (!owner.classId) return;
+  fire(setDoc(fajrRollRef(owner.classId, day), rollPatch(owner, status), { merge: true }));
+}
+
+/** Save (or clear, with null) one salah. Fajr is also copied into the class's Fajr roll. */
 export function saveSalah(owner: RollOwner, day: string, name: SalahName, status: SalahStatus | null) {
-  const batch = writeBatch(db);
-  batch.set(
-    salahRef(owner.uid, day),
-    { date: day, entries: { [name]: status ?? deleteField() }, updatedAt: serverTimestamp(), ...CLEAR_STAMP },
-    { merge: true },
+  fireOwn(
+    owner.uid,
+    'salah',
+    day,
+    { [name]: status },
+    setDoc(salahRef(owner.uid, day), { date: day, entries: { [name]: status ?? deleteField() }, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true }),
   );
-  if (name === 'fajr' && owner.classId) batch.set(fajrRollRef(owner.classId, day), rollPatch(owner, status), { merge: true });
-  fire(batch.commit());
+  if (name === 'fajr') writeOwnRoll(owner, day, status);
 }
 
 /**
  * Save several salah at once (e.g. "mark the rest as jamaat"); null clears one (used by Undo).
- * Fajr is copied into the class's Fajr register in the same batch.
+ * Fajr is also copied into the class's Fajr roll.
  */
 export function saveSalahEntries(owner: RollOwner, day: string, entries: Partial<Record<SalahName, SalahStatus | null>>) {
-  const batch = writeBatch(db);
   const e: Record<string, unknown> = {};
-  for (const [n, st] of Object.entries(entries)) e[n] = st ?? deleteField();
-  batch.set(salahRef(owner.uid, day), { date: day, entries: e, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true });
-  if ('fajr' in entries && owner.classId) batch.set(fajrRollRef(owner.classId, day), rollPatch(owner, entries.fajr ?? null), { merge: true });
-  fire(batch.commit());
+  const ids: Record<string, unknown> = {};
+  for (const [n, st] of Object.entries(entries)) {
+    e[n] = st ?? deleteField();
+    ids[n] = st ?? null;
+  }
+  fireOwn(owner.uid, 'salah', day, ids, setDoc(salahRef(owner.uid, day), { date: day, entries: e, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true }));
+  if ('fajr' in entries) writeOwnRoll(owner, day, entries.fajr ?? null);
+}
+
+/**
+ * Put the student's Fajr for these (still editable) days into their CURRENT class's roll.
+ * Run when the app opens and when their class changes, so a Fajr logged just before or
+ * during a class move still reaches the right register.
+ */
+export function syncFajrRoll(owner: RollOwner, fajrByDay: Record<string, SalahStatus | undefined>) {
+  for (const [day, status] of Object.entries(fajrByDay)) if (status) writeOwnRoll(owner, day, status);
 }
 
 /** Admin corrects a student's salah for any day: stamped and audited, and the Fajr roll follows. */
@@ -241,6 +282,8 @@ export function adminSaveSalah(student: RollOwner, day: string, name: SalahName,
 /**
  * Make one student the Fajr monitor of one or more classes (or nobody, with null). They need not
  * be in those classes. Each class's roster (names of its active students) is saved with it.
+ * The monitor's name goes in meta/monitor, which only that class can read, not on the class
+ * itself (class names are readable by people still waiting for approval).
  */
 export function setFajrMonitor(
   targets: { cls: ClassDoc; roster: Record<string, string> }[],
@@ -249,14 +292,31 @@ export function setFajrMonitor(
 ) {
   const batch = writeBatch(db);
   for (const { cls, roster } of targets) {
-    batch.update(doc(classesCol(), cls.id), {
-      fajrMonitorId: student?.id ?? null,
-      fajrMonitorName: student ? (student.name ?? student.email).slice(0, 200) : null,
-    });
-    if (student) batch.set(rosterRef(cls.id), { names: roster });
+    batch.update(doc(classesCol(), cls.id), { fajrMonitorId: student?.id ?? null, fajrMonitorName: deleteField() });
+    if (student) {
+      batch.set(monitorRef(cls.id), { name: (student.name ?? student.email).slice(0, 200) });
+      batch.set(rosterRef(cls.id), { names: roster });
+    } else {
+      batch.delete(monitorRef(cls.id));
+    }
     addAudit(batch, actor, 'class.fajrMonitor', { classId: cls.id, className: cls.name, monitorId: student?.id ?? null, monitorName: student?.name ?? null });
   }
   return track(batch.commit());
+}
+
+/**
+ * Older versions kept the monitor's name on the class document. Move any that are left to
+ * meta/monitor (the Notifications job does the same). Safe to call on every load.
+ */
+export function moveMonitorNames(classes: ClassDoc[]) {
+  const old = classes.filter((c) => typeof c.fajrMonitorName === 'string');
+  if (!old.length) return;
+  const batch = writeBatch(db);
+  for (const c of old) {
+    batch.update(doc(classesCol(), c.id), { fajrMonitorName: deleteField() });
+    if (c.fajrMonitorId) batch.set(monitorRef(c.id), { name: String(c.fajrMonitorName).slice(0, 200) });
+  }
+  fire(batch.commit());
 }
 
 /** Keep a class's roster (names of its active students) in step; only written when it changed. */
@@ -572,6 +632,13 @@ export const reactivateUser = (uid: string, actor: Actor) => adminUserUpdate(uid
 export const moveUser = (uid: string, classId: string, actor: Actor) => adminUserUpdate(uid, { classId }, actor, 'user.move', { classId });
 export const renameUser = (uid: string, name: string, actor: Actor) =>
   adminUserUpdate(uid, { name: name.trim().replace(/\s+/g, ' ').slice(0, 100) }, actor, 'user.rename', { name });
+/**
+ * Make an approved user a limited admin ("assistant"), or an ordinary student again. A limited
+ * admin manages students, classes and settings but can't see anyone's mamoolaat, logs or salah.
+ * Only the admin can do this (the rules check it).
+ */
+export const setAssistant = (uid: string, on: boolean, actor: Actor) =>
+  adminUserUpdate(uid, on ? { role: 'assistant', status: 'active', classId: null } : { role: 'student' }, actor, on ? 'user.assistant' : 'user.unassistant');
 /** Put someone back to waiting-for-approval (they keep their data; classId is cleared). */
 export const setPending = (uid: string, actor: Actor) => adminUserUpdate(uid, { status: 'pending', classId: null }, actor, 'user.pending');
 
@@ -698,6 +765,16 @@ export function refreshOffsetIfNeeded(s: AppSettings | null) {
   if (off !== s.utcOffsetMinutes) fire(setDoc(settingsRef(), { ...n, utcOffsetMinutes: off }));
 }
 
-export function auditQuery() {
-  return query(auditCol(), orderBy('createdAt', 'desc'));
+/** The kinds of audit entry a limited admin may read. Keep in step with assistantAuditAction() in firestore.rules. */
+export const ASSISTANT_AUDIT_ACTIONS = [
+  'user.approve', 'user.reject', 'user.deactivate', 'user.reactivate', 'user.move', 'user.rename',
+  'user.pending', 'user.delete', 'user.assistant', 'user.unassistant',
+  'class.create', 'class.rename', 'class.delete', 'class.template', 'class.fajrMonitor',
+  'comment.add', 'comment.delete', 'nudge.send', 'settings.update', 'admin.transfer',
+];
+
+export function auditQuery(limited = false) {
+  return limited
+    ? query(auditCol(), where('action', 'in', ASSISTANT_AUDIT_ACTIONS), orderBy('createdAt', 'desc'))
+    : query(auditCol(), orderBy('createdAt', 'desc'));
 }

@@ -7,7 +7,7 @@ import { Checklist } from '../../components/Checklist';
 import { DateLine } from '../../components/DateLine';
 import { EmptyState, Notice, ProgressRing } from '../../components/ui';
 import { IconBell, IconPencil } from '../../components/icons';
-import { LastChanceNotice, LockedDayNotice, PendingSyncNotice } from '../../components/LockNotices';
+import { LastChanceNotice, LockedDayNotice, PendingSyncNotice, LostEntriesNotice } from '../../components/LockNotices';
 import { ReminderBanner } from '../../components/ReminderBanner';
 import { Cta, Sheet } from '../../components/quiet';
 import { useUndo } from '../../components/Undo';
@@ -49,6 +49,7 @@ export function LogDay() {
 
   return (
     <div className="flex flex-col gap-4">
+      <LostEntriesNotice />
       <PendingSyncNotice />
       <DayChips day={day} today={today} backfillDays={settings.backfillDays} hrefFor={(d) => (d === today ? '/' : `/log/${d}`)} />
 
