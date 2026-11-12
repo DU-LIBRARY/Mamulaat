@@ -105,7 +105,7 @@ export function cellClass(f: number | null | undefined): string {
   if (f >= 0.75) return 'bg-brand-200 text-brand-900';
   if (f >= 0.5) return 'bg-brand-100 text-brand-900';
   if (f > 0) return 'bg-amber-100 text-amber-900';
-  return 'bg-red-300 text-red-950';
+  return 'bg-red-300 text-on-red';
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
