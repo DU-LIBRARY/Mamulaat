@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
+import { SalahWeek } from '../../components/SalahWeek';
 import { Stat, StatRow } from '../../components/ui';
 import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { addDays, formatGregorian, weekDays, weekStartOf } from '../../lib/dates';
@@ -9,7 +10,7 @@ import { dayStats, entryFraction, mamoolCompletion, periodCompletion, pct, sched
 
 export function Week() {
   const { today, settings } = useActiveSession();
-  const { logs, all } = useMyData();
+  const { logs, all, salah } = useMyData();
   const [offset, setOffset] = useState(0);
   const start = addDays(weekStartOf(today, settings.weekStart), offset * 7);
   const days = weekDays(start);
@@ -64,6 +65,12 @@ export function Week() {
       <div className="rounded-xl bg-surface p-2">
         <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" />
       </div>
+      <section className="flex flex-col gap-2">
+        <h2 className="font-serif text-[22px] leading-tight text-slate-900">Salah</h2>
+        <div className="rounded-xl bg-surface p-2">
+          <SalahWeek days={days} salah={salah} today={today} />
+        </div>
+      </section>
       <p className="text-xs text-slate-500">
         A day counts toward your streak at 50%+
         completion. Only you and your teacher can see this.

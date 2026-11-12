@@ -212,6 +212,19 @@ export function saveSalah(owner: RollOwner, day: string, name: SalahName, status
   fire(batch.commit());
 }
 
+/**
+ * Save several salah at once (e.g. "mark the rest as jamaat"); null clears one (used by Undo).
+ * Fajr is copied into the class's Fajr register in the same batch.
+ */
+export function saveSalahEntries(owner: RollOwner, day: string, entries: Partial<Record<SalahName, SalahStatus | null>>) {
+  const batch = writeBatch(db);
+  const e: Record<string, unknown> = {};
+  for (const [n, st] of Object.entries(entries)) e[n] = st ?? deleteField();
+  batch.set(salahRef(owner.uid, day), { date: day, entries: e, updatedAt: serverTimestamp(), ...CLEAR_STAMP }, { merge: true });
+  if ('fajr' in entries && owner.classId) batch.set(fajrRollRef(owner.classId, day), rollPatch(owner, entries.fajr ?? null), { merge: true });
+  fire(batch.commit());
+}
+
 /** Admin corrects a student's salah for any day: stamped and audited, and the Fajr roll follows. */
 export function adminSaveSalah(student: RollOwner, day: string, name: SalahName, status: SalahStatus | null, actor: Actor) {
   const batch = writeBatch(db);

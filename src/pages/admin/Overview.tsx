@@ -3,7 +3,8 @@ import { Fragment, useMemo, useState } from 'react';
 import { query, where } from 'firebase/firestore';
 import type { Nudge, UserProfile } from '../../types';
 import { useActiveSession } from '../../hooks/useSession';
-import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
+import { useAllUsers, useClasses, useStudentsRange, useStudentsSalah } from '../../hooks/useAdminData';
+import { SalahRegister } from '../../components/SalahRegister';
 import { useCollectionData } from '../../hooks/useFirestore';
 import { DateLine } from '../../components/DateLine';
 import { ExportBar } from '../../components/ExportBar';
@@ -33,6 +34,7 @@ export function Overview() {
   const days = weekDays(weekStartOf(today, settings.weekStart));
   const from = [days[0], addDays(today, -(settings.attentionNoLogDays - 1))].sort()[0];
   const range = useStudentsRange(students.map((s) => s.id), from, today);
+  const salah = useStudentsSalah(students.map((s) => s.id), days[0], days[6]);
 
   const { attention, byClass, loggedToday, weeks, notLogged } = useMemo(() => {
     const attention = [];
@@ -213,6 +215,25 @@ export function Overview() {
         )}
         <p className="mt-2 text-xs text-slate-500">✓ every mamool completed · number = % completed · ✕ nothing logged · · today, not logged yet · – no mamoolaat set. Tap a student for details.</p>
       </section>
+
+      {students.length > 0 && (
+        <section>
+          <h2 className="section-title mb-2">
+            Salah register <span className="font-normal normal-case">({formatGregorian(days[0])} – {formatGregorian(days[6])})</span>
+          </h2>
+          <div className="rounded-xl bg-surface p-2">
+            <SalahRegister
+              days={days}
+              today={today}
+              salah={salah}
+              groups={[
+                ...classes.data.map((c) => ({ key: c.id, label: c.name, students: students.filter((s) => s.classId === c.id) })),
+                { key: '', label: 'No class', students: students.filter((s) => !s.classId || !classes.data.some((c) => c.id === s.classId)) },
+              ].filter((g) => g.students.length > 0)}
+            />
+          </div>
+        </section>
+      )}
 
       <section className="no-print">
         <h2 className="section-title">Classes this week</h2>

@@ -3,8 +3,8 @@ import { SALAH_LABEL, STATUS_DESC } from '../lib/salah';
 import { shortDay, dayNumber } from '../lib/dates';
 
 const CELL: Record<SalahStatus, { cls: string; short: string }> = {
-  takbir: { cls: 'bg-brand-700 text-on-primary', short: 'T' },
-  jamaat: { cls: 'bg-brand-100 text-brand-900', short: 'J' },
+  takbir: { cls: 'bg-gold-50 text-gold-900', short: 'T' },
+  jamaat: { cls: 'bg-green-100 text-green-800', short: 'J' },
   qadha: { cls: 'bg-amber-100 text-amber-900', short: 'Q' },
   missed: { cls: 'bg-red-100 text-red-800', short: 'M' },
 };
@@ -58,7 +58,7 @@ export function SalahWeek({ days, salah, today, onPick }: { days: string[]; sala
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-slate-500">T = with the opening takbir · J = in jamaat · Q = qadha · M = missed · – = not logged</p>
+      <p className="mt-2 text-xs text-slate-500">T = Takbir Ula · J = Jamaat · Q = Qadha · M = Missed · – = not logged</p>
     </div>
   );
 }

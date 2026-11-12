@@ -154,6 +154,10 @@ export function StudentDetail() {
             }}
           />
           <div className="rounded-xl bg-surface p-2">{rows.length > 1 ? <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" /> : <EmptyState>No mamoolaat this week.</EmptyState>}</div>
+          <h2 className="section-title mt-2 mb-0">Salah</h2>
+          <div className="rounded-xl bg-surface p-2">
+            <SalahWeek days={days} salah={data.salah} today={today} />
+          </div>
         </>
       )}
 

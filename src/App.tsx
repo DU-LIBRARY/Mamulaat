@@ -58,7 +58,7 @@ function StudentRoutes() {
   return (
     <Layout
       nav={[
-        { to: '/', label: 'Log', icon: <IconLog />, end: true, also: ['/log', '/mamoolaat'] },
+        { to: '/', label: 'Mamool', icon: <IconLog />, end: true, also: ['/log', '/mamoolaat'] },
         { to: '/salah', label: 'Salah', icon: <IconSalah /> },
         { to: '/week', label: 'Week', icon: <IconWeek /> },
         { to: '/messages', label: 'Inbox', icon: <IconInbox />, badge: data.unreadComments + data.unseenChanges },
