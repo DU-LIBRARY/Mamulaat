@@ -792,6 +792,16 @@ describe('Fajr roll and monitor', () => {
     await assertSucceeds(logFajr(A, daysAgo(1), 'jamaat'));
   });
 
+  it('a student can log Jamaat over a Fajr the midday job marked missed', async () => {
+    // What tools/push/send-notifications.mjs writes (admin SDK, no stamp) for an unlogged Fajr.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const f = ctx.firestore();
+      await setDoc(doc(f, `users/${A}/salah/${today}`), { date: today, entries: { fajr: 'missed' }, updatedAt: serverTimestamp() });
+      await setDoc(doc(f, roll(A, today)), { r: { [A]: { name: 'A', status: 'missed' } } }, { merge: true });
+    });
+    await assertSucceeds(logFajr(A, today, 'jamaat'));
+  });
+
   it('a roll entry that does not match the salah record is refused', async () => {
     await assertFails(logFajr(A, today, 'missed', 'class-1', 'prayed'));
     await assertFails(logFajr(A, today, 'takbir', 'class-1', 'missed'));

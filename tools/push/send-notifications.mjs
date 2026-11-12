@@ -11,6 +11,9 @@
 //  - Fajr roll: each morning (settings.fajrReportTime) tells each Fajr monitor, for every class
 //    they look after (combined), how many missed Fajr (incl. qadha) or haven't logged it. Also keeps each such
 //    class's roster (names of its active students) current for the monitor's screen.
+//  - Unlogged Fajr: from 12:00 (project time), every active student with no Fajr logged today
+//    gets it recorded as missed (their salah record and their class's Fajr register). Logging
+//    Jamaat later simply replaces it.
 //
 // Env:
 //   FIREBASE_SERVICE_ACCOUNT  service-account JSON key (the same secret the backend deploy uses)
@@ -243,8 +246,39 @@ for (const [monitor, list] of byMonitor) {
   if (await pushToUser(monitor, { title, body, url: 'salah/fajr', tag: `fajr-${today}` })) fajrReports++;
 }
 
+// 6. From midday (project time), today's Fajr not logged is recorded as missed for every active
+// student, in their own salah record and in their class's Fajr register, exactly as if they had
+// tapped Missed. It only fills a Fajr that's still empty, so a student who logs Jamaat later simply
+// replaces it. Runs on every pass after midday, so students activated later are covered too.
+const FAJR_AUTO_MISSED_AT = 12 * 60;
+let autoMissed = 0;
+if (minutes >= FAJR_AUTO_MISSED_AT) {
+  for (const [uid, d] of byId) {
+    if (d.role !== 'student' || d.status !== 'active') continue;
+    const salahRef = db.doc(`users/${uid}/salah/${today}`);
+    const classId = typeof d.classId === 'string' && d.classId ? d.classId : null;
+    const name = (typeof d.name === 'string' && d.name ? d.name : d.email ?? 'Unnamed').slice(0, 200);
+    if (dry) {
+      if (!(await salahRef.get()).data()?.entries?.fajr) {
+        autoMissed++;
+        console.log(`[dry run] would mark Fajr missed for ${name}`);
+      }
+      continue;
+    }
+    // In a transaction, so a Fajr the student logs at the same moment always wins.
+    const marked = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(salahRef);
+      if (snap.data()?.entries?.fajr) return false;
+      tx.set(salahRef, { date: today, entries: { fajr: 'missed' }, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      if (classId) tx.set(db.doc(`classes/${classId}/fajrRoll/${today}`), { r: { [uid]: { name, status: 'missed' } } }, { merge: true });
+      return true;
+    });
+    if (marked) autoMissed++;
+  }
+}
+
 console.log(
   `${today} ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${tz}: ` +
-    `${reminded} reminder(s), ${nudged} nudge(s), ${messages} message(s), ${signups} sign-up notice(s), ${approvals} approval(s), ${fajrReports} Fajr report(s)${firstRun ? ' (first run: existing students recorded)' : ''}. ` +
+    `${reminded} reminder(s), ${nudged} nudge(s), ${messages} message(s), ${signups} sign-up notice(s), ${approvals} approval(s), ${fajrReports} Fajr report(s), ${autoMissed} unlogged Fajr marked missed${firstRun ? ' (first run: existing students recorded)' : ''}. ` +
     `Sent ${stats.sent} push(es); removed ${stats.removed} expired device(s); ${stats.failed} failed.`,
 );
