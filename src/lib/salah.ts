@@ -9,7 +9,7 @@ export const SALAH_LABEL: Record<SalahName, string> = {
 };
 
 export const STATUS_LABEL: Record<SalahStatus, string> = {
-  takbir: 'Takbir',
+  takbir: 'Takbir Ula',
   jamaat: 'Jamaat',
   qadha: 'Qadha',
   missed: 'Missed',
@@ -17,7 +17,7 @@ export const STATUS_LABEL: Record<SalahStatus, string> = {
 
 /** Longer wording for the line under each salah and for screen readers. */
 export const STATUS_DESC: Record<SalahStatus, string> = {
-  takbir: 'In jamaat with the opening takbir',
+  takbir: 'In jamaat with Takbir Ula',
   jamaat: 'In jamaat',
   qadha: 'Prayed as qadha',
   missed: 'Missed',

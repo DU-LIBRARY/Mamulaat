@@ -349,6 +349,7 @@ export function Checklist({
   asAdmin,
   self,
   compact,
+  hideMarkRest,
 }: {
   uid: string;
   day: string;
@@ -361,6 +362,8 @@ export function Checklist({
   self?: Actor;
   /** One line per mamool: name on the left, status buttons on the right. */
   compact?: boolean;
+  /** The page shows its own big "mark the rest done" button instead. */
+  hideMarkRest?: boolean;
 }) {
   const undo = useUndo();
   const remaining = mamoolaat.filter((m) => !log?.entries?.[m.id]);
@@ -376,7 +379,7 @@ export function Checklist({
   };
   return (
     <div className="flex flex-col gap-2">
-      {editable && !asAdmin && remaining.length > 0 && (
+      {editable && !asAdmin && !hideMarkRest && remaining.length > 0 && (
         <button
           type="button"
           onClick={markRest}

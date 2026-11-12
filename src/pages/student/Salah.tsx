@@ -12,9 +12,12 @@ import { Row, Rows } from '../../components/quiet';
 import { IconInfo, IconPencil } from '../../components/icons';
 import { LockedDayNotice, PendingSyncNotice } from '../../components/LockNotices';
 import { isDayEditable, isValidYmd, lastEditableDay } from '../../lib/dates';
-import { classesCol, saveSalah } from '../../lib/db';
+import { classesCol, saveSalah, saveSalahEntries } from '../../lib/db';
 import { salahStats } from '../../lib/salah';
-import type { ClassDoc } from '../../types';
+import { SALAH_NAMES, type ClassDoc, type SalahName, type SalahStatus } from '../../types';
+import { Check } from '@phosphor-icons/react';
+import { Cta } from '../../components/quiet';
+import { useUndo } from '../../components/Undo';
 
 /** The student's class doc (name and Fajr monitor), or null when they have no class. */
 export function useMyClass() {
@@ -44,6 +47,19 @@ export function Salah() {
   const monitorId = cls?.fajrMonitorId ?? null;
   const isMonitor = monitored.length > 0;
   const owner = { uid: profile.id, name: profile.name ?? profile.email, classId: profile.classId };
+  const undo = useUndo();
+  // Only the salah still empty become Jamaat; anything already marked is kept.
+  const remaining = SALAH_NAMES.filter((n) => !record?.entries?.[n]);
+  const markRest = () => {
+    const next: Partial<Record<SalahName, SalahStatus | null>> = {};
+    const prev: Partial<Record<SalahName, SalahStatus | null>> = {};
+    for (const n of remaining) {
+      next[n] = 'jamaat';
+      prev[n] = null;
+    }
+    saveSalahEntries(owner, day, next);
+    undo.undoable(`Marked ${remaining.length} as Jamaat`, () => saveSalahEntries(owner, day, prev));
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,8 +86,14 @@ export function Salah() {
         </Notice>
       )}
 
+      {editable && remaining.length > 0 && (
+        <Cta icon={Check} onClick={markRest}>
+          {remaining.length === 5 ? 'Mark all as Jamaat' : `Mark the other ${remaining.length} as Jamaat`}
+        </Cta>
+      )}
+
       <SalahChecklist day={day} record={record} editable={editable} onChange={(name, status) => saveSalah(owner, day, name, status)} />
-      {editable && <p className="text-center text-xs text-slate-500">Tick Takbir if you joined from the opening takbir. Tap again to undo.</p>}
+      {editable && <p className="text-center text-xs text-slate-500">Tick if you prayed in jamaat; tap Takbir Ula if you joined from the first takbir. Tap again to undo.</p>}
 
       {isMonitor && (
         <Rows className="mt-2">

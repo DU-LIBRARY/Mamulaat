@@ -21,6 +21,7 @@ import {
   Clock,
   Info,
   Mosque,
+  Star,
   Users,
   type IconProps,
 } from '@phosphor-icons/react';
@@ -60,5 +61,6 @@ export const IconClock = make(Clock, 'regular');
 export const IconInfo = make(Info, 'regular');
 export const IconSalah = make(Mosque, 'light');
 export const IconUsers = make(Users, 'regular');
+export const IconStar = make(Star, 'regular');
 
 export type AppIconProps = ComponentProps<typeof IconToday>;

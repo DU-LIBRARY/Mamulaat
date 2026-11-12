@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Plus } from '@phosphor-icons/react';
+import { Check, Plus } from '@phosphor-icons/react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
 import { Checklist } from '../../components/Checklist';
@@ -9,11 +9,12 @@ import { EmptyState, Notice, ProgressRing } from '../../components/ui';
 import { IconBell, IconPencil } from '../../components/icons';
 import { LastChanceNotice, LockedDayNotice, PendingSyncNotice } from '../../components/LockNotices';
 import { ReminderBanner } from '../../components/ReminderBanner';
-import { Sheet } from '../../components/quiet';
+import { Cta, Sheet } from '../../components/quiet';
+import { useUndo } from '../../components/Undo';
 import { MamoolForm } from '../../components/MamoolEditor';
 import { useDocData } from '../../hooks/useFirestore';
-import { addMamool, nudgeRef } from '../../lib/db';
-import type { Nudge } from '../../types';
+import { addMamool, nudgeRef, restoreEntries, saveEntries } from '../../lib/db';
+import type { LogEntry, Nudge } from '../../types';
 import { isDayEditable, isValidYmd, lastEditableDay } from '../../lib/dates';
 import { DayChips } from '../../components/DayChips';
 import { dayStats, scheduledFor } from '../../lib/scoring';
@@ -23,6 +24,7 @@ export function LogDay() {
   const { profile, today, settings, actor } = useActiveSession();
   const { logs, all } = useMyData();
   const [adding, setAdding] = useState(false);
+  const undo = useUndo();
   const nudge = useDocData<Nudge>(nudgeRef(profile.id, today), `nudge:${profile.id}:${today}`);
   const params = useParams();
   const day = params.day && isValidYmd(params.day) && params.day <= today ? params.day : today;
@@ -32,6 +34,18 @@ export function LogDay() {
   const lastDay = lastEditableDay(day, settings.backfillDays);
   const isToday = day === today;
   const nudged = isToday && !!nudge.data && s.logged < s.scheduled;
+  // Fill in only what's still empty; anything already marked (done, partly, missed) is kept.
+  const remaining = mams.filter((m) => !logs.get(day)?.entries?.[m.id]);
+  const markRest = () => {
+    const next: Record<string, LogEntry> = {};
+    const prev: Record<string, LogEntry | undefined> = {};
+    for (const m of remaining) {
+      next[m.id] = { status: 'done', amount: m.target, target: m.target };
+      prev[m.id] = undefined;
+    }
+    saveEntries(profile.id, day, next);
+    undo.undoable(`Marked ${remaining.length} done`, () => restoreEntries(profile.id, day, prev));
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -60,8 +74,14 @@ export function LogDay() {
         <Notice tone="teacher" icon={<IconPencil size={18} />}>Your teacher{logs.get(day)?.editedByName ? ` (${logs.get(day)?.editedByName})` : ''} edited this day.</Notice>
       )}
 
+      {editable && remaining.length > 0 && (
+        <Cta icon={Check} onClick={markRest}>
+          {remaining.length === mams.length ? 'Mark all done' : `Mark the other ${remaining.length} done`}
+        </Cta>
+      )}
+
       {mams.length ? (
-        <Checklist uid={profile.id} day={day} mamoolaat={mams} log={logs.get(day)} editable={editable} />
+        <Checklist uid={profile.id} day={day} mamoolaat={mams} log={logs.get(day)} editable={editable} hideMarkRest />
       ) : (
         <EmptyState>{isToday ? 'Add the mamoolaat you keep each day, and tick them off as you go.' : 'No mamoolaat were set for this day.'}</EmptyState>
       )}
