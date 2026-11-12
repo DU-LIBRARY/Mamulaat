@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { useNowHHMM } from '../hooks/useSession';
 import type { SalahDay, SalahStatus, UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { displayName } from '../lib/display';
@@ -15,7 +14,6 @@ function Mark({ s }: { s: SalahStatus | undefined }) {
 
 /** Students × days, Fajr only. */
 export function FajrWeekGrid({ days, students, salah, today }: { days: string[]; students: UserProfile[]; salah: Map<string, Map<string, SalahDay>>; today: string }) {
-  const now = useNowHHMM();
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto">
@@ -42,7 +40,7 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
           </thead>
           <tbody>
             {[...students]
-              .map((st) => ({ st, missed: missedCount(salah.get(st.id), days, today, ['fajr'], now) }))
+              .map((st) => ({ st, missed: missedCount(salah.get(st.id), days, today, ['fajr']) }))
               .sort((a, b) => b.missed - a.missed || displayName(a.st).localeCompare(displayName(b.st)))
               .map(({ st }) => {
               const by = salah.get(st.id);
@@ -57,7 +55,7 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
                   </th>
                   {days.map((d) => {
                     const logged = by?.get(d)?.entries?.fajr;
-                    const s = logged ?? (unloggedIsMissed(d, today, 'fajr', now) ? 'missed' : undefined);
+                    const s = logged ?? (unloggedIsMissed(d, today) ? 'missed' : undefined);
                     const future = d > today;
                     const desc = future ? 'not yet' : logged ? STATUS_DESC[adminStatus(logged)!] : s ? 'missed (not logged)' : 'not logged';
                     return (

@@ -229,13 +229,6 @@ describe('missedCount', () => {
     expect(unloggedIsMissed('2026-11-12', '2026-11-14')).toBe(true);
     expect(unloggedIsMissed('2026-11-14', '2026-11-14')).toBe(false);
   });
-  it('today’s Fajr counts as missed from 08:05; other salah today don’t', () => {
-    expect(unloggedIsMissed('2026-11-14', '2026-11-14', 'fajr', '08:04')).toBe(false);
-    expect(unloggedIsMissed('2026-11-14', '2026-11-14', 'fajr', '08:05')).toBe(true);
-    expect(unloggedIsMissed('2026-11-14', '2026-11-14', 'zuhr', '23:00')).toBe(false);
-    // ordering: today's unlogged Fajr adds one after 08:05 (fajr is logged as missed on 11-14 in this data)
-    expect(missedCount(new Map(), ['2026-11-14'], '2026-11-14', ['fajr'], '09:00')).toBe(1);
-  });
 });
 
 describe('adminStatus', () => {

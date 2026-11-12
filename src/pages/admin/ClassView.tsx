@@ -1,7 +1,7 @@
 import { IconCheck, IconChevronLeft, IconChevronRight, IconHalf, IconX } from '../../components/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { useActiveSession, useNowHHMM } from '../../hooks/useSession';
+import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses, useStudentsRange, useStudentsSalah } from '../../hooks/useAdminData';
 import { useDocData } from '../../hooks/useFirestore';
 import { WeekGrid, type GridRow } from '../../components/WeekGrid';
@@ -15,7 +15,7 @@ import { dayStats, entryFraction, pct, scheduledFor } from '../../lib/scoring';
 import { studentWeek } from '../../lib/reports';
 import { downloadCsv } from '../../lib/csv';
 import { fetchStudentsRange, rosterRef, setFajrMonitor, syncRoster } from '../../lib/db';
-import { fajrRollSummary, unloggedIsMissed } from '../../lib/salah';
+import { fajrRollSummary } from '../../lib/salah';
 import { fileSafe, registerRows } from '../../lib/exports';
 import { ExportBar } from '../../components/ExportBar';
 import type { ClassRoster, LogEntry } from '../../types';
@@ -32,7 +32,6 @@ export function ClassView() {
   const { classId = '' } = useParams();
   const [sp, setSp] = useSearchParams();
   const { today, settings, actor } = useActiveSession();
-  const now = useNowHHMM();
   const users = useAllUsers();
   const classes = useClasses();
   const cls = classes.data.find((c) => c.id === classId);
@@ -145,21 +144,18 @@ export function ClassView() {
               if (f) roll.r[st.id] = { name: displayName(st), status: f };
             }
             const sum = fajrRollSummary(rosterNames, roll);
-            // Not logged counts as missed once it's due (past days, or today's Fajr from FAJR_LOG_CUTOFF).
-            const late = unloggedIsMissed(date, today, 'fajr', now) ? sum.notLogged : [];
-            const notLogged = late.length ? [] : sum.notLogged;
-            const missed = [...sum.missed, ...sum.qadha, ...late].sort((a, b) => a.name.localeCompare(b.name));
+            const missed = [...sum.missed, ...sum.qadha].sort((a, b) => a.name.localeCompare(b.name));
             const names = (l: { name: string }[]) => l.map((p) => p.name).join(', ');
             return (
               <section className="card flex flex-col gap-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2 className="section-title mb-0">Fajr</h2>
                   <span className="num text-sm text-slate-600">
-                    {sum.inJamaat.length} in jamaat · {missed.length} missed · {notLogged.length} not logged
+                    {sum.inJamaat.length} in jamaat · {missed.length} missed · {sum.notLogged.length} not logged
                   </span>
                 </div>
                 {missed.length > 0 && <p className="text-sm" dir="auto"><span className="font-medium text-red-800">Missed:</span> {names(missed)}</p>}
-                {notLogged.length > 0 && <p className="text-sm text-slate-600" dir="auto"><span className="font-medium">Not logged:</span> {names(notLogged)}</p>}
+                {sum.notLogged.length > 0 && <p className="text-sm text-slate-600" dir="auto"><span className="font-medium">Not logged:</span> {names(sum.notLogged)}</p>}
               </section>
             );
           })()}
