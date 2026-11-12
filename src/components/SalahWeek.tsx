@@ -20,8 +20,24 @@ const LEGEND: { cls: string; label: string }[] = [
   { cls: NOT_LOGGED, label: 'Not logged' },
 ];
 
-/** A week of one student's salah: a row per prayer, a coloured cell per day (laid out like the mamool grid). */
-export function SalahWeek({ days, salah, today, onPick }: { days: string[]; salah: Map<string, SalahDay>; today: string; onPick?: (day: string) => void }) {
+/**
+ * A week of one student's salah: a row per prayer, a coloured cell per day (laid out like the
+ * mamool grid). With `notLoggedAsMissed` (the admin's view), nothing logged on a past day shows
+ * as missed; today stays "not logged" until the day is over.
+ */
+export function SalahWeek({
+  days,
+  salah,
+  today,
+  onPick,
+  notLoggedAsMissed = false,
+}: {
+  days: string[];
+  salah: Map<string, SalahDay>;
+  today: string;
+  onPick?: (day: string) => void;
+  notLoggedAsMissed?: boolean;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-separate border-spacing-[3px] text-center text-[11px] num">
@@ -62,8 +78,9 @@ export function SalahWeek({ days, salah, today, onPick }: { days: string[]; sala
               </th>
               {days.map((d) => {
                 if (d > today) return <td key={d} className="h-9 rounded bg-transparent" />;
-                const s = salah.get(d)?.entries?.[n];
-                const desc = s ? STATUS_DESC[s] : 'Not logged';
+                const logged = salah.get(d)?.entries?.[n];
+                const s = logged ?? (notLoggedAsMissed && d < today ? 'missed' : undefined);
+                const desc = logged ? STATUS_DESC[logged] : s ? 'Missed (not logged)' : 'Not logged';
                 return (
                   <td key={d} title={desc} className={`h-9 rounded ${s ? SALAH_CELL[s] : NOT_LOGGED}`}>
                     <span className="sr-only">{desc}</span>
@@ -75,10 +92,10 @@ export function SalahWeek({ days, salah, today, onPick }: { days: string[]; sala
         </tbody>
       </table>
       <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-xs text-slate-500" aria-hidden>
-        {LEGEND.map((l) => (
+        {LEGEND.filter((l) => !notLoggedAsMissed || l.label !== 'Not logged').map((l) => (
           <li key={l.label} className="inline-flex items-center gap-1.5">
             <span className={`h-3 w-3 rounded-sm ${l.cls}`} />
-            {l.label}
+            {notLoggedAsMissed && l.label === 'Missed' ? 'Missed or not logged' : l.label}
           </li>
         ))}
       </ul>

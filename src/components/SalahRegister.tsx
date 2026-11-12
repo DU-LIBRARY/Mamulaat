@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { SALAH_NAMES, type SalahDay, type SalahStatus, type UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { displayName } from '../lib/display';
-import { SALAH_LABEL, STATUS_DESC } from '../lib/salah';
+import { missedCount, SALAH_LABEL, STATUS_DESC } from '../lib/salah';
 
 /** F D A M I: Fajr, Dhuhr (Zuhr), Asr, Maghrib, Isha. */
 const LETTER = ['F', 'D', 'A', 'M', 'I'];
 
-function bar(s: SalahStatus | undefined, future: boolean) {
+function bar(s: SalahStatus | undefined, future: boolean, past: boolean) {
   if (future) return 'bg-transparent';
+  if (!s && past) return 'bg-red-400'; // not logged on a day that's over counts as missed
   if (s === 'takbir') return 'bg-gold-400';
   if (s === 'jamaat') return 'bg-green-600';
   if (s === 'missed' || s === 'qadha') return 'bg-red-400';
@@ -24,7 +25,8 @@ export interface RegisterGroup {
 
 /**
  * Every student's week of salah on one screen: a row per student, and for each day five thin
- * marks (F D A M I). Gold = Takbir Ula, green = Jamaat, red = missed or qadha, grey = not logged.
+ * marks (F D A M I). Gold = Takbir Ula, green = Jamaat, red = missed, qadha or not logged on a
+ * past day, grey = not logged yet today. Each class lists its most-missed students first.
  */
 export function SalahRegister({ days, groups, salah, today }: { days: string[]; groups: RegisterGroup[]; salah: Map<string, Map<string, SalahDay>>; today: string }) {
   return (
@@ -60,7 +62,10 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                     {g.label} <span className="num font-normal">· {g.students.length}</span>
                   </th>
                 </tr>
-                {g.students.map((st) => {
+                {[...g.students]
+                  .map((st) => ({ st, missed: missedCount(salah.get(st.id), days, today) }))
+                  .sort((a, b) => b.missed - a.missed || displayName(a.st).localeCompare(displayName(b.st)))
+                  .map(({ st }) => {
                   const by = salah.get(st.id);
                   return (
                     <tr key={st.id}>
@@ -79,8 +84,8 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                                 return (
                                   <span
                                     key={n}
-                                    className={`h-4 w-[5px] rounded-[1.5px] ${bar(s, future)}`}
-                                    title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[s] : 'not logged'}`}
+                                    className={`h-4 w-[5px] rounded-[1.5px] ${bar(s, future, d < today)}`}
+                                    title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[s] : d < today ? 'missed (not logged)' : 'not logged yet'}`}
                                   />
                                 );
                               })}
@@ -100,8 +105,8 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
         <span>F D A M I = Fajr, Dhuhr, Asr, Maghrib, Isha</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-gold-400" /> Takbir Ula</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-green-600" /> Jamaat</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-red-400" /> Missed or qadha</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-slate-200" /> Not logged</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-red-400" /> Missed, qadha or not logged</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[5px] rounded-[1.5px] bg-slate-200" /> Not logged yet today</span>
       </div>
     </div>
   );
