@@ -3,12 +3,12 @@ import { SALAH_LABEL, STATUS_DESC } from '../lib/salah';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { cellClass } from './ui';
 
-/** Same palette as the mamool grid: full = clay, partial = amber, missed = red; Takbir Ula gets gold. */
+/** Same palette as the mamool grid: done = green, partial = amber, missed = red; Takbir Ula gets gold. */
 export const SALAH_CELL: Record<SalahStatus, string> = {
   takbir: 'bg-gold-400',
-  jamaat: 'bg-primary',
+  jamaat: 'bg-green-300',
   qadha: 'bg-amber-100',
-  missed: 'bg-red-50',
+  missed: 'bg-red-300',
 };
 const NOT_LOGGED = cellClass(null);
 

@@ -101,11 +101,11 @@ export function StatCard({ label, value, sub }: { icon?: string; label: string; 
 /** Colour scale for completion cells. */
 export function cellClass(f: number | null | undefined): string {
   if (f == null) return 'bg-slate-100 text-slate-500';
-  if (f >= 1) return 'bg-primary text-on-primary';
+  if (f >= 1) return 'bg-green-300 text-green-900';
   if (f >= 0.75) return 'bg-brand-200 text-brand-900';
   if (f >= 0.5) return 'bg-brand-100 text-brand-900';
   if (f > 0) return 'bg-amber-100 text-amber-900';
-  return 'bg-red-50 text-red-800';
+  return 'bg-red-300 text-red-800';
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
