@@ -105,3 +105,24 @@ export function missedCount(by: Map<string, SalahDay> | undefined, days: string[
   }
   return n;
 }
+
+/**
+ * Share of salah prayed in jamaat (with or without Takbir Ula) over these days, from `from`
+ * (the first day the student logged salah) up to today. Nothing logged on a day that's over
+ * counts as not in jamaat; today counts only what's been logged so far. Null when nothing counts.
+ */
+export function jamaatRate(salah: Map<string, SalahDay>, days: string[], today: string, from: string | null): number | null {
+  if (!from) return null;
+  let inJamaat = 0;
+  let total = 0;
+  for (const d of days) {
+    if (d < from || d > today) continue;
+    for (const n of SALAH_NAMES) {
+      const s = salah.get(d)?.entries?.[n];
+      if (d === today && !s) continue;
+      total++;
+      if (s === 'takbir' || s === 'jamaat') inJamaat++;
+    }
+  }
+  return total ? inJamaat / total : null;
+}

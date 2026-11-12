@@ -137,24 +137,24 @@ export function ClassView() {
             {students.length > 0 && <ExportBar month={exportMonth} monthLabel={formatMonth(date)} />}
           </div>
           {students.length > 0 && (() => {
-            // The admin sees full statuses (qadha apart from missed), built from each student's salah.
+            // Built from each student's salah; qadha counts as missed.
             const roll: { r: Record<string, { name: string; status: string }> } = { r: {} };
             for (const st of students) {
               const f = salah.get(st.id)?.get(date)?.entries?.fajr;
               if (f) roll.r[st.id] = { name: displayName(st), status: f };
             }
             const sum = fajrRollSummary(rosterNames, roll);
+            const missed = [...sum.missed, ...sum.qadha].sort((a, b) => a.name.localeCompare(b.name));
             const names = (l: { name: string }[]) => l.map((p) => p.name).join(', ');
             return (
               <section className="card flex flex-col gap-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2 className="section-title mb-0">Fajr</h2>
                   <span className="num text-sm text-slate-600">
-                    {sum.inJamaat.length} in jamaat · {sum.qadha.length} qadha · {sum.missed.length} missed · {sum.notLogged.length} not logged
+                    {sum.inJamaat.length} in jamaat · {missed.length} missed · {sum.notLogged.length} not logged
                   </span>
                 </div>
-                {sum.missed.length > 0 && <p className="text-sm" dir="auto"><span className="font-medium text-red-800">Missed:</span> {names(sum.missed)}</p>}
-                {sum.qadha.length > 0 && <p className="text-sm" dir="auto"><span className="font-medium text-amber-800">Qadha:</span> {names(sum.qadha)}</p>}
+                {missed.length > 0 && <p className="text-sm" dir="auto"><span className="font-medium text-red-800">Missed:</span> {names(missed)}</p>}
                 {sum.notLogged.length > 0 && <p className="text-sm text-slate-600" dir="auto"><span className="font-medium">Not logged:</span> {names(sum.notLogged)}</p>}
               </section>
             );
@@ -225,7 +225,7 @@ export function ClassView() {
           Fajr monitor
         </label>
         <p className="text-xs text-slate-500">
-          A student who sees this class's daily Fajr roll (missed, qadha, not logged) in their app, and gets a push each morning at {settings.fajrReportTime}. They can be in any class and can cover several classes. They see nothing else of anyone's. Every student in this class is told who it is.
+          A student who sees this class's daily Fajr roll in their app (qadha and not logged count as missed), and gets a push each morning at {settings.fajrReportTime}. They can be in any class and can cover several classes. They see nothing else of anyone's. Every student in this class is told who it is.
         </p>
         <select
           id="fajr-monitor"

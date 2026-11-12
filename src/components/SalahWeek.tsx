@@ -22,21 +22,21 @@ const LEGEND: { cls: string; label: string }[] = [
 
 /**
  * A week of one student's salah: a row per prayer, a coloured cell per day (laid out like the
- * mamool grid). With `notLoggedAsMissed` (the admin's view), nothing logged on a past day shows
- * as missed; today stays "not logged" until the day is over.
+ * mamool grid). In the admin's view (`admin`), qadha shows as missed and so does nothing logged
+ * on a past day; today stays "not logged" until the day is over.
  */
 export function SalahWeek({
   days,
   salah,
   today,
   onPick,
-  notLoggedAsMissed = false,
+  admin = false,
 }: {
   days: string[];
   salah: Map<string, SalahDay>;
   today: string;
   onPick?: (day: string) => void;
-  notLoggedAsMissed?: boolean;
+  admin?: boolean;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -79,8 +79,8 @@ export function SalahWeek({
               {days.map((d) => {
                 if (d > today) return <td key={d} className="h-9 rounded bg-transparent" />;
                 const logged = salah.get(d)?.entries?.[n];
-                const s = logged ?? (notLoggedAsMissed && d < today ? 'missed' : undefined);
-                const desc = logged ? STATUS_DESC[logged] : s ? 'Missed (not logged)' : 'Not logged';
+                const s = admin && logged === 'qadha' ? 'missed' : (logged ?? (admin && d < today ? 'missed' : undefined));
+                const desc = logged && s === logged ? STATUS_DESC[logged] : s ? 'Missed' : 'Not logged';
                 return (
                   <td key={d} title={desc} className={`h-9 rounded ${s ? SALAH_CELL[s] : NOT_LOGGED}`}>
                     <span className="sr-only">{desc}</span>
@@ -92,10 +92,10 @@ export function SalahWeek({
         </tbody>
       </table>
       <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-xs text-slate-500" aria-hidden>
-        {LEGEND.filter((l) => !notLoggedAsMissed || l.label !== 'Not logged').map((l) => (
+        {LEGEND.filter((l) => !admin || (l.label !== 'Not logged' && l.label !== 'Qadha')).map((l) => (
           <li key={l.label} className="inline-flex items-center gap-1.5">
             <span className={`h-3 w-3 rounded-sm ${l.cls}`} />
-            {notLoggedAsMissed && l.label === 'Missed' ? 'Missed or not logged' : l.label}
+            {l.label}
           </li>
         ))}
       </ul>

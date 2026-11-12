@@ -22,7 +22,8 @@ export function salahRows(salah: Map<string, SalahDay>, days: string[], today: s
     const cells = days.map((d) => {
       if (d > today) return '';
       const st = salah.get(d)?.entries?.[n];
-      return st ? STATUS_LABEL[st] : 'not logged';
+      // Admin exports: qadha counts as missed.
+      return st ? STATUS_LABEL[st === 'qadha' ? 'missed' : st] : 'not logged';
     });
     const inJamaat = days.filter((d) => d <= today && ['takbir', 'jamaat'].includes(salah.get(d)?.entries?.[n] ?? '')).length;
     return [...lead, SALAH_LABEL[n], ...cells, inJamaat];

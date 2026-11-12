@@ -14,9 +14,12 @@ import { ThemePicker } from '../../components/ThemePicker';
 import { InstallApp } from '../../components/InstallApp';
 import { useDialog } from '../../components/Dialog';
 import { useSyncState } from '../../lib/sync';
+import { useMyData } from '../../hooks/useStudentData';
+import { YearSummary } from '../../components/YearChart';
 
 export function Me() {
-  const { profile, settings, signOut } = useActiveSession();
+  const { profile, settings, signOut, today } = useActiveSession();
+  const mine = useMyData();
   const sync = useSyncState();
   const { confirm } = useDialog();
   const cls = useDocData<ClassDoc>(profile.classId ? doc(classesCol(), profile.classId) : null, `class:${profile.classId}`);
@@ -72,6 +75,8 @@ export function Me() {
           {cls.data && <div className="text-sm text-slate-600" dir="auto">Class: {cls.data.name}</div>}
         </div>
       </div>
+
+      <YearSummary today={today} weekStart={settings.weekStart} logs={mine.logs} mamoolaat={mine.all} salah={mine.salah} />
 
       <section className="card">
         <h2 className="section-title">My name</h2>

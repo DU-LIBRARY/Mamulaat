@@ -15,7 +15,7 @@ export interface GridRow {
 }
 
 /** Rows × days grid with completion percentages (students × days, or mamool × days). */
-export function WeekGrid({ days, rows, today, firstHeader }: { days: string[]; rows: GridRow[]; today: string; firstHeader: string }) {
+export function WeekGrid({ days, rows, today, firstHeader, showTotal = true }: { days: string[]; rows: GridRow[]; today: string; firstHeader: string; showTotal?: boolean }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-separate border-spacing-[3px] text-center text-[11px] num">
@@ -31,7 +31,11 @@ export function WeekGrid({ days, rows, today, firstHeader }: { days: string[]; r
                 <div className="text-sm">{dayNumber(d)}</div>
               </th>
             ))}
-            <th scope="col" className="min-w-12 font-medium text-slate-700">Week</th>
+            {showTotal && (
+              <th scope="col" className="min-w-12 font-medium text-slate-700">
+                Week
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -73,7 +77,7 @@ export function WeekGrid({ days, rows, today, firstHeader }: { days: string[]; r
                   </td>
                 );
               })}
-              <td className={`rounded font-semibold ${cellClass(r.total)}`}>{pct(r.total)}</td>
+              {showTotal && <td className={`rounded font-semibold ${cellClass(r.total)}`}>{pct(r.total)}</td>}
             </tr>
           ))}
         </tbody>

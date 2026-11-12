@@ -63,7 +63,7 @@ export function Week() {
         <Stat label="Full days" value={fullDays} />
       </StatRow>
       <div className="rounded-xl bg-surface p-2">
-        <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" />
+        <WeekGrid days={days} rows={rows} today={today} firstHeader="Mamool" showTotal={false} />
       </div>
       <section className="flex flex-col gap-2">
         <h2 className="font-serif text-[22px] leading-tight text-slate-900">Salah</h2>
