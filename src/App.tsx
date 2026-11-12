@@ -19,17 +19,20 @@ import { ManageMamoolaat } from './pages/student/ManageMamoolaat';
 import { Me } from './pages/student/Me';
 import { DialogProvider } from './components/Dialog';
 import { UndoProvider } from './components/Undo';
-import { touchLastSeen } from './lib/db';
+import { syncFajrRoll, touchLastSeen } from './lib/db';
+import { checkLeftovers } from './lib/unsynced';
+import { isDayEditable } from './lib/dates';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { onForegroundMessage, refreshToken } from './lib/messaging';
 import { IconInbox, IconLog, IconPerson, IconSalah, IconWeek } from './components/icons';
 import { Toast } from './components/Toast';
+import type { SalahStatus } from './types';
 
 // The teacher's side loads only for the teacher, so students never parse it.
 const AdminRoutes = lazy(() => import('./AdminRoutes'));
 
 function StudentRoutes() {
-  const { profile } = useSession();
+  const { profile, today, settings } = useSession();
   const data = useMyData();
   const [toast, setToast] = useState<string | null>(null);
   const uid = profile!.id;
@@ -51,6 +54,31 @@ function StudentRoutes() {
     document.addEventListener('visibilitychange', touch);
     return () => document.removeEventListener('visibilitychange', touch);
   }, [uid, lastSeenMs]);
+
+  // Entries left unsent by an earlier session: find out whether the server took them.
+  useEffect(() => {
+    const run = () => void checkLeftovers(uid);
+    run();
+    window.addEventListener('online', run);
+    return () => window.removeEventListener('online', run);
+  }, [uid]);
+
+  // Keep the class's Fajr roll in step with the student's own Fajr: once a day, and again when
+  // their class changes (a Fajr logged around a class move would otherwise miss the new roll).
+  const classId = profile!.classId;
+  const salahReady = !data.loading;
+  useEffect(() => {
+    if (!classId || !salahReady) return;
+    const mark = `${classId}|${today}`;
+    const k = `mamulaat.rollSynced.${uid}`;
+    if (localStorage.getItem(k) === mark) return;
+    const fajr: Record<string, SalahStatus | undefined> = {};
+    for (const [day, rec] of data.salah) if (isDayEditable(day, today, settings.backfillDays)) fajr[day] = rec.entries?.fajr;
+    if (!data.salah.size) return; // nothing logged (or not loaded yet): look again when it is
+    syncFajrRoll({ uid, name: '', classId }, fajr);
+    localStorage.setItem(k, mark);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, classId, today, salahReady, data.salah.size]);
 
   if (data.loading && !data.all.length) return <Splash status="Loading your mamoolaat…" />;
   if (!profile!.onboarded) return <Onboarding />;

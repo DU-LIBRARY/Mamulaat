@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses } from '../../hooks/useAdminData';
-import { applyTemplate, bulkUpdateUsers, createClass, deleteClass, renameClass, sameMamoolName, saveClassTemplate } from '../../lib/db';
+import { applyTemplate, bulkUpdateUsers, createClass, deleteClass, moveMonitorNames, renameClass, sameMamoolName, saveClassTemplate } from '../../lib/db';
 import { EmptyState, Notice, Spinner } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
 import { useUndo } from '../../components/Undo';
@@ -18,7 +18,7 @@ import type { ClassDoc, TemplateItem, UserProfile } from '../../types';
  * Students keep their own items and can tidy any overlaps themselves.
  */
 function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) {
-  const { actor, today } = useActiveSession();
+  const { actor, today, limited } = useActiveSession();
   const { confirm, notify } = useDialog();
   const undo = useUndo();
   const [busy, setBusy] = useState(false);
@@ -100,7 +100,8 @@ function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) 
           </button>
         ))}
       </div>
-      {items.length > 0 && (
+      {items.length > 0 && limited && <Notice>Adding these to students' own lists is done by the admin, since it touches their mamoolaat.</Notice>}
+      {items.length > 0 && !limited && (
         <button className="btn-primary" disabled={busy || !members.length} onClick={applyNow}>
           {busy ? 'Adding…' : members.length ? `Add to all ${members.length} student${members.length === 1 ? '' : 's'} now` : 'No active students in this class yet'}
         </button>
@@ -169,6 +170,10 @@ export function Classes() {
   const [templateFor, setTemplateFor] = useState<string | null>(null);
   const [moreFor, setMoreFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Older versions kept the monitor's name on the class itself: move any that are left.
+  useEffect(() => {
+    if (!classes.loading && !classes.fromCache) moveMonitorNames(classes.data);
+  }, [classes.loading, classes.fromCache, classes.data]);
 
   if (classes.loading || users.loading) return <Spinner />;
   const taken = (n: string, except?: string) => classes.data.some((c) => c.id !== except && c.name.trim().toLowerCase() === n.trim().toLowerCase());
@@ -229,7 +234,7 @@ export function Classes() {
                       <div className="mt-0.5 text-sm text-slate-500" dir="auto">
                         <span className="num">{members.length}</span> student{members.length === 1 ? '' : 's'}
                         {c.template?.length ? <> · <span className="num">{c.template.length}</span> class mamoolaat</> : null}
-                        {' · '}Fajr monitor: {c.fajrMonitorName ?? 'none'}
+                        {' · '}Fajr monitor: {c.fajrMonitorId ? (users.data.find((u) => u.id === c.fajrMonitorId)?.name ?? 'someone') : 'none'}
                       </div>
                     </div>
                     <IconChevronRight size={18} className="shrink-0 text-slate-400" />

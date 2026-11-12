@@ -1,7 +1,8 @@
 import type { Timestamp } from 'firebase/firestore';
 
 /** Roles are a string union so another role (e.g. 'teacher') can be added later. */
-export type Role = 'student' | 'admin';
+/** 'assistant' is a limited admin: everything the admin does except seeing anyone's mamoolaat, logs or salah. */
+export type Role = 'student' | 'admin' | 'assistant';
 export type UserStatus = 'pending' | 'active' | 'inactive' | 'rejected';
 
 export interface UserProfile {
@@ -38,6 +39,7 @@ export interface ClassDoc {
   template?: TemplateItem[];
   /** A student of this class who may see the class's daily Fajr roll (set by the admin). */
   fajrMonitorId?: string | null;
+  /** Old place for the monitor's name; now kept in classes/{id}/meta/monitor. */
   fajrMonitorName?: string | null;
 }
 

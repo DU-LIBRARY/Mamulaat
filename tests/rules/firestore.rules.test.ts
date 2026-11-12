@@ -263,9 +263,9 @@ describe('sign-up: name and requested class', () => {
     await assertFails(getDocs(collection(f, `users/${PENDING}/mamoolaat`)));
   });
 
-  it('an active student can rename themselves but cannot change the request fields', async () => {
+  it('an active student cannot rename themselves or change the request fields', async () => {
     const f = db(A);
-    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { name: 'New Name' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { name: 'New Name' }));
     await assertFails(updateDoc(doc(f, `users/${A}`), { requestedClassId: 'class-2' }));
   });
 
@@ -310,7 +310,9 @@ describe('pending and inactive users', () => {
         }),
       );
       await assertFails(updateDoc(doc(f, `users/${uid}`), { reminderEnabled: true }));
-      await assertSucceeds(updateDoc(doc(f, `users/${uid}`), { name: 'Updated name' }));
+      // the name is typed while signing up; after that only the teacher changes it
+      if (uid === PENDING) await assertSucceeds(updateDoc(doc(f, `users/${uid}`), { name: 'Updated name' }));
+      else await assertFails(updateDoc(doc(f, `users/${uid}`), { name: 'Updated name' }));
     });
   }
 });
@@ -489,6 +491,13 @@ describe('admin deletes records outright', () => {
   });
 });
 
+describe('mamool order', () => {
+  it('must be a number', async () => {
+    await assertSucceeds(updateDoc(doc(db(A), `users/${A}/mamoolaat/m1`), { order: 3, updatedBy: A, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db(A), `users/${A}/mamoolaat/m1`), { order: 'first', updatedBy: A, updatedAt: serverTimestamp() }));
+  });
+});
+
 describe('restoring a removed mamool keeps a gap', () => {
   it('a student can save the gap list on restore', async () => {
     const f = db(A);
@@ -589,6 +598,10 @@ describe('admin deleting a student (full control)', () => {
     await assertSucceeds(setDoc(doc(db(A), `users/${A}/pushSubs/s1`), sub));
     await assertSucceeds(setDoc(doc(db(PENDING), `users/${PENDING}/pushSubs/s1`), sub));
     await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s2`), { ...sub, extra: 1 }));
+    // the notifications job reads these as times: anything else is refused
+    await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s4`), { ...sub, lastSeen: 'yesterday' }));
+    await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s5`), { ...sub, createdAt: 5 }));
+    await assertSucceeds(setDoc(doc(db(A), `users/${A}/pushSubs/s6`), { ...sub, createdAt: serverTimestamp(), lastSeen: serverTimestamp() }));
     await assertFails(setDoc(doc(db(A), `users/${A}/pushSubs/s3`), { ...sub, endpoint: 'http://insecure' }));
     await assertFails(setDoc(doc(db(A), `users/${B}/pushSubs/s1`), sub));
     await assertFails(getDocs(collection(db(B), `users/${A}/pushSubs`)));
@@ -720,6 +733,11 @@ describe('class templates', () => {
 describe('last seen and device tokens', () => {
   it('a student can record when they last opened the app', async () => {
     await assertSucceeds(updateDoc(doc(db(A), `users/${A}`), { lastSeenAt: serverTimestamp() }));
+  });
+
+  it('last seen must be a time', async () => {
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { lastSeenAt: 'x'.repeat(5000) }));
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { lastSeenAt: { toMillis: 1 } }));
   });
 
   it('a pending sign-up can register a device (to hear about approval); inactive users cannot', async () => {
@@ -861,5 +879,186 @@ describe('Fajr roll and monitor', () => {
     await assertFails(updateDoc(doc(db(A), 'classes/class-1'), { fajrMonitorId: A }));
     await assertFails(setDoc(doc(db(TEACHER), 'classes/class-1/meta/roster'), { names: {} }));
     await assertSucceeds(setDoc(doc(db(ADMIN), 'classes/class-1/meta/roster'), { names: { [A]: 'A' } }));
+  });
+});
+
+describe('limited admin (assistant)', () => {
+  const ASSIST = 'assistant-uid';
+  const audit = (uid: string, action: string) => ({ actorId: uid, actorName: 'x', action, details: {}, createdAt: serverTimestamp() });
+  const ALLOWED = ['user.approve', 'user.reject', 'user.deactivate', 'user.reactivate', 'user.move', 'user.rename', 'user.pending', 'user.delete', 'user.assistant', 'user.unassistant',
+    'class.create', 'class.rename', 'class.delete', 'class.template', 'class.fajrMonitor', 'comment.add', 'comment.delete', 'nudge.send', 'settings.update', 'admin.transfer'];
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const f = ctx.firestore();
+      await setDoc(doc(f, `users/${ASSIST}`), profile('assistant', 'active'));
+      await setDoc(doc(f, `users/${A}/salah/${today}`), { date: today, entries: { fajr: 'jamaat' }, updatedAt: Timestamp.now() });
+      await setDoc(doc(f, `users/${A}/changes/ch1`), { kind: 'added', actorId: ADMIN, createdAt: Timestamp.now(), seenAt: null });
+      await setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: { [A]: { status: 'prayed' } } });
+      await setDoc(doc(f, 'auditLog/a1'), { actorId: ADMIN, action: 'log.edit', details: { mamoolName: 'Quran' }, createdAt: Timestamp.now() });
+      await setDoc(doc(f, 'auditLog/a2'), { actorId: ADMIN, action: 'user.approve', details: {}, createdAt: Timestamp.now() });
+    });
+  });
+
+  it("cannot see or change anyone's mamoolaat, logs, salah, list changes, devices or the Fajr roll", async () => {
+    const f = db(ASSIST);
+    await assertFails(getDocs(collection(f, `users/${A}/mamoolaat`)));
+    await assertFails(getDoc(doc(f, `users/${A}/mamoolaat/m1`)));
+    await assertFails(getDocs(collection(f, `users/${A}/logs`)));
+    await assertFails(getDoc(doc(f, `users/${A}/logs/${daysAgo(1)}`)));
+    await assertFails(getDoc(doc(f, `users/${A}/salah/${today}`)));
+    await assertFails(getDocs(collection(f, `users/${A}/changes`)));
+    await assertFails(getDocs(collection(f, `users/${A}/pushSubs`)));
+    await assertFails(getDoc(doc(f, `classes/class-1/fajrRoll/${today}`)));
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${today}`), { ...logDoc(today), editedBy: ASSIST, editedByName: 'x' }));
+    await assertFails(setDoc(doc(f, `users/${A}/salah/${today}`), { date: today, entries: { fajr: 'missed' }, updatedAt: serverTimestamp(), editedBy: ASSIST, editedByName: 'x' }));
+    await assertFails(deleteDoc(doc(f, `users/${A}/mamoolaat/m1`)));
+    await assertFails(deleteDoc(doc(f, `users/${A}/logs/${daysAgo(1)}`)));
+    await assertFails(setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: {} }));
+  });
+
+  it('manages students: reads profiles, approves, moves, renames, deactivates', async () => {
+    const f = db(ASSIST);
+    await assertSucceeds(getDocs(collection(f, 'users')));
+    await assertSucceeds(updateDoc(doc(f, `users/${PENDING}`), { status: 'active', classId: 'class-1' }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { classId: 'class-2' }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}`), { name: 'Aisha' }));
+    await assertSucceeds(updateDoc(doc(f, `users/${B}`), { status: 'inactive' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { classId: 'no-such-class' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { email: 'x@example.com' }));
+  });
+
+  it('cannot delete a student, hand out roles, or touch the admin', async () => {
+    const f = db(ASSIST);
+    await assertFails(deleteDoc(doc(f, `users/${A}`)));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { role: 'assistant' }));
+    await assertFails(updateDoc(doc(f, `users/${A}`), { role: 'admin' }));
+    await assertFails(updateDoc(doc(f, `users/${ASSIST}`), { role: 'admin' }));
+    await assertFails(updateDoc(doc(f, `users/${ADMIN}`), { status: 'inactive' }));
+    await assertFails(updateDoc(doc(f, `users/${ADMIN}`), { name: 'Hacked' }));
+    // nor take the admin role through a "handover" batch
+    const b = writeBatch(f);
+    b.update(doc(f, `users/${ASSIST}`), { role: 'admin' });
+    b.update(doc(f, `users/${ADMIN}`), { role: 'student', status: 'inactive', handedOverTo: ASSIST });
+    await assertFails(b.commit());
+  });
+
+  it('runs classes, settings, notes and reminders', async () => {
+    const f = db(ASSIST);
+    await assertSucceeds(setDoc(doc(f, 'classes/class-3'), { name: 'Class 3' }));
+    await assertSucceeds(updateDoc(doc(f, 'classes/class-1'), { name: 'Renamed', template: [{ name: 'Quran', target: 1, unit: 'juz' }] }));
+    await assertSucceeds(updateDoc(doc(f, 'classes/class-1'), { fajrMonitorId: A }));
+    await assertSucceeds(setDoc(doc(f, 'classes/class-1/meta/monitor'), { name: 'A' }));
+    await assertSucceeds(setDoc(doc(f, 'classes/class-1/meta/roster'), { names: { [A]: 'A' } }));
+    await assertSucceeds(deleteDoc(doc(f, 'classes/class-2')));
+    await assertSucceeds(setDoc(doc(f, 'settings/app'), { backfillDays: 3, weekStart: 1, timezone: 'UTC', utcOffsetMinutes: 0, attentionThreshold: 60, attentionNoLogDays: 3, defaultReminderTime: '20:00' }));
+    await assertSucceeds(setDoc(doc(f, `users/${A}/comments/c9`), { text: 'Salam', authorId: ASSIST, authorName: 'x', createdAt: serverTimestamp(), readAt: null }));
+    await assertSucceeds(getDocs(collection(f, `users/${A}/comments`)));
+    await assertSucceeds(deleteDoc(doc(f, `users/${A}/comments/c1`)));
+    await assertSucceeds(setDoc(doc(f, `nudges/${A}_${today}`), { uid: A, day: today, actorId: ASSIST, actorName: 'x', createdAt: serverTimestamp() }));
+    await assertSucceeds(setDoc(doc(f, 'pushMessages/p1'), { uid: A, text: 'hi', actorId: ASSIST, actorName: 'x', createdAt: serverTimestamp() }));
+  });
+
+  it('audit log: only the kinds that hold no individual records', async () => {
+    const f = db(ASSIST);
+    await assertSucceeds(setDoc(doc(f, 'auditLog/n1'), audit(ASSIST, 'user.approve')));
+    await assertFails(setDoc(doc(f, 'auditLog/n2'), audit(ASSIST, 'log.edit')));
+    await assertFails(setDoc(doc(f, 'auditLog/n3'), audit(ADMIN, 'user.approve')));
+    await assertSucceeds(getDoc(doc(f, 'auditLog/a2')));
+    await assertFails(getDoc(doc(f, 'auditLog/a1')));
+    await assertFails(getDocs(collection(f, 'auditLog')));
+    await assertSucceeds(getDocs(query(collection(f, 'auditLog'), where('action', 'in', ALLOWED))));
+    await assertFails(getDocs(query(collection(f, 'auditLog'), where('action', 'in', [...ALLOWED, 'log.edit']))));
+    await assertSucceeds(getDocs(collection(db(ADMIN), 'auditLog')));
+  });
+
+  it('only the admin makes or unmakes a limited admin, and only an active one', async () => {
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { role: 'assistant' }));
+    await assertFails(updateDoc(doc(db(ADMIN), `users/${PENDING}`), { role: 'assistant' }));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), `users/${TEACHER}`), { role: 'assistant', status: 'active', classId: null }));
+    await assertSucceeds(getDocs(collection(db(TEACHER), 'users')));
+    await assertFails(getDocs(collection(db(TEACHER), `users/${A}/logs`)));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), `users/${TEACHER}`), { role: 'student' }));
+    await assertFails(getDocs(collection(db(TEACHER), 'users')));
+    // a deactivated limited admin loses everything
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${ASSIST}`), { status: 'inactive' }));
+    await assertFails(getDocs(collection(db(ASSIST), 'users')));
+  });
+
+  it('the admin can hand the admin role to a limited admin', async () => {
+    const f = db(ADMIN);
+    const b = writeBatch(f);
+    b.update(doc(f, `users/${ASSIST}`), { role: 'admin', status: 'active', classId: null });
+    b.update(doc(f, `users/${ADMIN}`), { role: 'student', status: 'inactive', classId: null, handedOverTo: ASSIST });
+    await assertSucceeds(b.commit());
+    await assertSucceeds(getDocs(collection(db(ASSIST), `users/${A}/logs`)));
+  });
+});
+
+describe('class details are not public', () => {
+  const C = 'student-c';
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const f = ctx.firestore();
+      await setDoc(doc(f, `users/${C}`), profile('student', 'active', { classId: 'class-2' }));
+      await setDoc(doc(f, 'classes/class-1'), { name: 'Class 1', fajrMonitorId: TEACHER });
+      await setDoc(doc(f, 'classes/class-1/meta/monitor'), { name: 'Teacher' });
+      await setDoc(doc(f, 'users/rejected-uid'), profile('student', 'rejected'));
+    });
+  });
+
+  it('someone with only a Google account reads no classes; people who signed up do', async () => {
+    await assertFails(getDocs(collection(db(null), 'classes')));
+    await assertFails(getDocs(collection(db('stranger'), 'classes')));
+    await assertFails(getDoc(doc(db('stranger'), 'classes/class-1')));
+    await assertFails(getDocs(collection(db(INACTIVE), 'classes')));
+    await assertFails(getDocs(collection(db('rejected-uid'), 'classes')));
+    await assertSucceeds(getDocs(collection(db(PENDING), 'classes')));
+    await assertSucceeds(getDocs(collection(db(A), 'classes')));
+  });
+
+  it("the Fajr monitor's name is readable only by that class, the monitor and the staff", async () => {
+    await assertSucceeds(getDoc(doc(db(A), 'classes/class-1/meta/monitor')));
+    await assertSucceeds(getDoc(doc(db(TEACHER), 'classes/class-1/meta/monitor')));
+    await assertSucceeds(getDoc(doc(db(ADMIN), 'classes/class-1/meta/monitor')));
+    await assertFails(getDoc(doc(db(C), 'classes/class-1/meta/monitor')));
+    await assertFails(getDoc(doc(db(PENDING), 'classes/class-1/meta/monitor')));
+    await assertFails(getDoc(doc(db('stranger'), 'classes/class-1/meta/monitor')));
+    await assertFails(setDoc(doc(db(A), 'classes/class-1/meta/monitor'), { name: 'Me' }));
+    await assertSucceeds(setDoc(doc(db(ADMIN), 'classes/class-1/meta/monitor'), { name: 'New' }));
+    await assertFails(setDoc(doc(db(ADMIN), 'classes/class-1/meta/monitor'), { name: 'New', extra: 1 }));
+    await assertSucceeds(deleteDoc(doc(db(ADMIN), 'classes/class-1/meta/monitor')));
+  });
+});
+
+describe('names', () => {
+  it('a student sets their name while signing up, but cannot change it once approved', async () => {
+    await assertSucceeds(updateDoc(doc(db(PENDING), `users/${PENDING}`), { name: 'New Name' }));
+    await assertFails(updateDoc(doc(db(A), `users/${A}`), { name: 'Someone Else' }));
+    await assertFails(updateDoc(doc(db(INACTIVE), `users/${INACTIVE}`), { name: 'Someone Else' }));
+    await assertSucceeds(updateDoc(doc(db(A), `users/${A}`), { reminderEnabled: true }));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), `users/${A}`), { name: 'Corrected' }));
+  });
+});
+
+describe('Fajr roll written on its own, after the salah record', () => {
+  const salahDoc = (status: string) => ({ date: today, entries: { fajr: status }, updatedAt: serverTimestamp() });
+
+  it('needs no name, and must still match the salah record', async () => {
+    const f = db(A);
+    await assertFails(setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: { [A]: { status: 'prayed' } } }, { merge: true }));
+    await assertSucceeds(setDoc(doc(f, `users/${A}/salah/${today}`), salahDoc('missed'), { merge: true }));
+    await assertFails(setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: { [A]: { status: 'prayed' } } }, { merge: true }));
+    await assertSucceeds(setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: { [A]: { status: 'missed' } } }, { merge: true }));
+    await assertFails(setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: { [A]: { status: 'missed', note: 'x' } } }, { merge: true }));
+  });
+
+  it('a student moved to another class keeps their salah record; the roll follows to the new class', async () => {
+    const f = db(A);
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${A}`), { classId: 'class-2' }));
+    // the phone still thinks class-1: the salah record is saved, only the stale roll write is refused
+    await assertSucceeds(setDoc(doc(f, `users/${A}/salah/${today}`), salahDoc('jamaat'), { merge: true }));
+    await assertFails(setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: { [A]: { status: 'prayed' } } }, { merge: true }));
+    await assertSucceeds(setDoc(doc(f, `classes/class-2/fajrRoll/${today}`), { r: { [A]: { status: 'prayed' } } }, { merge: true }));
   });
 });

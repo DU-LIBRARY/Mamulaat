@@ -36,16 +36,32 @@ const db = admin.firestore();
 webpush.setVapidDetails(CFG.subject, CFG.publicKey, VAPID_PRIVATE_KEY.trim());
 
 const STALE_DAYS = 60; // a device not seen for this long has probably stopped using the app
+const MAX_DEVICES = 10; // per person: the most recently seen ones. Nobody has more phones than this.
+const PUSH_TIMEOUT_MS = 10000; // a push service that doesn't answer must not hold up everyone else
+// Device records are written by each person's own app, so never trust their shape.
+const seenMs = (v) => (v && v.lastSeen && typeof v.lastSeen.toMillis === 'function' ? v.lastSeen.toMillis() : 0);
 const stats = { sent: 0, removed: 0, failed: 0 };
 
 /** Send to every device of one user; drops subscriptions the push service says are gone. */
 async function pushToUser(uid, msg) {
-  const subs = await db.collection(`users/${uid}/pushSubs`).get();
+  // One person's bad data or unreachable phone must never stop the run for everyone after them.
+  try {
+    return await pushToDevices(uid, msg);
+  } catch (e) {
+    stats.failed++;
+    console.log(`::warning::push to ${uid} failed: ${e.message}`);
+    return false;
+  }
+}
+async function pushToDevices(uid, msg) {
+  const all = (await db.collection(`users/${uid}/pushSubs`).get()).docs;
+  const subs = all.slice().sort((a, b) => seenMs(b.data()) - seenMs(a.data())).slice(0, MAX_DEVICES);
+  if (all.length > subs.length) console.log(`::warning::${uid} has ${all.length} devices registered; using the ${MAX_DEVICES} most recent.`);
   const staleBefore = Date.now() - STALE_DAYS * 86400e3;
   let ok = false;
-  for (const s of subs.docs) {
+  for (const s of subs) {
     const v = s.data();
-    if (v.lastSeen && v.lastSeen.toMillis() < staleBefore) {
+    if (seenMs(v) && seenMs(v) < staleBefore) {
       if (!dry) await s.ref.delete();
       stats.removed++;
       continue;
@@ -56,7 +72,7 @@ async function pushToUser(uid, msg) {
       continue;
     }
     try {
-      await webpush.sendNotification({ endpoint: v.endpoint, keys: { p256dh: v.p256dh, auth: v.auth } }, JSON.stringify(msg), { TTL: 4 * 3600, urgency: 'high' });
+      await webpush.sendNotification({ endpoint: v.endpoint, keys: { p256dh: v.p256dh, auth: v.auth } }, JSON.stringify(msg), { TTL: 4 * 3600, urgency: 'high', timeout: PUSH_TIMEOUT_MS });
       stats.sent++;
       ok = true;
     } catch (e) {
@@ -74,7 +90,8 @@ async function pushToUser(uid, msg) {
 
 const users = await db.collection('users').get();
 const byId = new Map(users.docs.map((d) => [d.id, d.data()]));
-const admins = users.docs.filter((d) => d.get('role') === 'admin' && d.get('status') === 'active').map((d) => d.id);
+// The admin and any limited admins ("assistants"): both approve sign-ups, so both hear about them.
+const admins = users.docs.filter((d) => ['admin', 'assistant'].includes(d.get('role')) && d.get('status') === 'active').map((d) => d.id);
 
 // TEST=fajr: every Fajr monitor gets a sample morning report with made-up numbers, clearly marked
 // as a test. Reads class names and monitors only; writes nothing.
@@ -213,7 +230,20 @@ const byMonitor = new Map(); // monitor uid → [{ name, report }]
 const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 for (const c of classes.docs) {
   const monitor = c.get('fajrMonitorId');
-  if (typeof monitor !== 'string' || !monitor) continue;
+  // The monitor's name lives in meta/monitor (readable only by that class), never on the class
+  // document, which people still waiting for approval can read. Keep it current, and remove
+  // the name older versions of the app left on the class.
+  const monitorRef = db.doc(`classes/${c.id}/meta/monitor`);
+  const hasMonitor = typeof monitor === 'string' && !!monitor;
+  const who = hasMonitor ? byId.get(monitor) : null;
+  const wantName = hasMonitor ? String((typeof who?.name === 'string' && who.name) || c.get('fajrMonitorName') || 'Fajr monitor').slice(0, 200) : null;
+  const savedName = (await monitorRef.get()).data()?.name ?? null;
+  if (!dry) {
+    if (wantName && wantName !== savedName) await monitorRef.set({ name: wantName });
+    if (!wantName && savedName !== null) await monitorRef.delete();
+    if (c.get('fajrMonitorName') !== undefined) await c.ref.update({ fajrMonitorName: admin.firestore.FieldValue.delete() });
+  }
+  if (!hasMonitor) continue;
   const roster = Object.fromEntries(
     [...byId].filter(([, d]) => d.role === 'student' && d.status === 'active' && d.classId === c.id).map(([uid, d]) => [uid, typeof d.name === 'string' && d.name ? d.name : d.email ?? 'Unnamed']),
   );

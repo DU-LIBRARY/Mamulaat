@@ -19,7 +19,7 @@ import { ExportBar } from '../../components/ExportBar';
 import { downloadCsv } from '../../lib/csv';
 import { fileSafe, salahRows, studentDetailRows } from '../../lib/exports';
 import { getDocs } from 'firebase/firestore';
-import { addComment, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, renameUser, setPending } from '../../lib/db';
+import { addComment, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, renameUser, setAssistant, setPending } from '../../lib/db';
 import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
 import { bestStreak, currentStreak, dayStats, pct, scheduledFor } from '../../lib/scoring';
@@ -35,18 +35,19 @@ export function StudentDetail() {
   const { uid = '' } = useParams();
   const [sp, setSp] = useSearchParams();
   const nav = useNavigate();
-  const { today, settings, actor } = useActiveSession();
+  const { today, settings, actor, limited } = useActiveSession();
   const users = useAllUsers();
   const classes = useClasses();
-  const data = useStudentLive(uid);
+  const data = useStudentLive(uid, !limited);
   const [text, setText] = useState('');
   const [push, setPush] = useState(true);
   const [devices, setDevices] = useState<number | null>(null);
   useEffect(() => {
+    if (limited) return; // device records are the admin's to read
     getDocs(pushSubsCol(uid)).then((s) => setDevices(s.size), () => setDevices(null));
-  }, [uid]);
+  }, [uid, limited]);
   const [tab, setTab] = useState<'week' | 'day' | 'salah' | 'mamoolaat' | 'comments' | 'profile'>(
-    sp.get('tab') === 'day' ? 'day' : sp.get('tab') === 'salah' ? 'salah' : 'week',
+    limited ? 'comments' : sp.get('tab') === 'day' ? 'day' : sp.get('tab') === 'salah' ? 'salah' : 'week',
   );
   const { confirm, notify } = useDialog();
   const undo = useUndo();
@@ -107,11 +108,11 @@ export function StudentDetail() {
       </div>
       {err && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{err}</div>}
 
-      <StatRow>
+      {!limited && <StatRow>
         <Stat label="Streak" value={currentStreak(today, data.logs, data.all)} sub={`Best ${bestStreak(today, data.logs, data.all)}`} />
         <Stat label="This week" value={pct(week?.completion)} sub={`${week?.fullDays ?? 0} full days`} />
         <Stat label="Logged" value={[...data.logs.entries()].filter(([d, l]) => d <= today && dayStats(d, l, data.all).hasLog).length} sub="days in total" />
-      </StatRow>
+      </StatRow>}
 
       <div className="no-print flex overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Student sections">
         {(
@@ -123,7 +124,7 @@ export function StudentDetail() {
             ['comments', 'Notes'],
             ['profile', 'Profile'],
           ] as const
-        ).map(([k, l]) => (
+        ).filter(([k]) => !limited || k === 'comments' || k === 'profile').map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} className={`-mb-px min-h-11 flex-1 border-b-2 px-1 text-[13px] font-medium whitespace-nowrap sm:flex-none sm:px-3 sm:text-sm ${tab === k ? 'border-brand-700 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`} onClick={() => setTab(k)}>
             {l}
           </button>
@@ -377,9 +378,28 @@ export function StudentDetail() {
               </select>
             </div>
           </div>
-          <button className="btn-danger" onClick={async () => (await del([student])) && nav('/admin/students')}>
-            Delete student and all data…
-          </button>
+          {!limited && student.role === 'student' && student.status === 'active' && (
+            <div className="card flex flex-col gap-2">
+              <span className="label">Limited admin</span>
+              <p className="text-sm text-slate-600">
+                A limited admin can approve and manage students, classes and settings and leave notes, but can't see anyone's mamoolaat, logs or salah. They stop being a student in a class.
+              </p>
+              <button
+                className="btn-secondary self-start"
+                onClick={async () => {
+                  const ok = await confirm({ title: `Make ${displayName(student)} a limited admin?`, message: 'You can change them back under Settings.', confirmLabel: 'Make limited admin' });
+                  if (ok) run(setAssistant(uid, true, actor).then(() => nav('/admin/settings')));
+                }}
+              >
+                Make limited admin…
+              </button>
+            </div>
+          )}
+          {!limited && (
+            <button className="btn-danger" onClick={async () => (await del([student])) && nav('/admin/students')}>
+              Delete student and all data…
+            </button>
+          )}
         </>
       )}
     </div>

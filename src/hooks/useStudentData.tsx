@@ -25,12 +25,14 @@ export function sortMamoolaat(list: Mamool[]) {
 }
 
 /** Live data for one student (used by the student themselves and by the admin). */
-export function useStudentLive(uid: string): StudentData {
-  const mam = useCollectionData<Mamool>(mamoolaatCol(uid), `mam:${uid}`);
-  const logs = useCollectionData<DayLog>(logsCol(uid), `logs:${uid}`);
-  const salah = useCollectionData<SalahDay>(salahCol(uid), `salah:${uid}`);
+export function useStudentLive(uid: string, records = true): StudentData {
+  // `records: false` (a limited admin): only the teacher's notes are loaded, never the student's
+  // mamoolaat, logs, salah or the changes made to their list.
+  const mam = useCollectionData<Mamool>(records ? mamoolaatCol(uid) : null, `mam:${uid}:${records}`);
+  const logs = useCollectionData<DayLog>(records ? logsCol(uid) : null, `logs:${uid}:${records}`);
+  const salah = useCollectionData<SalahDay>(records ? salahCol(uid) : null, `salah:${uid}:${records}`);
   const comments = useCollectionData<Comment>(query(commentsCol(uid), orderBy('createdAt', 'desc')), `com:${uid}`);
-  const changes = useCollectionData<ChangeRecord>(query(changesCol(uid), orderBy('createdAt', 'desc')), `chg:${uid}`);
+  const changes = useCollectionData<ChangeRecord>(records ? query(changesCol(uid), orderBy('createdAt', 'desc')) : null, `chg:${uid}:${records}`);
   return useMemo(() => {
     const all = sortMamoolaat(mam.data);
     return {

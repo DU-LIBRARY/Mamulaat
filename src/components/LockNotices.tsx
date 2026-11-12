@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useActiveSession } from '../hooks/useSession';
 import { useMyData } from '../hooks/useStudentData';
 import { useSyncState } from '../lib/sync';
+import { dismissLost, useUnsynced } from '../lib/unsynced';
 import { addDays, formatGregorian, isDayEditable, lastEditableDay } from '../lib/dates';
 import { dayStats } from '../lib/scoring';
 import { Notice } from './ui';
@@ -48,6 +49,35 @@ export function PendingSyncNotice() {
     );
   }
   return null;
+}
+
+/**
+ * After the fact: entries that reached the server too late were refused, and this phone's copy
+ * of them has reverted. Say which days, so the student can tell their teacher. Stays until dismissed.
+ */
+export function LostEntriesNotice() {
+  const { profile } = useActiveSession();
+  const { lost } = useUnsynced(profile.id);
+  if (!lost.length) return null;
+  const days = [...new Set(lost.map((l) => l.day))].sort();
+  const what = (d: string) => {
+    const kinds = lost.filter((l) => l.day === d).map((l) => (l.kind === 'salah' ? 'salah' : 'mamoolaat'));
+    return `${dayName(d)} (${[...new Set(kinds)].join(' and ')})`;
+  };
+  return (
+    <Notice
+      tone="warn"
+      icon={<IconLock size={18} />}
+      action={
+        <button type="button" className="text-sm font-medium underline decoration-amber-400 underline-offset-4" onClick={() => dismissLost(profile.id)}>
+          OK
+        </button>
+      }
+    >
+      <span className="font-medium">Not saved: {days.map(what).join(', ')}.</span> What you entered reached the server after {days.length === 1 ? 'that day' : 'those days'} had locked, so it
+      was not kept. Please tell your teacher what you did — they can fill it in for you.
+    </Notice>
+  );
 }
 
 /** "Yesterday locks tonight": a gentle push to fill in the oldest day that can still be changed. */

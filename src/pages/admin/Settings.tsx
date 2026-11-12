@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers } from '../../hooks/useAdminData';
-import { saveSettings, transferAdmin, updateOwnProfile } from '../../lib/db';
+import { saveSettings, setAssistant, transferAdmin, updateOwnProfile } from '../../lib/db';
+import { useDialog } from '../../components/Dialog';
 import { pushSupport, pushSupportMessage, reminderSchedule, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
 import { Notice } from '../../components/ui';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
@@ -47,7 +48,7 @@ function PasswordSignIn() {
   };
   return (
     <section className="card">
-      <h2 className="section-title">Password sign-in for this admin account</h2>
+      <h2 className="section-title">Password sign-in for this account</h2>
       <p className="mb-3 text-sm text-slate-600">
         Lets someone (e.g. the teacher) open this admin account without Google: on the sign-in screen they tap “Sign in with email &amp; password” and use{' '}
         <b>{profile.email}</b> with the password below. Anyone with it has full admin access — remove it when no longer needed.
@@ -143,6 +144,53 @@ function AdminNotifications() {
   );
 }
 
+/** The admin chooses who is a limited admin: listed here, added from a student's Profile tab. */
+function LimitedAdmins() {
+  const { actor } = useActiveSession();
+  const users = useAllUsers();
+  const { confirm } = useDialog();
+  const [err, setErr] = useState<string | null>(null);
+  const list = users.data.filter((u) => u.role === 'assistant');
+  return (
+    <section className="card">
+      <h2 className="section-title">Limited admins</h2>
+      <p className="mb-3 text-sm text-slate-600">
+        A limited admin can approve and manage students, classes and settings and leave notes, but can't see anyone's mamoolaat, logs or salah, delete a student or hand out roles. To add one, open
+        an approved person under Students → Profile → “Make limited admin”.
+      </p>
+      {list.length === 0 ? (
+        <p className="text-sm text-slate-500">Nobody yet.</p>
+      ) : (
+        <ul className="divide-y divide-slate-200 border-y border-slate-200">
+          {list.map((u) => (
+            <li key={u.id} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0">
+                <span className="block truncate text-slate-900" dir="auto">
+                  {displayName(u)}
+                </span>
+                <span className="block truncate text-sm text-slate-500">
+                  {u.email}
+                  {u.status !== 'active' ? ` · ${u.status}` : ''}
+                </span>
+              </span>
+              <button
+                className="btn-ghost min-h-11 shrink-0 px-3 text-sm text-red-700"
+                onClick={async () => {
+                  const ok = await confirm({ title: `Remove ${displayName(u)} as limited admin?`, message: 'They become an ordinary student with no class. Move them into a class, or deactivate them, under Students.', confirmLabel: 'Remove', danger: true });
+                  if (ok) setAssistant(u.id, false, actor).then(() => setErr(null), (e) => setErr((e as Error).message));
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {err && <p className="mt-2 text-sm text-red-700">{err}</p>}
+    </section>
+  );
+}
+
 function TransferAdmin() {
   const { actor, profile } = useActiveSession();
   const users = useAllUsers();
@@ -201,7 +249,7 @@ function TransferAdmin() {
 }
 
 export function AdminSettings() {
-  const { settings, settingsLoaded, actor } = useActiveSession();
+  const { settings, settingsLoaded, actor, limited } = useActiveSession();
   const [s, setS] = useState<AppSettings>(settings);
   const [saved, setSaved] = useState<string | null>(null);
   useEffect(() => setS(settings), [settings]);
@@ -286,7 +334,8 @@ export function AdminSettings() {
 
       <ThemePicker />
       <PasswordSignIn />
-      <TransferAdmin />
+      {!limited && <LimitedAdmins />}
+      {!limited && <TransferAdmin />}
 
       <SignOutButton />
     </div>

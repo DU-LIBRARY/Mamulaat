@@ -1,19 +1,23 @@
 import { limit, query } from 'firebase/firestore';
 import { useCollectionData } from '../../hooks/useFirestore';
 import { auditQuery } from '../../lib/db';
+import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers } from '../../hooks/useAdminData';
 import { EmptyState, Spinner } from '../../components/ui';
 import type { AuditEntry } from '../../types';
 import { displayName } from '../../lib/display';
 
 export function Audit() {
-  const log = useCollectionData<AuditEntry>(query(auditQuery(), limit(300)), 'audit');
+  const { limited } = useActiveSession();
+  // A limited admin's log leaves out the entries about anyone's mamoolaat, logs or salah.
+  const log = useCollectionData<AuditEntry>(query(auditQuery(limited), limit(300)), `audit:${limited}`);
   const users = useAllUsers();
   const name = (id: unknown) => {
     const u = users.data.find((x) => x.id === id);
     return u ? (displayName(u)) : String(id ?? '');
   };
   if (log.loading) return <Spinner />;
+  if (log.error) return <EmptyState>Could not load the audit log: {log.error.message}</EmptyState>;
   if (!log.data.length) return <EmptyState>No audit entries yet.</EmptyState>;
   return (
     <ul className="flex flex-col gap-2">
