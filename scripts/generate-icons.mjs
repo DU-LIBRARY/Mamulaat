@@ -5,12 +5,20 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 import { readFileSync } from 'node:fs';
 
 const svg = readFileSync(new URL('../public/favicon.svg', import.meta.url), 'utf8');
-const badge = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M40 10a20 20 0 1 0 14 34A16 16 0 1 1 40 10z" fill="#fff"/><path d="M20 33l7 7 15-16" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+// Home-screen icons are masked by the phone (iOS rounds the corners, Android picks a shape), so
+// they get the same design edge to edge: square corners, and for "maskable" the artwork pulled
+// into the central safe zone while the two-tone background still fills the whole square.
+const square = svg.replace('rx="14"', 'rx="0"');
+const maskable = square
+  .replace('<path d="M34', '<g transform="translate(32 32) scale(0.8) translate(-32 -32)"><path d="M34')
+  .replace('</svg>', '</g></svg>');
+// Monochrome notification badge: the same crescent and tick, in white.
+const badge = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M34 12a20 20 0 1 0 14 34A16 16 0 1 1 34 12z" fill="#fff"/><path transform="translate(31 21) scale(0.85)" d="M0 7.6c1.6 1.4 3.6 3.6 5 5.4c.9 1.1 2.3 1.1 3.1-.1C11 8 14.6 3.4 19.4 .4" fill="none" stroke="#fff" stroke-width="5.88" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const jobs = [
   { file: 'icon-192.png', size: 192, html: svg, pad: 0, bg: 'transparent' },
   { file: 'icon-512.png', size: 512, html: svg, pad: 0, bg: 'transparent' },
-  { file: 'apple-touch-icon.png', size: 180, html: svg, pad: 0, bg: '#0f5132' },
-  { file: 'icon-maskable-512.png', size: 512, html: svg, pad: 0.12, bg: '#0f5132' },
+  { file: 'apple-touch-icon.png', size: 180, html: square, pad: 0, bg: '#1f4d3b' },
+  { file: 'icon-maskable-512.png', size: 512, html: maskable, pad: 0, bg: '#1f4d3b' },
   { file: 'badge-72.png', size: 72, html: badge, pad: 0.05, bg: 'transparent' },
 ];
 const browser = await chromium.launch();
