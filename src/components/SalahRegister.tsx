@@ -32,7 +32,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto">
-        <table className="w-full max-w-[36rem] table-fixed border-separate border-spacing-x-[2px] border-spacing-y-[3px] sm:border-spacing-x-[6px]">
+        <table className="w-full max-w-[36rem] table-fixed border-separate border-spacing-x-[5px] border-spacing-y-[3px] sm:border-spacing-x-[8px]">
           {/* Names take what "First L" needs; the seven days share the rest, so the bars grow with the screen. */}
           <colgroup>
             <col className="w-[4.75rem]" />
