@@ -37,6 +37,9 @@ export const unloggedIsMissed = (d: string, today: string) => d < today && d >= 
 /** Missed and qadha both count as missed for the Fajr register; takbir and jamaat as prayed. */
 export const rollStatusOf = (s: SalahStatus): RollStatus => (s === 'missed' || s === 'qadha' ? 'missed' : 'prayed');
 
+/** What the admin sees: Takbir Ula counts as Jamaat and Qadha as Missed. Students see their own statuses. */
+export const adminStatus = (s: SalahStatus | undefined): SalahStatus | undefined => (s === 'takbir' ? 'jamaat' : s === 'qadha' ? 'missed' : s);
+
 export const isSalahStatus = (v: unknown): v is SalahStatus => typeof v === 'string' && (SALAH_STATUSES as string[]).includes(v);
 
 export interface SalahStats {

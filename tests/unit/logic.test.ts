@@ -1,4 +1,4 @@
-import { fajrRollSummary, missedCount, salahStats, unloggedIsMissed } from '../../src/lib/salah';
+import { adminStatus, fajrRollSummary, missedCount, salahStats, unloggedIsMissed } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, formatHijri } from '../../src/lib/dates';
 import { currentStreak, dayStats, logsByDay, scheduledFor } from '../../src/lib/scoring';
@@ -228,5 +228,15 @@ describe('missedCount', () => {
     expect(unloggedIsMissed('2026-11-11', '2026-11-14')).toBe(false);
     expect(unloggedIsMissed('2026-11-12', '2026-11-14')).toBe(true);
     expect(unloggedIsMissed('2026-11-14', '2026-11-14')).toBe(false);
+  });
+});
+
+describe('adminStatus', () => {
+  it('shows Takbir Ula as Jamaat and qadha as missed', () => {
+    expect(adminStatus('takbir')).toBe('jamaat');
+    expect(adminStatus('jamaat')).toBe('jamaat');
+    expect(adminStatus('qadha')).toBe('missed');
+    expect(adminStatus('missed')).toBe('missed');
+    expect(adminStatus(undefined)).toBeUndefined();
   });
 });

@@ -3,7 +3,7 @@ import { cva } from 'class-variance-authority';
 import { AnimatePresence, motion } from 'motion/react';
 import { fade, snap } from '../lib/motion';
 import { SALAH_NAMES, type SalahDay, type SalahName, type SalahStatus } from '../types';
-import { SALAH_LABEL, STATUS_DESC, STATUS_LABEL } from '../lib/salah';
+import { SALAH_LABEL, STATUS_DESC, STATUS_LABEL, adminStatus } from '../lib/salah';
 import { IconCheck, IconClock, IconStar, IconX } from './icons';
 import { useUndo } from './Undo';
 
@@ -56,23 +56,23 @@ function SalahRow({
   status,
   editable,
   onChange,
-  noQadha = false,
+  admin = false,
 }: {
   name: SalahName;
   status: SalahStatus | undefined;
   editable: boolean;
   onChange: (s: SalahStatus | null) => void;
-  /** Admin: no Qadha button, and a qadha entry shows as missed. */
-  noQadha?: boolean;
+  /** Admin: only Jamaat and Missed; Takbir Ula shows as Jamaat and Qadha as Missed. */
+  admin?: boolean;
 }) {
   const undo = useUndo();
   const saved = status;
-  if (noQadha && status === 'qadha') status = 'missed';
+  if (admin) status = adminStatus(status);
   const label = SALAH_LABEL[name];
   const set = (s: SalahStatus) => {
     if (!editable) return;
-    if (saved === s) {
-      const prev = saved;
+    if (status === s) {
+      const prev = saved!;
       onChange(null);
       undo.undoable(`Cleared ${label}`, () => onChange(prev));
     } else onChange(s);
@@ -89,7 +89,7 @@ function SalahRow({
           <div className={`mt-0.5 text-sm ${status ? subClass[status] : 'text-slate-500'}`}>{status ? STATUS_DESC[status] : 'Not logged'}</div>
           {/* Always shown, so Jamaat can be upgraded to Takbir Ula (or changed) in one tap. */}
           <div className="flex flex-wrap items-center gap-4 pt-1">
-            {(noQadha ? (['takbir', 'missed'] as const) : (['takbir', 'qadha', 'missed'] as const)).map((s) => (
+            {(admin ? (['missed'] as const) : (['takbir', 'qadha', 'missed'] as const)).map((s) => (
               <button
                 key={s}
                 type="button"
@@ -141,18 +141,19 @@ export function SalahChecklist({
   record,
   editable,
   onChange,
-  noQadha = false,
+  admin = false,
 }: {
   day: string;
   record: SalahDay | undefined;
   editable: boolean;
   onChange: (name: SalahName, status: SalahStatus | null) => void;
-  noQadha?: boolean;
+  /** The admin's view: Jamaat and Missed only. */
+  admin?: boolean;
 }) {
   return (
     <ul className="divide-y divide-slate-200 border-y border-slate-200" aria-label="Salah">
       {SALAH_NAMES.map((n) => (
-        <SalahRow key={n + day} name={n} status={record?.entries?.[n]} editable={editable} noQadha={noQadha} onChange={(s) => onChange(n, s)} />
+        <SalahRow key={n + day} name={n} status={record?.entries?.[n]} editable={editable} admin={admin} onChange={(s) => onChange(n, s)} />
       ))}
     </ul>
   );

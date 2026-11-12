@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { SALAH_NAMES, type SalahDay, type SalahStatus, type UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { displayName, shortName } from '../lib/display';
-import { missedCount, SALAH_LABEL, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
+import { adminStatus, missedCount, SALAH_LABEL, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
 
 /** F D A M I: Fajr, Dhuhr (Zuhr), Asr, Maghrib, Isha. */
 const LETTER = ['F', 'D', 'A', 'M', 'I'];
@@ -11,8 +11,7 @@ const LETTER = ['F', 'D', 'A', 'M', 'I'];
 function bar(s: SalahStatus | undefined, future: boolean, unloggedMissed: boolean) {
   if (future) return 'bg-transparent';
   if (!s && unloggedMissed) return 'bg-red-400'; // not logged on a day that's over counts as missed
-  if (s === 'takbir') return 'bg-gold-400';
-  if (s === 'jamaat') return 'bg-green-600';
+  if (s === 'jamaat' || s === 'takbir') return 'bg-green-600';
   if (s === 'missed' || s === 'qadha') return 'bg-red-400';
   return 'bg-slate-200';
 }
@@ -25,7 +24,7 @@ export interface RegisterGroup {
 
 /**
  * Every student's week of salah on one screen: a row per student, and for each day five thin
- * marks (F D A M I). Gold = Takbir Ula, green = Jamaat, red = missed, qadha or not logged on a
+ * marks (F D A M I). Green = in jamaat (Takbir Ula included), red = missed, qadha or not logged on a
  * past day (from MISSED_RULE_FROM), grey = not logged. Each class lists its most-missed students first.
  */
 export function SalahRegister({ days, groups, salah, today }: { days: string[]; groups: RegisterGroup[]; salah: Map<string, Map<string, SalahDay>>; today: string }) {
@@ -92,7 +91,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                                   <span
                                     key={n}
                                     className={`h-7 min-w-0 flex-1 rounded-[2px] ${bar(s, future, unloggedIsMissed(d, today))}`}
-                                    title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[s] : unloggedIsMissed(d, today) ? 'missed (not logged)' : 'not logged'}`}
+                                    title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[adminStatus(s)!] : unloggedIsMissed(d, today) ? 'missed (not logged)' : 'not logged'}`}
                                   />
                                 );
                               })}
@@ -110,7 +109,6 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500" aria-hidden>
         <span>F D A M I = Fajr, Dhuhr, Asr, Maghrib, Isha</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-gold-400" /> Takbir Ula</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-green-600" /> Jamaat</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-red-400" /> Missed or not logged</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-3 w-[6px] rounded-[1.5px] bg-slate-200" /> Not logged</span>

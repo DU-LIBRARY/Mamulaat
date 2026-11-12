@@ -2,13 +2,12 @@ import { Link } from 'react-router-dom';
 import type { SalahDay, SalahStatus, UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { displayName } from '../lib/display';
-import { missedCount, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
+import { adminStatus, missedCount, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
 import { IconCheck, IconX } from './icons';
 
-/** Gold tick: from the opening takbir. Green tick: in jamaat. Red ✗: missed, qadha, or not logged on a past day. Dot: not logged yet today. */
+/** Green tick: in jamaat (Takbir Ula included). Red ✗: missed, qadha, or not logged on a past day. Dot: not logged yet today. */
 function Mark({ s }: { s: SalahStatus | undefined }) {
-  if (s === 'takbir') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[#2a2410]"><IconCheck size={13} weight="bold" /></span>;
-  if (s === 'jamaat') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-800"><IconCheck size={13} weight="bold" /></span>;
+  if (s === 'jamaat' || s === 'takbir') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-800"><IconCheck size={13} weight="bold" /></span>;
   if (s === 'missed' || s === 'qadha') return <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-800"><IconX size={12} weight="bold" /></span>;
   return <span className="inline-flex h-6 w-6 items-center justify-center text-slate-400">·</span>;
 }
@@ -58,7 +57,7 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
                     const logged = by?.get(d)?.entries?.fajr;
                     const s = logged ?? (unloggedIsMissed(d, today) ? 'missed' : undefined);
                     const future = d > today;
-                    const desc = future ? 'not yet' : logged ? STATUS_DESC[logged] : s ? 'missed (not logged)' : 'not logged';
+                    const desc = future ? 'not yet' : logged ? STATUS_DESC[adminStatus(logged)!] : s ? 'missed (not logged)' : 'not logged';
                     return (
                       <td key={d} title={future ? '' : desc}>
                         {future ? null : <Mark s={s} />}
@@ -76,7 +75,6 @@ export function FajrWeekGrid({ days, students, salah, today }: { days: string[];
         </table>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500" aria-hidden>
-        <span className="inline-flex items-center gap-1.5"><Mark s="takbir" /> Takbir</span>
         <span className="inline-flex items-center gap-1.5"><Mark s="jamaat" /> Jamaat</span>
         <span className="inline-flex items-center gap-1.5"><Mark s="missed" /> Missed or not logged</span>
         <span className="inline-flex items-center gap-1.5"><Mark s={undefined} /> Not logged</span>
