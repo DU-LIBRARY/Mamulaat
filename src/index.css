@@ -32,7 +32,7 @@
   --color-sand-200: #dcd7cc;
 
   /* Gold — reserved for the teacher's voice. */
-  --color-gold-400: #c3a464;
+  --color-gold-400: #c9a03a;
   --color-gold-500: #9c7c38;
   --color-gold-50: #eee5d2;
   --color-gold-900: #55421a;
@@ -138,7 +138,7 @@
     --color-brand-900: #f1ddd0;
 
     --color-gold-50: #2a2619;
-    --color-gold-400: #a88d55;
+    --color-gold-400: #bf9a3c;
     --color-gold-900: #e3cf9f;
 
     --color-green-100: #26301f;
@@ -161,6 +161,37 @@
     --color-red-400: #b8695a;
     --color-red-700: #eba597;
     --color-red-800: #f1b9ad;
+  }
+}
+
+/*
+ * Green (trial theme): the paper palette with green in place of clay. Same light/dark
+ * pairings as paper, so every tint + text combination keeps its contrast.
+ */
+@media screen {
+  :root.green {
+    --color-brand-50: #e1eadb;
+    --color-brand-100: #d0dfc7;
+    --color-brand-200: #b4cca6;
+    --color-brand-300: #93b583;
+    --color-brand-500: #5e8a4c;
+    --color-brand-600: #4b7539;
+    --color-brand-700: #3c612c;
+    --color-brand-800: #2f4e22;
+    --color-brand-900: #213818;
+
+    --color-primary: #9fc48c;
+    --color-primary-strong: #8cb778;
+    --color-on-primary: #1d2a16;
+
+    --color-sand-50: #e9efe4;
+    --color-sand-100: #e2e9dc;
+    --color-sand-200: #d3dccb;
+    --color-surface: #edf2e8;
+  }
+  :root.green .sky {
+    --sky-a: #cfdec5;
+    --sky-b: #dbe6d3;
   }
 }
 

@@ -5,7 +5,7 @@ import { useActiveSession } from '../../hooks/useSession';
 import { DayChips } from '../../components/DayChips';
 import { Notice, Spinner } from '../../components/ui';
 import { IconCheck, IconChevronLeft, IconLock } from '../../components/icons';
-import { formatGregorian, formatHijri, isValidYmd } from '../../lib/dates';
+import { formatGregorian, formatHijri, isValidYmd, timeIn } from '../../lib/dates';
 import { fajrRollRef, rosterRef } from '../../lib/db';
 import { fajrRollSummary, type RollPerson } from '../../lib/salah';
 import type { ClassDoc, ClassRoster, FajrRoll as Roll } from '../../types';
@@ -58,6 +58,9 @@ function useRolls(classes: ClassDoc[], day: string) {
   }, [key]);
   return state;
 }
+
+/** Anyone who hasn't logged Fajr by this time (project timezone) counts as missed. */
+const LOG_CUTOFF = '08:05';
 
 type Kind = 'missed' | 'notLogged';
 const KIND: Record<Kind, { label: string; tone: string; empty: string }> = {
@@ -121,8 +124,18 @@ export function FajrRoll() {
     for (const x of sum.notLogged) if (!seen.has(x.uid)) (seen.add(x.uid), notLogged.push(x));
   }
   const byName = (a: RollPerson, b: RollPerson) => a.name.localeCompare(b.name);
+  // After the cutoff (or on any earlier day) not logging counts as missing.
+  const closed = day < today || timeIn(settings.timezone) >= LOG_CUTOFF;
+  if (closed) missed.push(...notLogged.splice(0));
   missed.sort(byName);
   notLogged.sort(byName);
+  // Biggest list first.
+  const lists: { kind: Kind; people: RollPerson[] }[] = closed
+    ? [{ kind: 'missed', people: missed }]
+    : [
+        { kind: 'missed' as Kind, people: missed },
+        { kind: 'notLogged' as Kind, people: notLogged },
+      ].sort((a, b) => b.people.length - a.people.length);
   const hijri = formatHijri(day);
 
   return (
@@ -141,8 +154,12 @@ export function FajrRoll() {
       <DayChips day={day} today={today} backfillDays={settings.backfillDays} count={7} showLocks={false} hrefFor={(d) => (d === today ? '/salah/fajr' : `/salah/fajr?date=${d}`)} />
 
       {failed && <Notice tone="warn">Some of the register couldn’t load. Check your connection.</Notice>}
-      <NameList kind="missed" people={missed} ready={ready} />
-      <NameList kind="notLogged" people={notLogged} ready={ready} />
+      {lists.map((l) => (
+        <NameList key={l.kind} kind={l.kind} people={l.people} ready={ready} />
+      ))}
+      <p className="-mt-2 text-xs text-slate-500">
+        {closed ? `Anyone who didn’t log Fajr by ${LOG_CUTOFF} is counted as missed.` : `Anyone who hasn’t logged by ${LOG_CUTOFF} will be counted as missed.`}
+      </p>
 
       <Notice icon={<IconLock size={18} />}>Only you and your teacher can see this. Please keep it to yourself and use it to encourage, not to embarrass.</Notice>
     </div>
