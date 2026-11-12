@@ -202,7 +202,7 @@ export function Splash({ status }: { status?: string }) {
     <div className="pt-safe relative isolate flex min-h-dvh flex-col items-center justify-center px-6" role="status">
       <div aria-hidden className="sky sky-static pointer-events-none absolute inset-0 -z-10" />
       <motion.img
-        src={`${import.meta.env.BASE_URL}logo.svg`}
+        src={`${import.meta.env.BASE_URL}icons/v3/logo.svg`}
         alt=""
         className="h-14 w-14 rounded-[12px]"
         initial={{ opacity: 0, scale: 0.92 }}

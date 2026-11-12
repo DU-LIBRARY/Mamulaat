@@ -19,7 +19,7 @@ export interface NavItem {
 export function Wordmark({ className = '' }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="h-6 w-6 rounded-[5px]" />
+      <img src={`${import.meta.env.BASE_URL}icons/v3/logo.svg`} alt="" className="h-6 w-6 rounded-[5px]" />
       <span className="font-serif text-[22px] leading-none text-slate-900">Mamūlāt</span>
     </span>
   );

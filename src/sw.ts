@@ -49,8 +49,8 @@ self.addEventListener('push', (event) => {
       open.forEach((c) => c.postMessage({ type: 'push', title, body }));
       await self.registration.showNotification(title, {
         body,
-        icon: new URL('icons/v2/icon-192.png', self.registration.scope).href,
-        badge: new URL('icons/v2/badge-72.png', self.registration.scope).href,
+        icon: new URL('icons/v3/icon-192.png', self.registration.scope).href,
+        badge: new URL('icons/v3/badge-72.png', self.registration.scope).href,
         tag: data.tag || 'mamulaat',
         data: { url: new URL(data.url || '.', self.registration.scope).href },
       });
