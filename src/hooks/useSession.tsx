@@ -25,7 +25,7 @@ import {
   userRef,
   type Actor,
 } from '../lib/db';
-import { todayIn } from '../lib/dates';
+import { timeIn, todayIn } from '../lib/dates';
 import type { AppSettings, UserProfile } from '../types';
 
 interface Session {
@@ -243,4 +243,10 @@ export function useActiveSession() {
   const s = useSession();
   if (!s.user || !s.profile || !s.actor) throw new Error('not signed in');
   return { ...s, user: s.user, profile: s.profile, actor: s.actor };
+}
+
+/** The current time "HH:MM" in the project timezone; re-renders with the session's minute tick. */
+export function useNowHHMM(): string {
+  const { settings } = useSession();
+  return timeIn(settings.timezone);
 }

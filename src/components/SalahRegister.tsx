@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
+import { useNowHHMM } from '../hooks/useSession';
 import { SALAH_NAMES, type SalahDay, type SalahStatus, type UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { displayName, shortName } from '../lib/display';
@@ -28,6 +29,7 @@ export interface RegisterGroup {
  * past day (from MISSED_RULE_FROM), grey = not logged. Each class lists its most-missed students first.
  */
 export function SalahRegister({ days, groups, salah, today }: { days: string[]; groups: RegisterGroup[]; salah: Map<string, Map<string, SalahDay>>; today: string }) {
+  const now = useNowHHMM();
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto">
@@ -69,7 +71,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                   </th>
                 </tr>
                 {[...g.students]
-                  .map((st) => ({ st, missed: missedCount(salah.get(st.id), days, today) }))
+                  .map((st) => ({ st, missed: missedCount(salah.get(st.id), days, today, undefined, now) }))
                   .sort((a, b) => b.missed - a.missed || displayName(a.st).localeCompare(displayName(b.st)))
                   .map(({ st }) => {
                   const by = salah.get(st.id);
@@ -90,8 +92,8 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                                 return (
                                   <span
                                     key={n}
-                                    className={`h-7 min-w-0 flex-1 rounded-[2px] ${bar(s, future, unloggedIsMissed(d, today))}`}
-                                    title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[adminStatus(s)!] : unloggedIsMissed(d, today) ? 'missed (not logged)' : 'not logged'}`}
+                                    className={`h-7 min-w-0 flex-1 rounded-[2px] ${bar(s, future, unloggedIsMissed(d, today, n, now))}`}
+                                    title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[adminStatus(s)!] : unloggedIsMissed(d, today, n, now) ? 'missed (not logged)' : 'not logged'}`}
                                   />
                                 );
                               })}

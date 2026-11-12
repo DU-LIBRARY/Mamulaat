@@ -31,8 +31,16 @@ export const SALAH_STATUSES: SalahStatus[] = ['takbir', 'jamaat', 'qadha', 'miss
  */
 export const MISSED_RULE_FROM = '2026-11-12';
 
-/** Does nothing logged on day `d` count as missed (as of `today`)? Only for days that are over, from MISSED_RULE_FROM. */
-export const unloggedIsMissed = (d: string, today: string) => d < today && d >= MISSED_RULE_FROM;
+/** Today's Fajr not logged by this time (project timezone) counts as missed. */
+export const FAJR_LOG_CUTOFF = '08:05';
+
+/**
+ * Does nothing logged for salah `name` on day `d` count as missed? From MISSED_RULE_FROM: yes for
+ * days that are over, and for today's Fajr once `now` ("HH:MM", project timezone) reaches
+ * FAJR_LOG_CUTOFF. The rest of today's salah stay "not logged" until the day is over.
+ */
+export const unloggedIsMissed = (d: string, today: string, name?: SalahName, now?: string) =>
+  d >= MISSED_RULE_FROM && (d < today || (d === today && name === 'fajr' && !!now && now >= FAJR_LOG_CUTOFF));
 
 /** Missed and qadha both count as missed for the Fajr register; takbir and jamaat as prayed. */
 export const rollStatusOf = (s: SalahStatus): RollStatus => (s === 'missed' || s === 'qadha' ? 'missed' : 'prayed');
@@ -106,13 +114,13 @@ export function fajrRollSummary(roster: Record<string, string>, roll: { r?: Reco
  * How many salah a student missed over these days, for ranking: missed and qadha count, and so
  * does nothing logged on a day that is over. Today's unlogged salah are not counted yet.
  */
-export function missedCount(by: Map<string, SalahDay> | undefined, days: string[], today: string, only?: SalahName[]): number {
+export function missedCount(by: Map<string, SalahDay> | undefined, days: string[], today: string, only?: SalahName[], now?: string): number {
   let n = 0;
   for (const d of days) {
     if (d > today) continue;
     for (const name of only ?? SALAH_NAMES) {
       const s = by?.get(d)?.entries?.[name];
-      if (s === 'missed' || s === 'qadha' || (!s && unloggedIsMissed(d, today))) n++;
+      if (s === 'missed' || s === 'qadha' || (!s && unloggedIsMissed(d, today, name, now))) n++;
     }
   }
   return n;

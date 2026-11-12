@@ -1,5 +1,6 @@
 import { SALAH_NAMES, type SalahDay, type SalahStatus } from '../types';
 import { adminStatus, SALAH_LABEL, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
+import { useNowHHMM } from '../hooks/useSession';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { cellClass } from './ui';
 
@@ -38,6 +39,7 @@ export function SalahWeek({
   onPick?: (day: string) => void;
   admin?: boolean;
 }) {
+  const now = useNowHHMM();
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-separate border-spacing-[3px] text-center text-[11px] num">
@@ -79,7 +81,7 @@ export function SalahWeek({
               {days.map((d) => {
                 if (d > today) return <td key={d} className="h-9 rounded bg-transparent" />;
                 const logged = salah.get(d)?.entries?.[n];
-                const s = admin ? (adminStatus(logged) ?? (unloggedIsMissed(d, today) ? 'missed' : undefined)) : logged;
+                const s = admin ? (adminStatus(logged) ?? (unloggedIsMissed(d, today, n, now) ? 'missed' : undefined)) : logged;
                 const desc = s ? STATUS_DESC[s] : 'Not logged';
                 return (
                   <td key={d} title={desc} className={`h-9 rounded ${s ? SALAH_CELL[s] : NOT_LOGGED}`}>
