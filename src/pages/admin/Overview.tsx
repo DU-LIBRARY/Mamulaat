@@ -221,7 +221,7 @@ export function Overview() {
           <h2 className="section-title mb-2">
             Salah register <span className="font-normal normal-case">({formatGregorian(days[0])} – {formatGregorian(days[6])})</span>
           </h2>
-          <div className="rounded-xl bg-surface p-2">
+          <div className="rounded-xl bg-surface px-1.5 py-2">
             <SalahRegister
               days={days}
               today={today}

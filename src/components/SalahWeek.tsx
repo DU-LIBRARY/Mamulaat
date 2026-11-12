@@ -1,5 +1,5 @@
 import { SALAH_NAMES, type SalahDay, type SalahStatus } from '../types';
-import { SALAH_LABEL, STATUS_DESC } from '../lib/salah';
+import { SALAH_LABEL, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { cellClass } from './ui';
 
@@ -79,7 +79,7 @@ export function SalahWeek({
               {days.map((d) => {
                 if (d > today) return <td key={d} className="h-9 rounded bg-transparent" />;
                 const logged = salah.get(d)?.entries?.[n];
-                const s = admin && logged === 'qadha' ? 'missed' : (logged ?? (admin && d < today ? 'missed' : undefined));
+                const s = admin && logged === 'qadha' ? 'missed' : (logged ?? (admin && unloggedIsMissed(d, today) ? 'missed' : undefined));
                 const desc = logged && s === logged ? STATUS_DESC[logged] : s ? 'Missed' : 'Not logged';
                 return (
                   <td key={d} title={desc} className={`h-9 rounded ${s ? SALAH_CELL[s] : NOT_LOGGED}`}>

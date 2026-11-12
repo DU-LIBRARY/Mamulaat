@@ -25,6 +25,15 @@ export const STATUS_DESC: Record<SalahStatus, string> = {
 
 export const SALAH_STATUSES: SalahStatus[] = ['takbir', 'jamaat', 'qadha', 'missed'];
 
+/**
+ * Salah history before this day was cleared, so a day before it with nothing logged is just
+ * "not logged", never missed. From this day on, nothing logged on a day that's over is missed.
+ */
+export const MISSED_RULE_FROM = '2026-11-12';
+
+/** Does nothing logged on day `d` count as missed (as of `today`)? Only for days that are over, from MISSED_RULE_FROM. */
+export const unloggedIsMissed = (d: string, today: string) => d < today && d >= MISSED_RULE_FROM;
+
 /** Missed and qadha both count as missed for the Fajr register; takbir and jamaat as prayed. */
 export const rollStatusOf = (s: SalahStatus): RollStatus => (s === 'missed' || s === 'qadha' ? 'missed' : 'prayed');
 
@@ -100,7 +109,7 @@ export function missedCount(by: Map<string, SalahDay> | undefined, days: string[
     if (d > today) continue;
     for (const name of only ?? SALAH_NAMES) {
       const s = by?.get(d)?.entries?.[name];
-      if (s === 'missed' || s === 'qadha' || (!s && d < today)) n++;
+      if (s === 'missed' || s === 'qadha' || (!s && unloggedIsMissed(d, today))) n++;
     }
   }
   return n;
@@ -116,7 +125,7 @@ export function jamaatRate(salah: Map<string, SalahDay>, days: string[], today: 
   let inJamaat = 0;
   let total = 0;
   for (const d of days) {
-    if (d < from || d > today) continue;
+    if (d < from || d < MISSED_RULE_FROM || d > today) continue;
     for (const n of SALAH_NAMES) {
       const s = salah.get(d)?.entries?.[n];
       if (d === today && !s) continue;
