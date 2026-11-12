@@ -36,6 +36,8 @@ const people = [
   { uid: 'demo-bilal', email: 'bilal@demo.test', name: 'Bilal Ahmed', role: 'student', status: 'active', classId: 'demo-class-b' },
   { uid: 'demo-pending', email: 'newstudent@demo.test', name: 'New Student', role: 'student', status: 'pending', classId: null },
   { uid: 'demo-teacher', email: 'teacher@demo.test', name: 'Ustadha Fatima', role: 'student', status: 'active', classId: null },
+  // A limited admin: runs the app like the admin but can't see anyone's mamoolaat, logs or salah.
+  { uid: 'demo-assistant', email: 'limited-admin@demo.test', name: 'Limited Admin', role: 'assistant', status: 'active', classId: null },
 ];
 
 const lists = {
@@ -91,8 +93,9 @@ await db.doc('settings/app').set({
   fajrReportTime: '08:00',
 });
 // Yusuf is the Fajr monitor of both classes: he sees the class's daily Fajr roll (Salah tab).
-await db.doc('classes/demo-class-a').set({ name: 'Class A — Girls', fajrMonitorId: 'demo-yusuf', fajrMonitorName: 'Yusuf Ali' });
-await db.doc('classes/demo-class-b').set({ name: 'Class B — Boys', fajrMonitorId: 'demo-yusuf', fajrMonitorName: 'Yusuf Ali' });
+await db.doc('classes/demo-class-a').set({ name: 'Class A — Girls', fajrMonitorId: 'demo-yusuf' });
+await db.doc('classes/demo-class-b').set({ name: 'Class B — Boys', fajrMonitorId: 'demo-yusuf' });
+for (const c of ['demo-class-a', 'demo-class-b']) await db.doc(`classes/${c}/meta/monitor`).set({ name: 'Yusuf Ali' });
 
 for (const p of people) {
   await db.doc(`users/${p.uid}`).set({

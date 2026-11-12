@@ -10,9 +10,9 @@ import { SalahChecklist } from '../../components/SalahChecklist';
 import { Notice, ProgressRing } from '../../components/ui';
 import { Row, Rows } from '../../components/quiet';
 import { IconInfo, IconPencil } from '../../components/icons';
-import { LockedDayNotice, PendingSyncNotice } from '../../components/LockNotices';
+import { LockedDayNotice, PendingSyncNotice, LostEntriesNotice } from '../../components/LockNotices';
 import { isDayEditable, isValidYmd, lastEditableDay } from '../../lib/dates';
-import { classesCol, saveSalah, saveSalahEntries } from '../../lib/db';
+import { classesCol, saveSalah, saveSalahEntries, monitorRef } from '../../lib/db';
 import { salahStats } from '../../lib/salah';
 import { SALAH_NAMES, type ClassDoc, type SalahName, type SalahStatus } from '../../types';
 import { Check } from '@phosphor-icons/react';
@@ -24,6 +24,13 @@ export function useMyClass() {
   const { profile } = useActiveSession();
   const id = profile.classId;
   return useDocData<ClassDoc>(id ? doc(db, 'classes', id) : null, `class:${id ?? ''}`).data;
+}
+
+/** The name of the Fajr monitor of the student's own class (kept where only that class can read it). */
+export function useMyMonitorName(wanted: boolean) {
+  const { profile } = useActiveSession();
+  const id = wanted ? profile.classId : null;
+  return useDocData<{ name?: string }>(id ? monitorRef(id) : null, `monitor:${id ?? ''}`).data?.name ?? null;
 }
 
 /** The classes whose Fajr roll this student may see (the admin made them its Fajr monitor). */
@@ -46,6 +53,7 @@ export function Salah() {
   const s = salahStats(record);
   const monitorId = cls?.fajrMonitorId ?? null;
   const isMonitor = monitored.length > 0;
+  const monitorName = useMyMonitorName(!!monitorId && monitorId !== profile.id);
   const owner = { uid: profile.id, name: profile.name ?? profile.email, classId: profile.classId };
   const undo = useUndo();
   // Only the salah still empty become Jamaat; anything already marked is kept.
@@ -63,6 +71,7 @@ export function Salah() {
 
   return (
     <div className="flex flex-col gap-4">
+      <LostEntriesNotice />
       <PendingSyncNotice />
       <DayChips day={day} today={today} backfillDays={settings.backfillDays} hrefFor={(d) => (d === today ? '/salah' : `/salah/${d}`)} />
 
@@ -110,7 +119,7 @@ export function Salah() {
       )}
       {monitorId && monitorId !== profile.id && (
         <Notice icon={<IconInfo size={18} />}>
-          Your Fajr status is shared with your class’s Fajr monitor{cls?.fajrMonitorName ? `, ${cls.fajrMonitorName}` : ''}. Your other salah and your mamoolaat stay between you and your teacher.
+          Your Fajr status is shared with your class’s Fajr monitor{monitorName ? `, ${monitorName}` : ''}. Your other salah and your mamoolaat stay between you and your teacher.
         </Notice>
       )}
     </div>

@@ -12,7 +12,8 @@ export function scheduledFor(day: string, mamoolaat: Mamool[]): Mamool[] {
       (m.removedDate == null || m.removedDate > day) &&
       (m.active || m.removedDate != null) &&
       // days it was removed and later restored do not count against the student
-      !(m.gaps ?? []).some((g) => g.from <= day && day < g.to),
+      // (the list is written by the student's own app, so tolerate anything malformed in it)
+      !(Array.isArray(m.gaps) ? m.gaps : []).some((g) => !!g && typeof g.from === 'string' && typeof g.to === 'string' && g.from <= day && day < g.to),
   );
 }
 

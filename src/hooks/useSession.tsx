@@ -16,6 +16,7 @@ import {
 import { onSnapshot } from 'firebase/firestore';
 import { auth, googleProvider } from '../firebase';
 import { wipeDeviceData } from '../lib/sync';
+import { clearUnsynced } from '../lib/unsynced';
 import {
   createPendingProfile,
   normalizeSettings,
@@ -36,7 +37,10 @@ interface Session {
   settingsLoaded: boolean;
   today: string;
   actor: Actor | null;
+  /** Signed in on the teacher's side: the admin, or a limited admin ("assistant"). */
   isAdmin: boolean;
+  /** A limited admin: runs the app like the admin but can't see anyone's mamoolaat, logs or salah. */
+  limited: boolean;
   /** True after the admin deleted this signed-in account (we then sign out). */
   removed: boolean;
   dismissRemoved: () => void;
@@ -116,7 +120,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const active = profile?.status === 'active';
-  const isAdmin = active && profile?.role === 'admin';
+  const limited = active && profile?.role === 'assistant';
+  const isAdmin = active && (profile?.role === 'admin' || limited);
 
   useEffect(() => {
     if (!active) {
@@ -163,6 +168,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     settingsLoaded,
     today,
     isAdmin,
+    limited,
     actor: user ? { uid: user.uid, name: profile?.name ?? user.displayName ?? user.email ?? 'Admin' } : null,
     async signIn() {
       try {
@@ -224,6 +230,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async signOut() {
       // Clear this account's offline copy from the device, then start the app fresh.
       await wipeDeviceData();
+      if (user) clearUnsynced(user.uid);
       await fbSignOut(auth).catch(() => undefined);
       window.location.assign(import.meta.env.BASE_URL);
     },

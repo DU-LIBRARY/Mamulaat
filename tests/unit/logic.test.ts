@@ -52,6 +52,12 @@ describe('scoring', () => {
     expect(scheduledFor('2026-11-04', [g]).length).toBe(0);
     expect(scheduledFor('2026-11-05', [g]).length).toBe(1); // restored on the 5th
   });
+  it('ignores a malformed gap list instead of crashing', () => {
+    for (const gaps of [[null], ['x'], [{ from: 1, to: 2 }], 'oops', { from: '2026-11-01' }]) {
+      const g = m('g', '2026-11-01', { gaps: gaps as never });
+      expect(scheduledFor('2026-11-03', [g]).length).toBe(1);
+    }
+  });
   it('a day with nothing scheduled has no completion and breaks no streak maths', () => {
     const s = dayStats('2026-10-01', undefined, ms);
     expect(s.scheduled).toBe(0);
