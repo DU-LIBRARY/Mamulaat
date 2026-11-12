@@ -1,0 +1,27 @@
+# One-off: permanently delete all salah records and Fajr registers (tools/push/clear-salah.mjs).
+# Run by hand only; type DELETE to confirm.
+name: Clear all salah records
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DELETE to permanently delete every salah record and Fajr register'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  clear:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund --omit=dev
+        working-directory: tools/push
+      - run: node tools/push/clear-salah.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CONFIRM: ${{ github.event.inputs.confirm }}
