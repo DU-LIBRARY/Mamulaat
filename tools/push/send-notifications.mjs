@@ -1,8 +1,9 @@
 // Sends Mamulaat's push notifications. Run every 15 minutes by .github/workflows/notifications.yml,
 // so nothing needs Cloud Functions or the Blaze plan.
 //
-//  - Reminders: a general "please log" message at the fixed times in push.config.json (every day
-//    at 23:00, and Fridays at 12:00, project timezone) to students who turned reminders on.
+//  - Reminders: the fixed times in push.config.json (project timezone): 07:15 Fajr (skips anyone
+//    who has logged Fajr), 23:00 daily, Fridays 12:00. Sent to every active student whose phone
+//    has notifications on.
 //  - Nudge: when the admin taps "send reminder" (nudges/{uid}_{day}), on the next run.
 //  - Message: a note from the admin with "also send to their phone" ticked (pushMessages/{id}).
 //  - New sign-up: tells every admin when a student finishes signing up.
@@ -95,6 +96,24 @@ if (TEST === 'fajr') {
   process.exit(0);
 }
 
+// TEST=fajr-reminder: send the Fajr reminder now to every active student and list who it
+// couldn't reach (no phone with notifications turned on). Writes nothing.
+if (TEST === 'fajr-reminder') {
+  const slot = (CFG.reminders ?? []).find((r) => r.fajr) ?? { title: 'Fajr', body: 'Please log your Fajr salah for today.', url: 'salah' };
+  const reached = [];
+  const unreached = [];
+  for (const [uid, d] of byId) {
+    if (d.role !== 'student' || d.status !== 'active') continue;
+    const name = typeof d.name === 'string' && d.name ? d.name : uid;
+    if (await pushToUser(uid, { title: `TEST · ${slot.title || 'Fajr'}`, body: slot.body, url: slot.url || '.', tag: 'fajr-reminder-test' })) reached.push(name);
+    else unreached.push(name);
+  }
+  console.log(`Fajr reminder test: reached ${reached.length} of ${reached.length + unreached.length} active student(s).`);
+  if (unreached.length) console.log(`Not reached (notifications not turned on in the app): ${unreached.sort().join(', ')}`);
+  console.log(`Sent ${stats.sent} push(es) to ${reached.length} student(s); removed ${stats.removed} expired device(s); ${stats.failed} failed.`);
+  process.exit(0);
+}
+
 if (TEST === 'admins' || TEST === 'all') {
   const uids = TEST === 'all' ? [...byId.keys()] : admins;
   for (const uid of uids) await pushToUser(uid, { title: 'Mamūlāt', body: 'Test notification: notifications are working.', url: '.', tag: 'test' });
@@ -115,10 +134,14 @@ for (const { slot, key } of dueSlots(CFG.reminders ?? [], today, minutes, sentSl
   sentSlots[key] = Date.now(); // record first, so a crash can't cause repeated pings
   if (!dry) await remindersRef.set({ sent: Object.fromEntries(Object.entries(sentSlots).filter(([k]) => k >= addDaysYmd(today, -7))) });
   let n = 0;
+  const unreached = [];
   for (const [uid, d] of byId) {
-    if (d.role !== 'student' || d.status !== 'active' || d.reminderEnabled !== true) continue;
-    if (await pushToUser(uid, { title: slot.title || 'Mamūlāt', body: slot.body, url: '.', tag: `reminder-${key}` })) n++;
+    if (d.role !== 'student' || d.status !== 'active') continue;
+    if (slot.fajr && (await db.doc(`users/${uid}/salah/${today}`).get()).get('entries.fajr')) continue; // already logged
+    if (await pushToUser(uid, { title: slot.title || 'Mamūlāt', body: slot.body, url: slot.url || '.', tag: `reminder-${key}` })) n++;
+    else unreached.push(typeof d.name === 'string' && d.name ? d.name : uid);
   }
+  if (unreached.length) console.log(`  not reached (notifications off on their phone): ${unreached.length}`);
   reminded += n;
   console.log(`Reminder ${key}: sent to ${n} student(s)`);
 }

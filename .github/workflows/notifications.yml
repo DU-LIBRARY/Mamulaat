@@ -11,12 +11,14 @@ on:
   schedule:
     # Every 15 minutes (UTC). GitHub can start scheduled jobs a few minutes late.
     - cron: '4,19,34,49 * * * *'
+    # Extra runs aimed at the 07:15 Fajr reminder (06:15 UTC in summer time, 07:15 UTC in winter).
+    - cron: '15 6,7 * * *'
   workflow_dispatch:
     inputs:
       test:
-        description: 'Send a test notification instead (fajr = sample Fajr report to each Fajr monitor)'
+        description: 'Send a test instead (fajr = sample Fajr report to monitors; fajr-reminder = the 07:15 Fajr reminder to every student, listing who it cannot reach)'
         type: choice
-        options: [none, admins, all, fajr]
+        options: [none, admins, all, fajr, fajr-reminder]
         default: none
       dry_run:
         description: 'Only log what would be sent'
