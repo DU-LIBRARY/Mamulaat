@@ -1,4 +1,4 @@
-import { SALAH_NAMES, type FajrRoll, type SalahDay, type SalahName, type SalahStatus } from '../types';
+import { SALAH_NAMES, type FajrRoll, type RollStatus, type SalahDay, type SalahName, type SalahStatus } from '../types';
 
 export const SALAH_LABEL: Record<SalahName, string> = {
   fajr: 'Fajr',
@@ -24,6 +24,9 @@ export const STATUS_DESC: Record<SalahStatus, string> = {
 };
 
 export const SALAH_STATUSES: SalahStatus[] = ['takbir', 'jamaat', 'qadha', 'missed'];
+
+/** Missed and qadha both count as missed for the Fajr register; takbir and jamaat as prayed. */
+export const rollStatusOf = (s: SalahStatus): RollStatus => (s === 'missed' || s === 'qadha' ? 'missed' : 'prayed');
 
 export const isSalahStatus = (v: unknown): v is SalahStatus => typeof v === 'string' && (SALAH_STATUSES as string[]).includes(v);
 
@@ -68,14 +71,16 @@ const byName = (a: RollPerson, b: RollPerson) => a.name.localeCompare(b.name);
  * Sort the class into groups for one day's Fajr. Everyone on the roster without an entry is
  * "not logged"; people who logged but have since left the class are left out.
  */
-export function fajrRollSummary(roster: Record<string, string>, roll: FajrRoll | null | undefined): RollSummary {
+export function fajrRollSummary(roster: Record<string, string>, roll: { r?: Record<string, { name?: string; status?: string }> } | FajrRoll | null | undefined): RollSummary {
   const out: RollSummary = { missed: [], qadha: [], notLogged: [], inJamaat: [] };
   for (const [uid, name] of Object.entries(roster)) {
     const status = roll?.r?.[uid]?.status;
     const p = { uid, name: name || roll?.r?.[uid]?.name || 'Unnamed' };
-    if (status === 'missed') out.missed.push(p);
-    else if (status === 'qadha') out.qadha.push(p);
-    else if (status === 'takbir' || status === 'jamaat') out.inJamaat.push(p);
+    // The register stores missed/prayed; the admin's own summary passes full statuses.
+    const st = status as string | undefined;
+    if (st === 'missed') out.missed.push(p);
+    else if (st === 'qadha') out.qadha.push(p);
+    else if (st === 'takbir' || st === 'jamaat' || st === 'prayed') out.inJamaat.push(p);
     else out.notLogged.push(p);
   }
   out.missed.sort(byName);

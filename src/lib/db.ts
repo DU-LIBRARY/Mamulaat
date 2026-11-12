@@ -20,6 +20,7 @@ import type { AppSettings, ClassDoc, DayLog, LogEntry, Mamool, SalahDay, SalahNa
 import { DEFAULT_TIMEZONE, utcOffsetMinutes } from './dates';
 import { fire, track } from './sync';
 import { sameMamoolName } from './names';
+import { rollStatusOf } from './salah';
 
 export { sameMamoolName };
 
@@ -193,7 +194,7 @@ export interface RollOwner {
 }
 
 function rollPatch(owner: RollOwner, status: SalahStatus | null) {
-  return { r: { [owner.uid]: status ? { name: owner.name.slice(0, 200), status } : deleteField() } };
+  return { r: { [owner.uid]: status ? { name: owner.name.slice(0, 200), status: rollStatusOf(status) } : deleteField() } };
 }
 
 /**
@@ -617,7 +618,7 @@ export async function deleteStudent(uid: string, actor: Actor, name: string) {
     const classes = await getDocs(classesCol());
     for (const c of classes.docs) {
       const rolls = await getDocs(
-        query(collection(db, 'classes', c.id, 'fajrRoll'), where(new FieldPath('r', uid, 'status'), 'in', ['takbir', 'jamaat', 'qadha', 'missed'])),
+        query(collection(db, 'classes', c.id, 'fajrRoll'), where(new FieldPath('r', uid, 'status'), 'in', ['missed', 'prayed', 'takbir', 'jamaat', 'qadha'])),
       );
       for (let i = 0; i < rolls.docs.length; i += 400) {
         const batch = writeBatch(db);

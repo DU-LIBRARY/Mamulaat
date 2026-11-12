@@ -775,7 +775,8 @@ describe('Fajr roll and monitor', () => {
   });
 
   /** What the app does: the salah record and the roll entry in one batch. */
-  function logFajr(uid: string, day: string, status: string | null, classId = 'class-1', rollStatus = status) {
+  const coarse = (s: string | null) => (s == null ? null : s === 'missed' || s === 'qadha' ? 'missed' : 'prayed');
+  function logFajr(uid: string, day: string, status: string | null, classId = 'class-1', rollStatus = coarse(status)) {
     const f = db(uid);
     const b = writeBatch(f);
     b.set(doc(f, `users/${uid}/salah/${day}`), { date: day, entries: { fajr: status ?? deleteField() }, updatedAt: serverTimestamp() }, { merge: true });
@@ -792,9 +793,11 @@ describe('Fajr roll and monitor', () => {
   });
 
   it('a roll entry that does not match the salah record is refused', async () => {
-    await assertFails(logFajr(A, today, 'missed', 'class-1', 'takbir'));
+    await assertFails(logFajr(A, today, 'missed', 'class-1', 'prayed'));
+    await assertFails(logFajr(A, today, 'takbir', 'class-1', 'missed'));
+    await assertFails(logFajr(A, today, 'qadha', 'class-1', 'qadha')); // only missed/prayed are stored
     const f = db(A); // roll only, without the salah record
-    await assertFails(setDoc(doc(f, roll(A, today)), { r: { [A]: { name: 'A', status: 'takbir' } } }, { merge: true }));
+    await assertFails(setDoc(doc(f, roll(A, today)), { r: { [A]: { name: 'A', status: 'prayed' } } }, { merge: true }));
   });
 
   it("a student cannot write a classmate's key, another class's roll, or a locked day", async () => {
@@ -843,7 +846,7 @@ describe('Fajr roll and monitor', () => {
     await assertFails(updateDoc(doc(db(B), roll(A, today)), new FieldPath('r', A), deleteField()));
     const f = db(ADMIN);
     const found = await assertSucceeds(
-      getDocs(query(collection(f, 'classes/class-1/fajrRoll'), where(new FieldPath('r', A, 'status'), 'in', ['takbir', 'jamaat', 'qadha', 'missed']))),
+      getDocs(query(collection(f, 'classes/class-1/fajrRoll'), where(new FieldPath('r', A, 'status'), 'in', ['missed', 'prayed']))),
     );
     if (found.size !== 1) throw new Error(`expected 1 roll doc, got ${found.size}`);
     await assertSucceeds(updateDoc(found.docs[0].ref, new FieldPath('r', A), deleteField()));

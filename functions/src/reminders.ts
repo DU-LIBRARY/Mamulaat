@@ -125,9 +125,10 @@ export function fajrReport(roster: Record<string, string>, roll: { r?: Record<st
     const s = roll?.r?.[uid]?.status;
     if (s === 'missed') missed++;
     else if (s === 'qadha') qadha++;
-    else if (s === 'takbir' || s === 'jamaat') inJamaat++;
+    else if (s === 'takbir' || s === 'jamaat' || s === 'prayed') inJamaat++;
     else notLogged++;
   }
-  const body = `${missed} missed · ${qadha} qadha · ${notLogged} not logged yet`;
+  // The monitor sees missed and qadha together as "missed".
+  const body = `${missed + qadha} missed · ${notLogged} not logged yet`;
   return { missed, qadha, notLogged, inJamaat, body };
 }

@@ -319,14 +319,16 @@ service cloud.firestore {
       // ----- the daily Fajr roll: r.<uid> = { name, status } -----
       // Read only by the admin and this class's Fajr monitor. A student writes only their own key,
       // only for their own class and day window, and only in the same batch as their own salah
-      // record, whose Fajr status it must match (so nobody can show a different status here).
+      // record, whose Fajr it must match as missed/prayed (so nobody can show a different status here).
       function rollEntryOk(day) {
         let r = request.resource.data.r;
         let mine = request.auth.uid;
         let fajr = getAfter(/databases/$(database)/documents/users/$(mine)/salah/$(day)).data.entries.get('fajr', null);
+        // The register keeps only missed (missed or qadha) or prayed (takbir or jamaat).
+        let expected = fajr in ['missed', 'qadha'] ? 'missed' : 'prayed';
         return (mine in r)
           ? (r[mine].keys().hasOnly(['name', 'status']) && r[mine].name is string && r[mine].name.size() <= 200
-             && r[mine].status == fajr)
+             && fajr != null && r[mine].status == expected)
           : fajr == null;
       }
       match /fajrRoll/{day} {

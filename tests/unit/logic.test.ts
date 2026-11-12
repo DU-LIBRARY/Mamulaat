@@ -199,7 +199,7 @@ describe('salah', () => {
   it('groups the class for the Fajr roll; unlisted entries are ignored', () => {
     const sum = fajrRollSummary(
       { a: 'Bilal', b: 'Ahmad', c: 'Zaid', d: 'Umar' },
-      { id: 'd', r: { a: { name: 'Bilal', status: 'missed' }, b: { name: 'Ahmad', status: 'qadha' }, d: { name: 'Umar', status: 'jamaat' }, x: { name: 'Left', status: 'missed' } } },
+      { r: { a: { name: 'Bilal', status: 'missed' }, b: { name: 'Ahmad', status: 'qadha' }, d: { name: 'Umar', status: 'prayed' }, x: { name: 'Left', status: 'missed' } } },
     );
     expect(sum.missed.map((p) => p.name)).toEqual(['Bilal']);
     expect(sum.qadha.map((p) => p.name)).toEqual(['Ahmad']);
