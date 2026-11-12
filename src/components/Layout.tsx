@@ -41,14 +41,12 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
         */}
         <header className="no-print pt-safe relative z-20">
           <div className="flex h-14 items-center justify-between gap-2 px-5">
-            <div className="flex items-baseline gap-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
               <Wordmark />
               {title && <span className="text-sm text-slate-500">{title}</span>}
-            </div>
-            <div className="flex items-center gap-2">
-              {right}
               <SyncIndicator />
             </div>
+            {right && <div className="flex items-center gap-2">{right}</div>}
           </div>
         </header>
         <main id="main" tabIndex={-1} className="flex-1 px-5 pt-4 pb-28 focus:outline-none">

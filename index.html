@@ -17,7 +17,10 @@
       // Apply the saved light/dark choice before first paint (see src/lib/theme.ts).
       try {
         var t = localStorage.getItem('mamulaat-theme');
-        if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+        if (t === 'green') {
+          document.documentElement.classList.add('green');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#e2e9dc');
+        } else if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
           document.documentElement.classList.add('dark');
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#191b16');
         }

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { configMissing } from './firebase';
 import { SessionProvider, useSession } from './hooks/useSession';
 import { StudentDataProvider, useMyData } from './hooks/useStudentData';
@@ -62,8 +62,18 @@ function StudentRoutes() {
         { to: '/salah', label: 'Salah', icon: <IconSalah /> },
         { to: '/week', label: 'Week', icon: <IconWeek /> },
         { to: '/messages', label: 'Inbox', icon: <IconInbox />, badge: data.unreadComments + data.unseenChanges },
-        { to: '/me', label: 'Me', icon: <IconPerson /> },
       ]}
+      right={
+        <NavLink
+          to="/me"
+          className={({ isActive }) =>
+            `inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900'}`
+          }
+        >
+          <IconPerson />
+          <span>Me</span>
+        </NavLink>
+      }
     >
       {toast && <Toast text={toast} onClose={() => setToast(null)} />}
       <Routes>

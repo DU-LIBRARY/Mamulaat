@@ -59,18 +59,13 @@ function useRolls(classes: ClassDoc[], day: string) {
   return state;
 }
 
-type Kind = 'missed' | 'notLogged';
-const KIND: Record<Kind, { label: string; tone: string; empty: string }> = {
-  missed: { label: 'Missed', tone: 'text-red-800', empty: 'Nobody missed Fajr.' },
-  notLogged: { label: 'Not logged', tone: 'text-slate-900', empty: 'Everyone has logged Fajr.' },
-};
 
-function NameList({ kind, people, ready }: { kind: Kind; people: RollPerson[]; ready: boolean }) {
+function MissedList({ people, ready }: { people: RollPerson[]; ready: boolean }) {
   return (
     <section className="overflow-hidden rounded-xl bg-surface">
       <header className="flex items-baseline justify-between border-b border-slate-200 px-4 py-3">
-        <h2 className="text-[17px] font-medium text-slate-900">{KIND[kind].label}</h2>
-        <span className={`num font-serif text-[28px] leading-none ${people.length ? KIND[kind].tone : 'text-slate-400'}`}>{ready ? people.length : '–'}</span>
+        <h2 className="text-[17px] font-medium text-slate-900">Missed</h2>
+        <span className={`num font-serif text-[28px] leading-none ${people.length ? 'text-red-800' : 'text-slate-400'}`}>{ready ? people.length : '–'}</span>
       </header>
       {!ready ? (
         <div className="px-4 py-3">
@@ -78,7 +73,7 @@ function NameList({ kind, people, ready }: { kind: Kind; people: RollPerson[]; r
         </div>
       ) : people.length === 0 ? (
         <p className="flex items-center gap-2 px-4 py-3 text-[15px] text-slate-600">
-          <IconCheck size={16} /> {KIND[kind].empty}
+          <IconCheck size={16} /> Nobody missed Fajr.
         </p>
       ) : (
         <ul className="divide-y divide-slate-200">
@@ -94,8 +89,8 @@ function NameList({ kind, people, ready }: { kind: Kind; people: RollPerson[]; r
 }
 
 /**
- * Read-only daily Fajr register for a Fajr monitor: two lists across every class they look
- * after. "Missed" covers missed and qadha alike; nobody who prayed is listed.
+ * Read-only daily Fajr register for a Fajr monitor: one list across every class they look
+ * after. "Missed" covers missed, qadha and not logged alike; nobody who prayed is listed.
  */
 export function FajrRoll() {
   const { today, settings } = useActiveSession();
@@ -112,17 +107,15 @@ export function FajrRoll() {
   const ready = states.every((st) => st && st.loaded >= 2);
   const failed = states.some((st) => st?.error);
   const missed: RollPerson[] = [];
-  const notLogged: RollPerson[] = [];
   const seen = new Set<string>();
   for (const st of states) {
     if (!st || st.error) continue;
     const sum = fajrRollSummary(st.roster?.names ?? {}, st.roll);
-    for (const x of [...sum.missed, ...sum.qadha]) if (!seen.has(x.uid)) (seen.add(x.uid), missed.push(x));
-    for (const x of sum.notLogged) if (!seen.has(x.uid)) (seen.add(x.uid), notLogged.push(x));
+    // Missed, qadha and not logged all show as missed.
+    for (const x of [...sum.missed, ...sum.qadha, ...sum.notLogged]) if (!seen.has(x.uid)) (seen.add(x.uid), missed.push(x));
   }
   const byName = (a: RollPerson, b: RollPerson) => a.name.localeCompare(b.name);
   missed.sort(byName);
-  notLogged.sort(byName);
   const hijri = formatHijri(day);
 
   return (
@@ -141,8 +134,7 @@ export function FajrRoll() {
       <DayChips day={day} today={today} backfillDays={settings.backfillDays} count={7} showLocks={false} hrefFor={(d) => (d === today ? '/salah/fajr' : `/salah/fajr?date=${d}`)} />
 
       {failed && <Notice tone="warn">Some of the register couldn’t load. Check your connection.</Notice>}
-      <NameList kind="missed" people={missed} ready={ready} />
-      <NameList kind="notLogged" people={notLogged} ready={ready} />
+      <MissedList people={missed} ready={ready} />
 
       <Notice icon={<IconLock size={18} />}>Only you and your teacher can see this. Please keep it to yourself and use it to encourage, not to embarrass.</Notice>
     </div>

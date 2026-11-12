@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 
 /** The viewer's colour-scheme choice; "system" follows the device setting. Stored per device. */
-export type ThemePref = 'system' | 'light' | 'dark';
+export type ThemePref = 'system' | 'light' | 'dark' | 'green';
 
 const KEY = 'mamulaat-theme';
 const LIGHT_BAR = '#e9e5dd';
 const DARK_BAR = '#191b16';
+const GREEN_BAR = '#e2e9dc';
 const media = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
 export function getThemePref(): ThemePref {
   try {
     const v = localStorage.getItem(KEY);
-    if (v === 'light' || v === 'dark') return v;
+    if (v === 'light' || v === 'dark' || v === 'green') return v;
   } catch {
     /* storage blocked — fall back to system */
   }
@@ -20,8 +21,10 @@ export function getThemePref(): ThemePref {
 
 function apply(pref: ThemePref) {
   const dark = pref === 'dark' || (pref === 'system' && !!media?.matches);
+  const green = pref === 'green';
   document.documentElement.classList.toggle('dark', dark);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? DARK_BAR : LIGHT_BAR);
+  document.documentElement.classList.toggle('green', green);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? DARK_BAR : green ? GREEN_BAR : LIGHT_BAR);
 }
 
 const listeners = new Set<(p: ThemePref) => void>();

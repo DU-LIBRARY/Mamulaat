@@ -4,9 +4,10 @@ const OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+  { value: 'green', label: 'Green' },
 ];
 
-/** Appearance setting: a three-way segmented control (saved on this device only). */
+/** Appearance setting: a segmented control (saved on this device only). */
 export function ThemePicker() {
   const [pref, setPref] = useThemePref();
   return (
@@ -28,7 +29,7 @@ export function ThemePicker() {
           </button>
         ))}
       </div>
-      <p className="mt-2 text-xs text-slate-500">System follows your device's light or dark setting. Saved on this device.</p>
+      <p className="mt-2 text-xs text-slate-500">System follows your device's light or dark setting. Green is a trial theme. Saved on this device.</p>
     </section>
   );
 }
