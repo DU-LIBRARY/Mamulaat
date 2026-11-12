@@ -1,5 +1,5 @@
 import { SALAH_NAMES, type SalahDay, type SalahStatus } from '../types';
-import { SALAH_LABEL, STATUS_DESC } from '../lib/salah';
+import { adminStatus, SALAH_LABEL, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { cellClass } from './ui';
 
@@ -22,8 +22,8 @@ const LEGEND: { cls: string; label: string }[] = [
 
 /**
  * A week of one student's salah: a row per prayer, a coloured cell per day (laid out like the
- * mamool grid). In the admin's view (`admin`), qadha shows as missed and so does nothing logged
- * on a past day; today stays "not logged" until the day is over.
+ * mamool grid). In the admin's view (`admin`), Takbir Ula shows as Jamaat, qadha as missed, and
+ * so does nothing logged on a past day (from MISSED_RULE_FROM); today stays "not logged" until the day is over.
  */
 export function SalahWeek({
   days,
@@ -79,8 +79,8 @@ export function SalahWeek({
               {days.map((d) => {
                 if (d > today) return <td key={d} className="h-9 rounded bg-transparent" />;
                 const logged = salah.get(d)?.entries?.[n];
-                const s = admin && logged === 'qadha' ? 'missed' : (logged ?? (admin && d < today ? 'missed' : undefined));
-                const desc = logged && s === logged ? STATUS_DESC[logged] : s ? 'Missed' : 'Not logged';
+                const s = admin ? (adminStatus(logged) ?? (unloggedIsMissed(d, today) ? 'missed' : undefined)) : logged;
+                const desc = s ? STATUS_DESC[s] : 'Not logged';
                 return (
                   <td key={d} title={desc} className={`h-9 rounded ${s ? SALAH_CELL[s] : NOT_LOGGED}`}>
                     <span className="sr-only">{desc}</span>
@@ -92,7 +92,7 @@ export function SalahWeek({
         </tbody>
       </table>
       <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1 text-xs text-slate-500" aria-hidden>
-        {LEGEND.filter((l) => !admin || (l.label !== 'Not logged' && l.label !== 'Qadha')).map((l) => (
+        {LEGEND.filter((l) => !admin || !['Not logged', 'Qadha', 'Takbir Ula'].includes(l.label)).map((l) => (
           <li key={l.label} className="inline-flex items-center gap-1.5">
             <span className={`h-3 w-3 rounded-sm ${l.cls}`} />
             {l.label}

@@ -237,9 +237,9 @@ export function StudentDetail() {
               <DateLine day={dayId} />
               <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.inJamaat}/5 in jamaat</span>
             </div>
-            <p className="text-sm text-slate-500">Correct this student's salah for any day. Qadha counts as missed here. Each change is stamped with your name and recorded in the audit log. Fajr changes also update the class's Fajr roll.</p>
+            <p className="text-sm text-slate-500">Correct this student's salah for any day. Each change is stamped with your name and recorded in the audit log. Fajr changes also update the class's Fajr roll.</p>
             {rec?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {rec.editedByName ?? 'the teacher'}.</div>}
-            <SalahChecklist day={dayId} record={rec} editable noQadha onChange={(n, s) => adminSaveSalah(owner, dayId, n, s, actor)} />
+            <SalahChecklist day={dayId} record={rec} editable admin onChange={(n, s) => adminSaveSalah(owner, dayId, n, s, actor)} />
           </>
         );
       })()}

@@ -1,4 +1,4 @@
-import { fajrRollSummary, missedCount, salahStats } from '../../src/lib/salah';
+import { adminStatus, fajrRollSummary, missedCount, salahStats, unloggedIsMissed } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, formatHijri } from '../../src/lib/dates';
 import { currentStreak, dayStats, logsByDay, scheduledFor } from '../../src/lib/scoring';
@@ -212,18 +212,31 @@ describe('salah', () => {
 describe('missedCount', () => {
   const day = (entries: Record<string, string>) => ({ entries }) as never;
   const by = new Map([
-    ['2026-11-10', day({ fajr: 'missed', zuhr: 'qadha', asr: 'jamaat', maghrib: 'takbir' })], // isha not logged
-    ['2026-11-12', day({ fajr: 'missed' })], // today: the rest not logged yet
+    ['2026-11-10', day({ fajr: 'missed' })], // before the rule starts: only what's logged counts
+    ['2026-11-12', day({ fajr: 'missed', zuhr: 'qadha', asr: 'jamaat', maghrib: 'takbir' })], // isha not logged
+    ['2026-11-14', day({ fajr: 'missed' })], // today: the rest not logged yet
   ]);
-  const days = ['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'];
-  it('counts missed, qadha and past unlogged, not today’s unlogged or future days', () => {
-    // 11-10: missed+qadha+isha = 3; 11-11: nothing logged = 5; 11-12: fajr missed = 1
-    expect(missedCount(by, days, '2026-11-12')).toBe(9);
+  const days = ['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15'];
+  it('counts missed, qadha and unlogged from 12 Nov, not earlier unlogged, today’s unlogged or future days', () => {
+    // 11-10: 1 logged missed; 11-11: 0 (before the rule); 11-12: missed+qadha+isha = 3; 11-13: nothing logged = 5; 11-14: 1
+    expect(missedCount(by, days, '2026-11-14')).toBe(10);
   });
   it('can count Fajr only', () => {
-    expect(missedCount(by, days, '2026-11-12', ['fajr'])).toBe(3);
+    expect(missedCount(by, days, '2026-11-14', ['fajr'])).toBe(4);
   });
-  it('a student with no records misses every past salah', () => {
-    expect(missedCount(undefined, days, '2026-11-12')).toBe(10);
+  it('unloggedIsMissed only for days that are over, from 12 Nov', () => {
+    expect(unloggedIsMissed('2026-11-11', '2026-11-14')).toBe(false);
+    expect(unloggedIsMissed('2026-11-12', '2026-11-14')).toBe(true);
+    expect(unloggedIsMissed('2026-11-14', '2026-11-14')).toBe(false);
+  });
+});
+
+describe('adminStatus', () => {
+  it('shows Takbir Ula as Jamaat and qadha as missed', () => {
+    expect(adminStatus('takbir')).toBe('jamaat');
+    expect(adminStatus('jamaat')).toBe('jamaat');
+    expect(adminStatus('qadha')).toBe('missed');
+    expect(adminStatus('missed')).toBe('missed');
+    expect(adminStatus(undefined)).toBeUndefined();
   });
 });

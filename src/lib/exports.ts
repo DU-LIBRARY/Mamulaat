@@ -1,5 +1,5 @@
 import { SALAH_NAMES, type DayLog, type Mamool, type SalahDay, type UserProfile } from '../types';
-import { SALAH_LABEL, STATUS_LABEL } from './salah';
+import { adminStatus, SALAH_LABEL, STATUS_LABEL } from './salah';
 import { dayStats, entryFraction, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
 import { studentWeek } from './reports';
 
@@ -22,8 +22,8 @@ export function salahRows(salah: Map<string, SalahDay>, days: string[], today: s
     const cells = days.map((d) => {
       if (d > today) return '';
       const st = salah.get(d)?.entries?.[n];
-      // Admin exports: qadha counts as missed.
-      return st ? STATUS_LABEL[st === 'qadha' ? 'missed' : st] : 'not logged';
+      // Admin exports: Takbir Ula counts as Jamaat and qadha as missed.
+      return st ? STATUS_LABEL[adminStatus(st)!] : 'not logged';
     });
     const inJamaat = days.filter((d) => d <= today && ['takbir', 'jamaat'].includes(salah.get(d)?.entries?.[n] ?? '')).length;
     return [...lead, SALAH_LABEL[n], ...cells, inJamaat];

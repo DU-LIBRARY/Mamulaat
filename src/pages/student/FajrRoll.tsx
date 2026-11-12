@@ -7,7 +7,7 @@ import { Notice, Spinner } from '../../components/ui';
 import { IconCheck, IconChevronLeft, IconLock } from '../../components/icons';
 import { formatGregorian, formatHijri, isValidYmd } from '../../lib/dates';
 import { fajrRollRef, rosterRef } from '../../lib/db';
-import { fajrRollSummary, type RollPerson } from '../../lib/salah';
+import { fajrRollSummary, MISSED_RULE_FROM, type RollPerson } from '../../lib/salah';
 import type { ClassDoc, ClassRoster, FajrRoll as Roll } from '../../types';
 import { useMonitoredClasses } from './Salah';
 
@@ -111,8 +111,8 @@ export function FajrRoll() {
   for (const st of states) {
     if (!st || st.error) continue;
     const sum = fajrRollSummary(st.roster?.names ?? {}, st.roll);
-    // Missed, qadha and not logged all show as missed.
-    for (const x of [...sum.missed, ...sum.qadha, ...sum.notLogged]) if (!seen.has(x.uid)) (seen.add(x.uid), missed.push(x));
+    // Missed, qadha and not logged all show as missed (not logged only from MISSED_RULE_FROM).
+    for (const x of [...sum.missed, ...sum.qadha, ...(day >= MISSED_RULE_FROM ? sum.notLogged : [])]) if (!seen.has(x.uid)) (seen.add(x.uid), missed.push(x));
   }
   const byName = (a: RollPerson, b: RollPerson) => a.name.localeCompare(b.name);
   missed.sort(byName);
