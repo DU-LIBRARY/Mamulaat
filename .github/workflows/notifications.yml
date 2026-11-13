@@ -1,6 +1,11 @@
 # Sends Mamulaat's push notifications (daily reminders, nudges, sign-up and approval notices).
-# There's no server and no Cloud Functions: this job wakes every 15 minutes, reads Firestore and
-# sends standard Web Push messages (tools/push/send-notifications.mjs).
+# There's no server and no Cloud Functions: this job reads Firestore and sends standard Web Push
+# messages (tools/push/send-notifications.mjs).
+#
+# What starts it: an outside timer (cron-job.org) calls the workflow_dispatch API every 5 minutes
+# (README → Notifications → "Starting the job on time"). GitHub's own schedule below is only a
+# backup: it often skips hours at a time (on 13 Nov 2026 nothing ran between 01:31 and 08:43 UTC,
+# so the 07:15 Fajr reminder was never sent). Runs never send the same reminder twice.
 #
 # Needs two repository secrets (Settings → Secrets and variables → Actions → Secrets):
 #   FIREBASE_SERVICE_ACCOUNT  service-account JSON key (already set if the backend deploy works)
@@ -9,7 +14,7 @@
 name: Notifications
 on:
   schedule:
-    # Every 15 minutes (UTC). GitHub can start scheduled jobs a few minutes late.
+    # Backup only, every 15 minutes (UTC). GitHub can start these hours late or drop them.
     - cron: '4,19,34,49 * * * *'
     # Extra runs aimed at the 07:15 Fajr reminder (06:15 UTC in summer time, 07:15 UTC in winter).
     - cron: '15 6,7 * * *'

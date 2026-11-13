@@ -228,17 +228,37 @@ There can still be only one admin.
 
 ## 7. Notifications (Web Push from a GitHub Action)
 
-There's no server and no Cloud Functions, so this works on the free Spark plan. The app stores each device's standard Web Push subscription in Firestore. A GitHub Action (`.github/workflows/notifications.yml`) wakes every 15 minutes, reads Firestore and sends the notifications (`tools/push/send-notifications.mjs`).
+There's no server and no Cloud Functions, so this works on the free Spark plan. The app stores each device's standard Web Push subscription in Firestore. A GitHub Action (`.github/workflows/notifications.yml`) reads Firestore and sends the notifications (`tools/push/send-notifications.mjs`). A free outside timer (cron-job.org) starts it **every 5 minutes**. GitHub's own schedule is too unreliable to depend on: it often skips hours at a time, which once meant the 07:15 Fajr reminder was never sent. That schedule stays only as a backup.
 
 **One-time setup:**
 1. **Publish the rules** (they include `users/{uid}/pushSubs`). The *Deploy Firebase backend* workflow does this when this change reaches `main`.
 2. **Service account:** the `FIREBASE_SERVICE_ACCOUNT` secret the backend deploy already uses is reused. Its role needs to be able to read and write Firestore. *Firebase Admin SDK Administrator Service Agent* or *Cloud Datastore User* both work.
 3. **Push key:** add a repository secret named `VAPID_PRIVATE_KEY` containing the private key that pairs with `publicKey` in `push.config.json`. To make a new pair, run `npx web-push generate-vapid-keys`, put the public key in `push.config.json` and the private key in the secret. Everyone then has to turn notifications on again.
-4. **Test it:** turn notifications on on your phone. Then go to **GitHub → Actions → Notifications → Run workflow** and choose *test: admins*.
+4. **Outside timer:** see *Starting the job on time* below. Without it, reminders are often missed.
+5. **Test it:** turn notifications on on your phone. Then go to **GitHub → Actions → Notifications → Run workflow** and choose *test: admins*.
+
+**Starting the job on time (cron-job.org):**
+1. **GitHub token:** GitHub → your picture → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+   - *Resource owner:* `DU-LIBRARY`. *Repository access:* **Only select repositories** → `Mamulaat`.
+   - *Permissions → Repository permissions → Actions:* **Read and write**. Nothing else is needed.
+   - *Expiration:* the longest allowed. Put a reminder in your calendar to renew it, because the notifications stop when it expires.
+   - If the organisation requires approval for fine-grained tokens, an owner must approve it under the organisation's **Settings → Personal access tokens → Pending requests**.
+2. **Timer:** sign up free at [cron-job.org](https://cron-job.org) → **Create cronjob**:
+   - *URL:* `https://api.github.com/repos/DU-LIBRARY/Mamulaat/actions/workflows/notifications.yml/dispatches`
+   - *Execution schedule:* **every 5 minutes**.
+   - **Advanced** tab → *Request method:* `POST`. *Request body:* `{"ref":"main"}`. *Headers:*
+     - `Authorization`: `Bearer <your token>`
+     - `Accept`: `application/vnd.github+json`
+     - `X-GitHub-Api-Version`: `2022-11-28`
+     - `Content-Type`: `application/json`
+   - Turn on *Notify me when execution fails*, so an expired token doesn't go unnoticed.
+3. **Check it:** use **Test run** on cron-job.org. It should answer `204`, and a new *Notifications* run marked *workflow_dispatch* should appear under GitHub → Actions. A `401` means the token is wrong or expired. A `403` or `404` means the token lacks *Actions: Read and write* on this repository, or hasn't been approved yet.
+
+Running every 5 minutes is free because the repository is public. Each reminder is sent only once, however many runs see it.
 
 **What gets sent:**
 - **Reminders:** a general "please log your mamoolaat" message **every day at 23:00 and on Fridays at 12:00** (project timezone) to every active student who turned reminders on in **Me → Daily reminder**. The times and wording are in `push.config.json` → `reminders` (`weekday`: 0 = Sunday … 5 = Friday). Each one is sent once, by the first run within an hour of its time; `pushState/reminders` records what was sent.
-- **Nudge:** when the admin taps **Remind** on Overview → *Not logged today*, the student is told on the next run, within about 15 minutes.
+- **Nudge:** when the admin taps **Remind** on Overview → *Not logged today*, the student is told on the next run, within about 5 minutes.
 - **Message:** on a student's page → **Notes**, leave a note with **Also send it to their phone** ticked. The note shows in their Inbox and is pushed on the next run as "Message from <your name>" (first 300 characters). `pushMessages/{id}` holds it until it's sent.
 - **New sign-up:** every admin with notifications on (**Settings → Notifications**) is told when someone finishes signing up.
 - **Approved:** a student is told when they're approved, if they turned on notifications on the waiting screen.
@@ -247,7 +267,7 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 - **iPhone/iPad:** web push only works after adding the app to the Home Screen (iOS 16.4+) and turning notifications on from the Home Screen app. The app explains this on iOS.
 - Without push, the **in-app banner** still shows whenever the app is opened and today isn't logged.
 - Expired subscriptions (the push service answers 404/410) and devices unseen for 60 days are deleted. `pushState/notices` records which sign-ups and approvals have already been announced. No app user can read it.
-- GitHub can start scheduled jobs a few minutes late. GitHub also pauses scheduled workflows in a repository with no commits for 60 days; re-enable it from the Actions tab.
+- GitHub's own schedule (every 15 minutes) is only a backup: it often runs hours late or not at all. GitHub also pauses scheduled workflows in a repository with no commits for 60 days; re-enable it from the Actions tab.
 - `functions/` (the old Cloud Functions version) is no longer needed. Don't deploy both, or reminders could be sent twice.
 
 ## 8. How it works
