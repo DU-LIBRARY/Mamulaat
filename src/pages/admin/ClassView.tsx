@@ -11,7 +11,7 @@ import { useDialog } from '../../components/Dialog';
 import { EmptyState, Spinner, cellClass } from '../../components/ui';
 import { targetLabel } from '../../components/Checklist';
 import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
-import { dayStats, entryFraction, pct, scheduledFor } from '../../lib/scoring';
+import { dayStats, entryFor, entryFraction, FRIDAY_ID, pct, scheduledFor, withFriday } from '../../lib/scoring';
 import { studentWeek } from '../../lib/reports';
 import { downloadCsv } from '../../lib/csv';
 import { fetchStudentsRange, rosterRef, setFajrMonitor, syncRoster } from '../../lib/db';
@@ -259,7 +259,7 @@ export function ClassView() {
             {students.map((s) => {
               const r = range.get(s.id);
               const log = r?.logs.get(date);
-              const mams = scheduledFor(date, r?.mamoolaat ?? []);
+              const mams = scheduledFor(date, withFriday(r?.mamoolaat ?? []));
               const st = dayStats(date, log, r?.mamoolaat ?? []);
               return (
                 <li key={s.id} className="card p-3">
@@ -276,12 +276,15 @@ export function ClassView() {
                   ) : (
                     <ul className="flex flex-wrap gap-1.5">
                       {mams.map((m) => {
-                        const e = log?.entries[m.id];
+                        const e = entryFor(log, m);
                         const t = entryText(e);
                         return (
                           <li key={m.id} className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm ${t.cls}`} title={`${Math.round(entryFraction(e) * 100)}%`}>
                             {t.icon && <span aria-hidden className="inline-flex">{t.icon}</span>}
-                            <span className="sr-only">{t.text}:</span> <span dir="auto">{m.name}</span> <span className="num">({e?.status === 'partial' ? `${e.amount}/${targetLabel(m)}` : targetLabel(m)})</span>
+                            <span className="sr-only">{t.text}:</span> <span dir="auto">{m.name}</span>{' '}
+                            <span className="num">
+                              ({m.id === FRIDAY_ID ? pct(entryFraction(e)) : e?.status === 'partial' ? `${e.amount}/${targetLabel(m)}` : targetLabel(m)})
+                            </span>
                           </li>
                         );
                       })}

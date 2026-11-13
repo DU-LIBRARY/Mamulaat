@@ -1,7 +1,7 @@
 import { adminStatus, fajrRollSummary, missedCount, salahStats, unloggedIsMissed } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, formatHijri } from '../../src/lib/dates';
-import { currentStreak, dayStats, logsByDay, scheduledFor } from '../../src/lib/scoring';
+import { currentStreak, dayStats, entryFraction, fridayEntry, isFridayMamoolDay, logsByDay, scheduledFor, withFriday } from '../../src/lib/scoring';
 import { needsAttention } from '../../src/lib/reports';
 import { toCsv } from '../../src/lib/csv';
 import type { DayLog, Mamool, UserProfile } from '../../src/types';
@@ -244,5 +244,37 @@ describe('adminStatus', () => {
     expect(adminStatus('qadha')).toBe('missed');
     expect(adminStatus('missed')).toBe('missed');
     expect(adminStatus(undefined)).toBeUndefined();
+  });
+});
+
+describe('Friday Mamool', () => {
+  const FRI = '2026-11-20'; // a Friday after FRIDAY_FROM
+  const SAT = '2026-11-21';
+  const quran = { id: 'q', name: 'Quran', target: 1, unit: '', active: true, order: 0, createdBy: 'u', createdDate: '2026-01-01', removedDate: null, updatedBy: 'u' };
+  const log = (entries: Record<string, { status: 'done' | 'partial' | 'missed'; amount: number; target: number }>) => ({ id: FRI, date: FRI, entries }) as never;
+  const done = (target = 1) => ({ status: 'done' as const, amount: target, target });
+
+  it('only on Fridays from the start date', () => {
+    expect(isFridayMamoolDay(FRI)).toBe(true);
+    expect(isFridayMamoolDay(SAT)).toBe(false);
+    expect(isFridayMamoolDay('2026-11-06')).toBe(false); // a Friday before it started
+    expect(scheduledFor(FRI, withFriday([quran])).map((m) => m.id)).toEqual(['q', 'friday']);
+    expect(scheduledFor(SAT, withFriday([quran])).map((m) => m.id)).toEqual(['q']);
+  });
+
+  it('both parts = 100%, one of two = 50%, nothing logged = not logged', () => {
+    expect(entryFraction(fridayEntry(log({ 'fri-durood': done(1000), 'fri-kahf': done() })))).toBe(1);
+    expect(entryFraction(fridayEntry(log({ 'fri-kahf': done() })))).toBe(0.5);
+    expect(entryFraction(fridayEntry(log({ 'fri-durood': { status: 'partial', amount: 500, target: 1000 }, 'fri-kahf': done() })))).toBe(0.75);
+    expect(fridayEntry(log({}))).toBeUndefined();
+  });
+
+  it('counts as one mamool in the day', () => {
+    // Quran done, Friday half done: (1 + 0.5) / 2
+    const s = dayStats(FRI, log({ q: done(), 'fri-kahf': done() }), [quran]);
+    expect(s.scheduled).toBe(2);
+    expect(s.completion).toBe(0.75);
+    // a Saturday is unaffected
+    expect(dayStats(SAT, { id: SAT, date: SAT, entries: { q: done() } } as never, [quran]).scheduled).toBe(1);
   });
 });

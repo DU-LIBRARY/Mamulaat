@@ -4,6 +4,7 @@ import { Check, Plus } from '@phosphor-icons/react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
 import { Checklist } from '../../components/Checklist';
+import { FridayMamool } from '../../components/FridayMamool';
 import { DateLine } from '../../components/DateLine';
 import { EmptyState, Notice, ProgressRing } from '../../components/ui';
 import { IconBell, IconPencil } from '../../components/icons';
@@ -80,6 +81,8 @@ export function LogDay() {
           {remaining.length === mams.length ? 'Mark all done' : `Mark the other ${remaining.length} done`}
         </Cta>
       )}
+
+      <FridayMamool uid={profile.id} day={day} log={logs.get(day)} editable={editable} />
 
       {mams.length ? (
         <Checklist uid={profile.id} day={day} mamoolaat={mams} log={logs.get(day)} editable={editable} hideMarkRest />

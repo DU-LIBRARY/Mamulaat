@@ -1,12 +1,13 @@
 import { SALAH_NAMES, type DayLog, type Mamool, type SalahDay, type UserProfile } from '../types';
 import { adminStatus, SALAH_LABEL, STATUS_LABEL } from './salah';
-import { dayStats, entryFraction, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
+import { dayStats, entryFor, entryFraction, FRIDAY_ID, mamoolCompletion, periodCompletion, scheduledFor, withFriday } from './scoring';
 import { studentWeek } from './reports';
 
 type Cell = string | number | null;
 const pctCell = (f: number | null | undefined): Cell => (f == null ? '' : Math.round(f * 100));
 
-function targetText(m: Pick<Mamool, 'target' | 'unit'>) {
+function targetText(m: Pick<Mamool, 'id' | 'target' | 'unit'>) {
+  if (m.id === FRIDAY_ID) return '1000 Durood + Surah Kahf (Fridays)';
   return `${m.target}${m.unit ? ` ${m.unit}` : ''}`;
 }
 
@@ -58,7 +59,7 @@ export function registerRows(
 
 /** A single student's detailed log for a range: what was logged for each mamool on each day. */
 export function studentDetailRows(mamoolaat: Mamool[], logs: Map<string, DayLog>, days: string[], today: string): Cell[][] {
-  const inRange = mamoolaat.filter((m) => days.some((d) => scheduledFor(d, [m]).length));
+  const inRange = withFriday(mamoolaat).filter((m) => days.some((d) => scheduledFor(d, [m]).length));
   const rows: Cell[][] = [['Mamool', 'Target', ...days, 'Overall %']];
   for (const m of inRange) {
     rows.push([
@@ -66,10 +67,11 @@ export function studentDetailRows(mamoolaat: Mamool[], logs: Map<string, DayLog>
       targetText(m),
       ...days.map((d) => {
         if (d > today || !scheduledFor(d, [m]).length) return '';
-        const e = logs.get(d)?.entries[m.id];
+        const e = entryFor(logs.get(d), m);
         if (!e) return 'not logged';
         if (e.status === 'done') return 'done';
         if (e.status === 'missed') return 'missed';
+        if (m.id === FRIDAY_ID) return `${Math.round(entryFraction(e) * 100)}%`;
         return `${e.amount}/${e.target} (${Math.round(entryFraction(e) * 100)}%)`;
       }),
       pctCell(mamoolCompletion(m, days, logs, today, mamoolaat)),

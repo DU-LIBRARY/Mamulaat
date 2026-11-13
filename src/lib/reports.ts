@@ -1,6 +1,6 @@
 import type { DayLog, Mamool, UserProfile } from '../types';
 import { addDays, diffDays } from './dates';
-import { dayStats, entryFraction, mamoolCompletion, periodCompletion, scheduledFor } from './scoring';
+import { dayStats, entryFor, entryFraction, mamoolCompletion, periodCompletion, scheduledFor, withFriday } from './scoring';
 
 export interface StudentWeek {
   student: UserProfile;
@@ -16,7 +16,7 @@ export function studentWeek(student: UserProfile, days: string[], mamoolaat: Mam
     const s = dayStats(d, logs.get(d), mamoolaat);
     return { day: d, completion: s.scheduled ? s.completion : null, hasLog: s.hasLog };
   });
-  const inWeek = mamoolaat.filter((m) => days.some((d) => scheduledFor(d, [m]).length));
+  const inWeek = withFriday(mamoolaat).filter((m) => days.some((d) => scheduledFor(d, [m]).length));
   return {
     student,
     days: ds,
@@ -24,8 +24,8 @@ export function studentWeek(student: UserProfile, days: string[], mamoolaat: Mam
     fullDays: ds.filter((d) => d.completion === 1).length,
     perMamool: inWeek.map((m) => ({
       mamool: m,
-      cells: days.map((d) => (d <= today && scheduledFor(d, [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
-      logged: days.map((d) => !!logs.get(d)?.entries?.[m.id]),
+      cells: days.map((d) => (d <= today && scheduledFor(d, [m]).length ? entryFraction(entryFor(logs.get(d), m)) : null)),
+      logged: days.map((d) => !!entryFor(logs.get(d), m)),
       completion: mamoolCompletion(m, days, logs, today, mamoolaat),
     })),
   };

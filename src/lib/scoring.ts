@@ -1,13 +1,64 @@
 import type { DayLog, LogEntry, Mamool } from '../types';
-import { addDays, diffDays } from './dates';
+import { addDays, dayOfWeek, diffDays } from './dates';
 
 /** A day keeps the streak alive if overall completion is at least this. */
 export const STREAK_MIN_COMPLETION = 0.5;
+
+// ----- Friday Mamool -----
+// Every Friday, on top of their own list, everyone has the Friday Mamool: 1000 Durood and Surah
+// Kahf. The two are logged as separate entries in the day's log ('fri-durood', 'fri-kahf'), but
+// everywhere they're scored (day %, streaks, week grids, admin views, exports) they count as ONE
+// mamool, "Friday Mamool", worth the average of the two: both done = 100%, one of two = 50%.
+
+/** The first Friday it applies; earlier Fridays aren't counted against anyone. */
+export const FRIDAY_FROM = '2026-11-13';
+export const FRIDAY_ID = 'friday';
+
+const appMamool = (id: string, name: string, target: number, unit: string, order: number): Mamool => ({
+  id,
+  name,
+  target,
+  unit,
+  active: true,
+  order,
+  createdBy: 'app',
+  createdDate: FRIDAY_FROM,
+  removedDate: null,
+  updatedBy: 'app',
+});
+
+/** The two parts the student ticks off. */
+export const FRIDAY_PARTS: Mamool[] = [appMamool('fri-durood', 'Durood', 1000, '', 0), appMamool('fri-kahf', 'Surah Kahf', 1, 'recitation', 1)];
+/** The single item the trackers show and score. */
+export const FRIDAY_MAMOOL: Mamool = appMamool(FRIDAY_ID, 'Friday Mamool', 1, '', 1e6);
+
+export const isFridayMamoolDay = (day: string) => day >= FRIDAY_FROM && dayOfWeek(day) === 5;
+
+/** The student's mamoolaat plus the Friday Mamool (which only counts on Fridays). */
+export function withFriday(mamoolaat: Mamool[]): Mamool[] {
+  return mamoolaat.some((m) => m.id === FRIDAY_ID) ? mamoolaat : [...mamoolaat, FRIDAY_MAMOOL];
+}
+
+/** The Friday Mamool as one entry: the average of its parts, or undefined if neither is logged. */
+export function fridayEntry(log: DayLog | undefined): LogEntry | undefined {
+  const parts = FRIDAY_PARTS.map((p) => log?.entries?.[p.id]);
+  if (parts.every((e) => !e)) return undefined;
+  const f = parts.reduce((sum, e) => sum + entryFraction(e), 0) / parts.length;
+  if (f >= 1) return { status: 'done', amount: 1, target: 1 };
+  if (f <= 0 && parts.every((e) => e?.status === 'missed')) return { status: 'missed', amount: 0, target: 1 };
+  return { status: 'partial', amount: f, target: 1 };
+}
+
+/** A mamool's entry for a day (the Friday Mamool is built from its two parts). */
+export function entryFor(log: DayLog | undefined, m: Pick<Mamool, 'id'>): LogEntry | undefined {
+  return m.id === FRIDAY_ID ? fridayEntry(log) : log?.entries?.[m.id];
+}
 
 /** Mamoolaat that count for a given day (added on/before it and not yet removed). */
 export function scheduledFor(day: string, mamoolaat: Mamool[]): Mamool[] {
   return mamoolaat.filter(
     (m) =>
+      (m.id !== FRIDAY_ID || isFridayMamoolDay(day)) &&
       m.createdDate <= day &&
       (m.removedDate == null || m.removedDate > day) &&
       (m.active || m.removedDate != null) &&
@@ -35,13 +86,12 @@ export interface DayStats {
 }
 
 export function dayStats(day: string, log: DayLog | undefined, mamoolaat: Mamool[]): DayStats {
-  const sched = scheduledFor(day, mamoolaat);
-  const entries = log?.entries ?? {};
+  const sched = scheduledFor(day, withFriday(mamoolaat));
   let sum = 0;
   let done = 0;
   let logged = 0;
   for (const m of sched) {
-    const e = entries[m.id];
+    const e = entryFor(log, m);
     if (e) logged++;
     const f = entryFraction(e);
     sum += f;
@@ -113,7 +163,7 @@ export function mamoolCompletion(m: Mamool, days: string[], logs: Map<string, Da
     if (scheduledFor(d, [m]).length === 0) continue;
     if (pendingToday(d, upTo, logs.get(d), mamoolaat)) continue;
     n++;
-    sum += entryFraction(logs.get(d)?.entries[m.id]);
+    sum += entryFraction(entryFor(logs.get(d), m));
   }
   return n ? sum / n : null;
 }

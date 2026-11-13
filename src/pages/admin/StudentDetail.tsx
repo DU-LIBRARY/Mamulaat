@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses } from '../../hooks/useAdminData';
 import { useStudentLive } from '../../hooks/useStudentData';
-import { WeekGrid, type GridRow } from '../../components/WeekGrid';
+import { mamoolLabel, WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { MamoolEditor } from '../../components/MamoolEditor';
 import { EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
 import { IconChevronLeft, IconChevronRight } from '../../components/icons';
@@ -11,6 +11,7 @@ import { Checklist } from '../../components/Checklist';
 import { SalahChecklist } from '../../components/SalahChecklist';
 import { SalahWeek } from '../../components/SalahWeek';
 import { YearSummary } from '../../components/YearChart';
+import { FridayMamool } from '../../components/FridayMamool';
 import { salahStats } from '../../lib/salah';
 import { DateLine } from '../../components/DateLine';
 import { useDialog } from '../../components/Dialog';
@@ -83,7 +84,7 @@ export function StudentDetail() {
 
   const rows: GridRow[] = week
     ? [
-        ...week.perMamool.map((pm) => ({ key: pm.mamool.id, label: pm.mamool.name, cells: pm.cells, logged: pm.logged, total: pm.completion })),
+        ...week.perMamool.map((pm) => ({ key: pm.mamool.id, label: mamoolLabel(pm.mamool), cells: pm.cells, logged: pm.logged, total: pm.completion })),
         { key: '__all', label: <b>All</b>, cells: week.days.map((x) => x.completion), logged: week.days.map((x) => x.hasLog), total: week.completion },
       ]
     : [];
@@ -188,6 +189,7 @@ export function StudentDetail() {
               <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.hasLog ? pct(st.completion) : 'No log'}</span>
             </div>
             {log?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {log.editedByName ?? 'the teacher'}.</div>}
+            {!hidden.has(`log:${dayId}`) && <FridayMamool key={`fri-${dayId}`} uid={uid} day={dayId} log={log} editable asAdmin={actor} />}
             {hidden.has(`log:${dayId}`) ? (
               <EmptyState>This day's log will be cleared.</EmptyState>
             ) : mams.length ? (
