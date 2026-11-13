@@ -3,6 +3,7 @@ import { Check } from '@phosphor-icons/react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useStudentLive } from '../../hooks/useStudentData';
 import { Checklist, targetLabel } from '../../components/Checklist';
+import { FridayMamool } from '../../components/FridayMamool';
 import { MamoolEditor } from '../../components/MamoolEditor';
 import { EmptyState, SegmentBar, Spinner, Stat, StatRow } from '../../components/ui';
 import { Cta, Disclosure, Hero, Rows } from '../../components/quiet';
@@ -84,6 +85,8 @@ export function MyMamool() {
           </div>
         )}
       </header>
+
+      <FridayMamool uid={profile.id} day={today} log={todayLog} editable self={actor} />
 
       <Rows>
         <Disclosure title="My mamool today" sub={todays.length ? <span className="num">{stats.todayS.done} of {stats.todayS.scheduled} done</span> : 'Nothing today'} defaultOpen={todays.length > 0}>

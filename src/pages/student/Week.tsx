@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
-import { WeekGrid, type GridRow } from '../../components/WeekGrid';
+import { mamoolLabel, WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { SalahWeek } from '../../components/SalahWeek';
 import { Stat, StatRow } from '../../components/ui';
 import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { addDays, formatGregorian, weekDays, weekStartOf } from '../../lib/dates';
-import { dayStats, entryFraction, mamoolCompletion, periodCompletion, pct, scheduledFor } from '../../lib/scoring';
+import { dayStats, entryFor, entryFraction, mamoolCompletion, periodCompletion, pct, scheduledFor, withFriday } from '../../lib/scoring';
 
 export function Week() {
   const { today, settings } = useActiveSession();
@@ -16,12 +16,12 @@ export function Week() {
   const days = weekDays(start);
 
   const { rows, completion, fullDays } = useMemo(() => {
-    const inWeek = all.filter((m) => days.some((d) => scheduledFor(d, [m]).length));
+    const inWeek = withFriday(all).filter((m) => days.some((d) => scheduledFor(d, [m]).length));
     const rows: GridRow[] = inWeek.map((m) => ({
       key: m.id,
-      label: m.name,
-      cells: days.map((d) => (scheduledFor(d, [m]).length ? entryFraction(logs.get(d)?.entries[m.id]) : null)),
-      logged: days.map((d) => !!logs.get(d)?.entries?.[m.id]),
+      label: mamoolLabel(m),
+      cells: days.map((d) => (scheduledFor(d, [m]).length ? entryFraction(entryFor(logs.get(d), m)) : null)),
+      logged: days.map((d) => !!entryFor(logs.get(d), m)),
       total: mamoolCompletion(m, days, logs, today, all),
     }));
     const stats = days.filter((d) => d <= today).map((d) => dayStats(d, logs.get(d), all));

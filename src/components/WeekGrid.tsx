@@ -3,6 +3,13 @@ import { Link } from 'react-router-dom';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { pct } from '../lib/scoring';
 import { cellClass } from './ui';
+import { FRIDAY_ID } from '../lib/scoring';
+import type { Mamool } from '../types';
+
+/** A mamool's row label; the Friday Mamool stands apart in gold. */
+export function mamoolLabel(m: Pick<Mamool, 'id' | 'name'>): ReactNode {
+  return m.id === FRIDAY_ID ? <span className="font-medium text-gold-900" title="Friday Mamool: 1000 Durood and Surah Kahf">Friday</span> : m.name;
+}
 
 export interface GridRow {
   key: string;
