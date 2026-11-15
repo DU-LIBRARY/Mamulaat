@@ -6,6 +6,12 @@
 #   FIREBASE_SERVICE_ACCOUNT  service-account JSON key (already set if the backend deploy works)
 #   VAPID_PRIVATE_KEY         private half of the push key pair (public half: push.config.json)
 # Until both are set, the job does nothing.
+#
+# GitHub's own schedule below is best-effort: runs are often late and sometimes skipped
+# entirely, which is how a Fajr reminder can be missed. The reliable trigger is an outside
+# cron service (e.g. cron-job.org) calling this workflow's "Run workflow" API on time
+# (README → Notifications → "On-time sending"). The schedule stays as a backup; running
+# twice is harmless because each reminder is recorded in pushState before it's sent.
 name: Notifications
 on:
   schedule:

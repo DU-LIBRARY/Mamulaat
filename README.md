@@ -236,6 +236,16 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 3. **Push key:** add a repository secret named `VAPID_PRIVATE_KEY` containing the private key that pairs with `publicKey` in `push.config.json`. To make a new pair, run `npx web-push generate-vapid-keys`, put the public key in `push.config.json` and the private key in the secret. Everyone then has to turn notifications on again.
 4. **Test it:** turn notifications on on your phone. Then go to **GitHub → Actions → Notifications → Run workflow** and choose *test: admins*.
 
+**On-time sending (recommended): trigger it from cron-job.org.** GitHub's built-in schedule is best-effort. Runs often start late and are sometimes dropped, especially around the top of the hour, so a reminder (e.g. Fajr at 07:15) can be missed. An outside cron service that starts the workflow through GitHub's API runs on time. The GitHub schedule stays as a backup. Running twice is harmless: each reminder and report is recorded in `pushState` before it's sent.
+1. **Token:** GitHub → your avatar → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**. Resource owner: the account or organisation that owns this repository. Repository access: *Only select repositories* → this repository. Permissions → Repository → **Actions: Read and write** (nothing else). Pick an expiry and set a calendar reminder to renew it. If the owner is an organisation, an org owner may have to approve the token.
+2. **Job:** sign up free at [cron-job.org](https://cron-job.org) → **Create cronjob**:
+   - URL: `https://api.github.com/repos/DU-LIBRARY/Mamulaat/actions/workflows/notifications.yml/dispatches`
+   - Schedule: *custom*, every 15 minutes (minutes `1,16,31,46`), any time zone (the app uses its own timezone from Settings).
+   - **Advanced:** request method **POST**; headers `Authorization: Bearer <your token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`; request body `{"ref":"main"}`. Don't add `inputs`: with none, it's a normal run, not a test.
+   - Turn on *Notify me when execution fails*.
+3. **Check it:** cron-job.org's history should show **204 No Content** each time, and **Actions → Notifications** shows runs labelled *workflow_dispatch*. A 401 means the token is wrong or expired; 403/404 means it lacks *Actions: Read and write* on this repository.
+4. **Optional:** if the repository is private (Actions minutes are limited) and cron-job.org has been reliable for a while, you can remove the `schedule:` block from `notifications.yml` so it only runs when called.
+
 **What gets sent:**
 - **Reminders:** a general "please log your mamoolaat" message **every day at 23:00 and on Fridays at 12:00** (project timezone) to every active student who turned reminders on in **Me → Daily reminder**. The times and wording are in `push.config.json` → `reminders` (`weekday`: 0 = Sunday … 5 = Friday). Each one is sent once, by the first run within an hour of its time; `pushState/reminders` records what was sent.
 - **Nudge:** when the admin taps **Remind** on Overview → *Not logged today*, the student is told on the next run, within about 15 minutes.
@@ -247,7 +257,7 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 - **iPhone/iPad:** web push only works after adding the app to the Home Screen (iOS 16.4+) and turning notifications on from the Home Screen app. The app explains this on iOS.
 - Without push, the **in-app banner** still shows whenever the app is opened and today isn't logged.
 - Expired subscriptions (the push service answers 404/410) and devices unseen for 60 days are deleted. `pushState/notices` records which sign-ups and approvals have already been announced. No app user can read it.
-- GitHub can start scheduled jobs a few minutes late. GitHub also pauses scheduled workflows in a repository with no commits for 60 days; re-enable it from the Actions tab.
+- GitHub can start scheduled jobs late or skip them (see *On-time sending* above). GitHub also pauses scheduled workflows in a repository with no commits for 60 days; re-enable it from the Actions tab.
 - `functions/` (the old Cloud Functions version) is no longer needed. Don't deploy both, or reminders could be sent twice.
 
 ## 8. How it works
