@@ -11,6 +11,32 @@
     },
     {
       "time": "23:00",
+      "weekday": 0,
+      "body": "Reminder: please log your mamoolaat for today."
+    },
+    {
+      "time": "23:00",
+      "weekday": 1,
+      "body": "Reminder: please log your mamoolaat for today."
+    },
+    {
+      "time": "23:00",
+      "weekday": 2,
+      "body": "Reminder: please log your mamoolaat for today."
+    },
+    {
+      "time": "23:00",
+      "weekday": 3,
+      "body": "Reminder: please log your mamoolaat for today."
+    },
+    {
+      "time": "23:00",
+      "weekday": 4,
+      "body": "Reminder: please log your mamoolaat for today."
+    },
+    {
+      "time": "23:00",
+      "weekday": 6,
       "body": "Reminder: please log your mamoolaat for today."
     },
     {
