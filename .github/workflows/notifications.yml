@@ -13,6 +13,11 @@ on:
     - cron: '4,19,34,49 * * * *'
     # Extra runs aimed at the 07:15 Fajr reminder (06:15 UTC in summer time, 07:15 UTC in winter).
     - cron: '15 6,7 * * *'
+    # Extra runs aimed at the 23:00 daily reminder (22:00 UTC in summer time, 23:00 UTC in winter).
+    # The slot only sends within its hour, so a late or skipped 15-minute run would miss it.
+    - cron: '2 22,23 * * *'
+    # And the Saturday 00:00 Jumu'ah reminder in winter (in summer it's 23:00 UTC Friday, covered above).
+    - cron: '2 0 * * 6'
   workflow_dispatch:
     inputs:
       test:
