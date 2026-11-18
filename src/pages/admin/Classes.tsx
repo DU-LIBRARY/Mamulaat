@@ -8,7 +8,7 @@ import { useDialog } from '../../components/Dialog';
 import { useUndo } from '../../components/Undo';
 import { MamoolForm, SUGGESTIONS } from '../../components/MamoolEditor';
 import { targetLabel } from '../../components/Checklist';
-import { IconChevronRight, IconPlus } from '../../components/icons';
+import { IconChevronLeft, IconChevronRight, IconPlus } from '../../components/icons';
 import { ClassSelect } from './Students';
 import type { ClassDoc, TemplateItem, UserProfile } from '../../types';
 
@@ -180,6 +180,12 @@ export function Classes() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="no-print">
+        <Link to="/admin/students" className="inline-flex min-h-11 items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
+          <IconChevronLeft size={16} /> Students
+        </Link>
+        <h1 className="display text-[34px] leading-tight">Manage classes</h1>
+      </div>
       <form
         className="card flex gap-2"
         onSubmit={(e) => {

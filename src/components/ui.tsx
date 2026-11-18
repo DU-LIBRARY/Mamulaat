@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { pct } from '../lib/scoring';
+import { IconBlankUser } from './icons';
 
 export function Spinner({ label = 'Loading…' }: { label?: string }) {
   return (
@@ -136,5 +137,17 @@ export function Notice({
       <div className="min-w-0 flex-1">{children}</div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
+  );
+}
+
+/**
+ * A plain profile placeholder. Google profile photos are deliberately not shown anywhere;
+ * class-specific pictures may replace this later.
+ */
+export function BlankAvatar({ size = 40 }: { size?: number }) {
+  return (
+    <span aria-hidden className="flex shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400" style={{ width: size, height: size }}>
+      <IconBlankUser size={Math.round(size * 0.55)} />
+    </span>
   );
 }

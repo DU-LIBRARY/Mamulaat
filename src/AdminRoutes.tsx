@@ -13,6 +13,7 @@ import { Students } from './pages/admin/Students';
 import { StudentDetail } from './pages/admin/StudentDetail';
 import { AdminSettings } from './pages/admin/Settings';
 import { Audit } from './pages/admin/Audit';
+import { Remind } from './pages/admin/Remind';
 
 /** The teacher's side of the app, split into its own chunk (loaded lazily from App). */
 export default function AdminRoutes() {
@@ -37,6 +38,7 @@ export default function AdminRoutes() {
         <Route path="/admin/class/:classId" element={<ClassView />} />
         <Route path="/admin/students" element={<Students />} />
         <Route path="/admin/student/:uid" element={<StudentDetail />} />
+        {limited && <Route path="/admin/remind" element={<Remind />} />}
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/audit" element={<Audit />} />
         <Route path="*" element={<Navigate to={limited ? '/admin/students' : '/admin'} replace />} />

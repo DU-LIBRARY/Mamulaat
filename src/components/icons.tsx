@@ -23,6 +23,7 @@ import {
   Mosque,
   Star,
   Users,
+  User,
   type IconProps,
 } from '@phosphor-icons/react';
 
@@ -43,6 +44,7 @@ export const IconLog = make(NotePencil, 'light');
 export const IconWeek = make(ChartBar, 'light');
 export const IconInbox = make(ChatCircleText, 'light');
 export const IconPerson = make(UserCircle, 'light');
+export const IconBlankUser = make(User, 'fill');
 export const IconOverview = make(SquaresFour, 'light');
 export const IconClasses = make(GraduationCap, 'light');
 export const IconPeople = make(UsersThree, 'light');

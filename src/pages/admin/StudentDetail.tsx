@@ -5,7 +5,7 @@ import { useAllUsers, useClasses } from '../../hooks/useAdminData';
 import { useStudentLive } from '../../hooks/useStudentData';
 import { mamoolLabel, WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { MamoolEditor } from '../../components/MamoolEditor';
-import { EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
+import { BlankAvatar, EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
 import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { Checklist } from '../../components/Checklist';
 import { SalahChecklist } from '../../components/SalahChecklist';
@@ -98,7 +98,7 @@ export function StudentDetail() {
     <div className="flex flex-col gap-4">
       <div className="card flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          {student.photoURL && <img src={student.photoURL} alt="" className="h-12 w-12 rounded-full" referrerPolicy="no-referrer" />}
+          <BlankAvatar size={48} />
           <div className="min-w-0 flex-1">
             <div className="truncate font-serif text-[28px] leading-tight text-slate-900" dir="auto">
               {displayName(student)}

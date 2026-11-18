@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
 import { applyTemplate, approveUser, bulkUpdateUsers, deleteStudent, reactivateUser, rejectUser, type Actor, type BulkAction } from '../../lib/db';
-import { EmptyState, Spinner } from '../../components/ui';
+import { BlankAvatar, EmptyState, Spinner, cellClass } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
 import { IconCheck, IconChevronRight } from '../../components/icons';
 import type { ClassDoc, UserProfile } from '../../types';
@@ -67,14 +67,6 @@ export function ClassSelect({ classes, value, onChange, placeholder = 'Choose cl
         </option>
       ))}
     </select>
-  );
-}
-
-function Avatar({ u }: { u: UserProfile }) {
-  return u.photoURL ? (
-    <img src={u.photoURL} alt="" className="h-10 w-10 shrink-0 rounded-full" referrerPolicy="no-referrer" />
-  ) : (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-800">{(displayName(u))[0]?.toUpperCase()}</div>
   );
 }
 
@@ -143,7 +135,7 @@ function UserRow({ u, classes, actor, selected, onToggle, selecting, week, today
       <li className={`flex items-center gap-3 py-2 ${selected ? 'bg-brand-50/60' : ''}`}>
         {checkbox}
         <Link to={`/admin/student/${u.id}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3">
-          <Avatar u={u} />
+          <BlankAvatar />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[15px] text-slate-900" dir="auto">
               {displayName(u)}
@@ -162,7 +154,7 @@ function UserRow({ u, classes, actor, selected, onToggle, selecting, week, today
     <li className={`card flex flex-col gap-2 p-3 ${selected ? 'border-brand-500 ring-1 ring-brand-500' : ''}`}>
       <div className="flex items-center gap-3">
         {checkbox}
-        <Avatar u={u} />
+        <BlankAvatar />
         <div className="min-w-0 flex-1">
           <Link to={`/admin/student/${u.id}`} className="block truncate font-semibold text-brand-700" dir="auto">
             {displayName(u)}
@@ -448,16 +440,61 @@ export function Students() {
           {pending.length === 0 ? <EmptyState>No pending sign-ups.</EmptyState> : rows(pending)}
         </section>
       )}
-      {classes.data.map((c) => {
-        const members = active.filter((u) => u.classId === c.id);
-        if (!members.length) return null;
-        return (
-          <section key={c.id}>
-            {title(`${c.name} (${members.length})`, members)}
-            {rows(members)}
-          </section>
-        );
-      })}
+      {/* Browsing: one card per class (tap through to its students). Searching, filtering or
+          selecting: the students themselves, still grouped by class. */}
+      {!q && !staleOnly && !selecting ? (
+        <section aria-labelledby="classes-title">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 id="classes-title" className="section-title mb-0">
+              Classes {limited ? '' : <span className="font-normal normal-case text-slate-500">· this week</span>}
+            </h2>
+            <Link to="/admin/classes" className="btn-ghost min-h-11 px-3 text-sm">
+              Manage classes
+            </Link>
+          </div>
+          {classes.data.length === 0 ? (
+            <EmptyState>No classes yet.</EmptyState>
+          ) : (
+            <ul className="grid sm:grid-cols-2 sm:gap-x-4">
+              {classes.data.map((c) => {
+                const members = active.filter((u) => u.classId === c.id);
+                const vals = members.map(weekOf).filter((v): v is number => v != null);
+                const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+                return (
+                  <li key={c.id} className="border-t border-slate-200">
+                    <Link to={`/admin/class/${c.id}${limited ? '' : '?view=week'}`} className="flex min-h-16 items-center justify-between gap-3 px-3 py-4 hover:bg-slate-100/60">
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-slate-900" dir="auto">
+                          {c.name}
+                        </span>
+                        <span className="num text-sm text-slate-500">
+                          {members.length} student{members.length === 1 ? '' : 's'}
+                        </span>
+                      </span>
+                      {limited ? (
+                        <IconChevronRight size={16} className="shrink-0 text-slate-400" />
+                      ) : (
+                        <span className={`chip num shrink-0 px-3 py-1 text-sm ${cellClass(avg)}`}>{pct(avg)}</span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      ) : (
+        classes.data.map((c) => {
+          const members = active.filter((u) => u.classId === c.id);
+          if (!members.length) return null;
+          return (
+            <section key={c.id}>
+              {title(`${c.name} (${members.length})`, members)}
+              {rows(members)}
+            </section>
+          );
+        })
+      )}
       {noClass.length > 0 && (
         <section>
           {title(`Active, no class (${noClass.length})`, noClass)}
