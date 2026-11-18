@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useActiveSession } from '../../hooks/useSession';
-import { useMyData } from '../../hooks/useStudentData';
+import { LIVE_DAYS, useLoadFrom, useMyData } from '../../hooks/useStudentData';
 import { mamoolLabel, WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { SalahWeek } from '../../components/SalahWeek';
 import { Stat, StatRow } from '../../components/ui';
@@ -10,10 +10,13 @@ import { dayStats, entryFor, entryFraction, mamoolCompletion, periodCompletion, 
 
 export function Week() {
   const { today, settings } = useActiveSession();
-  const { logs, all, salah } = useMyData();
+  const data = useMyData();
+  const { logs, all, salah } = data;
   const [offset, setOffset] = useState(0);
   const start = addDays(weekStartOf(today, settings.weekStart), offset * 7);
   const days = weekDays(start);
+  useLoadFrom(data, days[0]);
+  const loadingOlder = data.olderLoading && days[0] < addDays(today, -LIVE_DAYS);
 
   const { rows, completion, fullDays } = useMemo(() => {
     const inWeek = withFriday(all).filter((m) => days.some((d) => scheduledFor(d, [m]).length));
@@ -58,6 +61,7 @@ export function Week() {
           <IconChevronRight size={20} />
         </button>
       </div>
+      {loadingOlder && <p className="text-center text-sm text-slate-500" role="status">Loading this week…</p>}
       <StatRow>
         <Stat label="Complete" value={pct(completion)} />
         <Stat label="Full days" value={fullDays} />
