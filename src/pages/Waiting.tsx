@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from '../hooks/useSession';
 import { pushSupport, pushSupportMessage, registerDevice, type PushSupport } from '../lib/messaging';
-import { FullScreen } from '../components/ui';
+import { BlankAvatar, FullScreen } from '../components/ui';
 import { useClasses } from '../hooks/useAdminData';
 import type { UserProfile } from '../types';
 import { Wordmark } from '../components/Layout';
@@ -84,7 +84,7 @@ export function Waiting({ profile }: { profile: UserProfile }) {
       <h1 className="display text-[34px] leading-tight">{c.title}</h1>
       <p className="mt-2 max-w-sm leading-relaxed text-slate-600">{c.body}</p>
       <div className="mt-6 flex w-full max-w-sm items-center gap-3 rounded-xl bg-surface p-3">
-        {profile.photoURL && <img src={profile.photoURL} alt="" className="h-10 w-10 rounded-full" referrerPolicy="no-referrer" />}
+        <BlankAvatar />
         <div className="text-left">
           <div className="font-medium text-slate-900">{profile.name}</div>
           <div className="text-sm text-slate-500">{profile.email}</div>

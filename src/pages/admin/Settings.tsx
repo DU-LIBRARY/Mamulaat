@@ -301,14 +301,6 @@ export function AdminSettings() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="label" htmlFor="set-threshold">Attention threshold (%)</label>
-            <input id="set-threshold" className="input" type="number" min={0} max={100} value={s.attentionThreshold} onChange={(e) => set('attentionThreshold', Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="label" htmlFor="set-nolog">Flag after no logs for (days)</label>
-            <input id="set-nolog" className="input" type="number" min={1} max={60} value={s.attentionNoLogDays} onChange={(e) => set('attentionNoLogDays', Number(e.target.value))} />
-          </div>
           <div className="col-span-2">
             <label className="label" htmlFor="set-fajr">Fajr report time</label>
             <input id="set-fajr" className="input" type="time" value={s.fajrReportTime} onChange={(e) => e.target.value && set('fajrReportTime', e.target.value)} />

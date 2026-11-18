@@ -9,7 +9,7 @@ import { pushSupport, pushSupportMessage, reminderSchedule, registerDevice, unre
 import { isIOS, isStandalone } from '../../lib/pwa';
 import type { ClassDoc } from '../../types';
 import { IconChevronRight } from '../../components/icons';
-import { Notice } from '../../components/ui';
+import { BlankAvatar, Notice } from '../../components/ui';
 import { ThemePicker } from '../../components/ThemePicker';
 import { InstallApp } from '../../components/InstallApp';
 import { useDialog } from '../../components/Dialog';
@@ -51,11 +51,7 @@ export function Me() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-4 pt-5 pb-2">
-        {profile.photoURL ? (
-          <img src={profile.photoURL} alt="" className="h-12 w-12 rounded-full" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 font-serif text-2xl text-brand-800" aria-hidden>{(profile.name ?? '?').trim().charAt(0).toUpperCase()}</div>
-        )}
+        <BlankAvatar size={56} />
         <div className="min-w-0">
           <div className="font-serif text-[28px] leading-tight text-slate-900" dir="auto">
             {profile.name}
