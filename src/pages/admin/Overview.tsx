@@ -28,9 +28,8 @@ export function Overview() {
   const range = useStudentsRange(students.map((s) => s.id), days[0], today);
   const salah = useStudentsSalah(students.map((s) => s.id), days[0], days[6]);
 
-  const { byClass, loggedToday, weeks } = useMemo(() => {
+  const { loggedToday, weeks } = useMemo(() => {
     const weeks = new Map<string, StudentWeek>();
-    const byClass = new Map<string, number[]>();
     let loggedToday = 0;
     for (const s of students) {
       const r = range.get(s.id);
@@ -39,12 +38,8 @@ export function Overview() {
       weeks.set(s.id, w);
       const t = w.days.find((d) => d.day === today);
       if (t?.hasLog) loggedToday++;
-      if (w.completion != null) {
-        const k = s.classId ?? '';
-        byClass.set(k, [...(byClass.get(k) ?? []), w.completion]);
-      }
     }
-    return { byClass, loggedToday, weeks };
+    return { loggedToday, weeks };
   }, [students, range, days.join(), today]);
 
   if (users.loading) return <Spinner />;
@@ -138,37 +133,6 @@ export function Overview() {
         <p className="mt-2 text-xs text-slate-500">✓ every mamool completed · number = % completed · ✕ nothing logged · · today, not logged yet · – no mamoolaat set. Tap a student for details.</p>
       </section>
 
-      <section className="no-print">
-        <h2 className="section-title">Classes this week</h2>
-        {classes.data.length === 0 ? (
-          <EmptyState>
-            No classes yet. <Link className="font-semibold text-brand-700 underline" to="/admin/classes">Create one</Link>.
-          </EmptyState>
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {classes.data.map((c) => {
-              const vals = byClass.get(c.id) ?? [];
-              const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-              const n = students.filter((s) => s.classId === c.id).length;
-              return (
-                <li key={c.id}>
-                  <Link to={`/admin/class/${c.id}?view=week`} className="card flex items-center justify-between p-3">
-                    <span>
-                      <span className="block font-semibold" dir="auto">
-                        {c.name}
-                      </span>
-                      <span className="text-sm text-slate-500">
-                        {n} student{n === 1 ? '' : 's'}
-                      </span>
-                    </span>
-                    <span className={`chip px-3 py-1 text-sm ${cellClass(avg)}`}>{pct(avg)}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }
