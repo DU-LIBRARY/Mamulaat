@@ -41,6 +41,7 @@ const PUSH_TIMEOUT_MS = 10000; // a push service that doesn't answer must not ho
 // Device records are written by each person's own app, so never trust their shape.
 const seenMs = (v) => (v && v.lastSeen && typeof v.lastSeen.toMillis === 'function' ? v.lastSeen.toMillis() : 0);
 const stats = { sent: 0, removed: 0, failed: 0 };
+const who = (uid) => (typeof byId?.get(uid)?.name === 'string' && byId.get(uid).name) || uid;
 
 /** Send to every device of one user; drops subscriptions the push service says are gone. */
 async function pushToUser(uid, msg) {
@@ -64,6 +65,7 @@ async function pushToDevices(uid, msg) {
     if (seenMs(v) && seenMs(v) < staleBefore) {
       if (!dry) await s.ref.delete();
       stats.removed++;
+      console.log(`  removed a device of ${who(uid)}: not seen for ${STALE_DAYS} days`);
       continue;
     }
     if (dry) {
@@ -79,6 +81,7 @@ async function pushToDevices(uid, msg) {
       if (e.statusCode === 404 || e.statusCode === 410) {
         stats.removed++;
         await s.ref.delete(); // unsubscribed, or the app was removed from the phone
+        console.log(`  removed a device of ${who(uid)}: its phone no longer accepts notifications (${e.statusCode})`);
       } else {
         stats.failed++;
         console.log(`::warning::push to ${uid}/${s.id} failed: ${e.statusCode || ''} ${e.body || e.message}`);
@@ -158,7 +161,7 @@ for (const { slot, key } of dueSlots(CFG.reminders ?? [], today, minutes, sentSl
     if (await pushToUser(uid, { title: slot.title || 'Mamūlāt', body: slot.body, url: slot.url || '.', tag: `reminder-${key}` })) n++;
     else unreached.push(typeof d.name === 'string' && d.name ? d.name : uid);
   }
-  if (unreached.length) console.log(`  not reached (notifications off on their phone): ${unreached.length}`);
+  if (unreached.length) console.log(`  not reached (notifications off on their phone): ${unreached.length}: ${unreached.join(', ')}`);
   reminded += n;
   console.log(`Reminder ${key}: sent to ${n} student(s)`);
 }
