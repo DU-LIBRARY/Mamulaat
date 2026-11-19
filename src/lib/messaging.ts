@@ -6,7 +6,7 @@
  * the reminders, nudges and sign-up/approval notices, signed with the private half of the key pair
  * whose public half is in push.config.json.
  */
-import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
 import { USE_EMULATORS, db } from '../firebase';
 import { getSwRegistration, isIOS, isStandalone } from './pwa';
 import { fire } from './sync';
@@ -14,6 +14,7 @@ import pushConfig from '../../push.config.json';
 
 const SUB_KEY = 'mamulaat.pushSub'; // id of this device's pushSubs doc
 const SUB_SEEN_KEY = 'mamulaat.pushSubSeen'; // day we last refreshed lastSeen
+const SUB_UID_KEY = 'mamulaat.pushSubUid'; // whose account this device's subscription is saved under
 const OLD_FCM_KEYS = ['mamulaat.fcmToken', 'mamulaat.fcmTokenSeen'];
 
 export type PushSupport =
@@ -102,6 +103,7 @@ async function saveSubscription(uid: string, sub: PushSubscription, force: boole
     );
     localStorage.setItem(SUB_KEY, id);
     localStorage.setItem(SUB_SEEN_KEY, today);
+    localStorage.setItem(SUB_UID_KEY, uid);
   }
   return true;
 }
@@ -130,32 +132,55 @@ export async function registerDevice(uid: string): Promise<PushSupport> {
 }
 
 /**
- * Called on app start when notifications are on: subscriptions can change or expire, so make sure
- * this device's one is stored and current. Never prompts.
+ * Whether notifications are on for THIS device and this account. Each device is switched on and off
+ * on its own: the account-wide `reminderEnabled` only says whether any device of theirs has them on.
  */
-export async function refreshToken(uid: string): Promise<void> {
+export function deviceNotificationsOn(uid: string): boolean {
+  if (!localStorage.getItem(SUB_KEY)) return false;
+  const owner = localStorage.getItem(SUB_UID_KEY);
+  if (owner && owner !== uid) return false; // saved for someone else who used this device
+  return 'Notification' in window && Notification.permission === 'granted';
+}
+
+/**
+ * Called on app start: on a device that has notifications on, subscriptions can change or expire
+ * (iOS drops them), so make sure this device's one exists, is stored and is current. Never prompts.
+ * Returns whether this device is set up to receive notifications.
+ */
+export async function refreshToken(uid: string): Promise<boolean> {
   try {
+    if (!deviceNotificationsOn(uid)) return false;
     const s = await pushSupport();
-    if (!s.ok || Notification.permission !== 'granted') return;
+    if (!s.ok) return false;
     dropOldFcmToken(uid);
     const sub = await currentSubscription(true);
-    if (sub) await saveSubscription(uid, sub, false);
+    return !!sub && (await saveSubscription(uid, sub, false));
   } catch (e) {
     console.warn('[push] could not refresh subscription', e);
+    return false;
   }
 }
 
-export async function unregisterDevice(uid: string) {
+/** Turns notifications off for this device only. Returns how many other devices still have them on. */
+export async function unregisterDevice(uid: string): Promise<number> {
   const id = localStorage.getItem(SUB_KEY);
   localStorage.removeItem(SUB_KEY);
   localStorage.removeItem(SUB_SEEN_KEY);
-  if (id) fire(deleteDoc(doc(db, 'users', uid, 'pushSubs', id)));
+  localStorage.removeItem(SUB_UID_KEY);
   dropOldFcmToken(uid);
   try {
     const sub = await currentSubscription(false);
     await sub?.unsubscribe();
   } catch {
     /* ignore */
+  }
+  const col = collection(db, 'users', uid, 'pushSubs');
+  if (id) fire(deleteDoc(doc(col, id)));
+  try {
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+    return (await Promise.race([getDocs(col), timeout])).docs.filter((d) => d.id !== id).length;
+  } catch {
+    return 1; // offline or slow: assume another device may still have them on, so keep the account on
   }
 }
 

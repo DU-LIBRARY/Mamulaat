@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useDocData } from '../../hooks/useFirestore';
-import { classesCol, updateOwnProfile } from '../../lib/db';
+import { classesCol } from '../../lib/db';
 import { doc } from 'firebase/firestore';
 import { PrivacyNote } from '../../components/PrivacyNote';
-import { pushSupport, pushSupportMessage, reminderSchedule, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
+import { pushSupportMessage, reminderSchedule } from '../../lib/messaging';
+import { useDeviceNotifications } from '../../hooks/useDeviceNotifications';
 import { isIOS, isStandalone } from '../../lib/pwa';
 import type { ClassDoc } from '../../types';
 import { IconChevronRight } from '../../components/icons';
@@ -24,30 +24,7 @@ export function Me() {
   const sync = useSyncState();
   const { confirm } = useDialog();
   const cls = useDocData<ClassDoc>(profile.classId ? doc(classesCol(), profile.classId) : null, `class:${profile.classId}`);
-  const [support, setSupport] = useState<PushSupport | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    pushSupport().then(setSupport);
-  }, []);
-
-  const toggle = async () => {
-    setMsg(null);
-    if (profile.reminderEnabled) {
-      updateOwnProfile(profile.id, { reminderEnabled: false });
-      await unregisterDevice(profile.id);
-      return;
-    }
-    setBusy(true);
-    const res = await registerDevice(profile.id);
-    setBusy(false);
-    setSupport(res.ok ? { ok: true } : res);
-    // Even without push, keep the preference so the in-app banner/time are remembered.
-    updateOwnProfile(profile.id, { reminderEnabled: true });
-    if (!res.ok) setMsg(pushSupportMessage[res.reason]);
-    else setMsg('Reminders are on for this device.');
-  };
+  const { on, busy, msg, support, toggle } = useDeviceNotifications(profile);
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,21 +61,21 @@ export function Me() {
         <h2 className="section-title">Daily reminder</h2>
         <label className="flex min-h-12 items-center justify-between gap-3">
           <span>
-            <span className="text-slate-900">Remind me to log</span>
+            <span className="text-slate-900">Remind me on this device</span>
             <span className="block text-sm text-slate-500">{reminderSchedule()} ({settings.timezone} time)</span>
           </span>
           <button
             role="switch"
-            aria-checked={profile.reminderEnabled}
+            aria-checked={on}
             disabled={busy}
             onClick={toggle}
-            className={`relative h-7 w-12 shrink-0 rounded-full before:absolute before:inset-x-0 before:-inset-y-2 transition-colors duration-300 ease-calm ${profile.reminderEnabled ? 'bg-primary' : 'bg-slate-300'}`}
+            className={`relative h-7 w-12 shrink-0 rounded-full before:absolute before:inset-x-0 before:-inset-y-2 transition-colors duration-300 ease-calm ${on ? 'bg-primary' : 'bg-slate-300'}`}
           >
-            <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-300 ease-calm ${profile.reminderEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-300 ease-calm ${on ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </label>
         {msg && <div className="mt-3"><Notice>{msg}</Notice></div>}
-        {support && !support.ok && !msg && profile.reminderEnabled && (
+        {support && !support.ok && !msg && (on || support.reason === 'denied') && (
           <div className="mt-3"><Notice>{pushSupportMessage[support.reason]}</Notice></div>
         )}
         {isIOS() && (

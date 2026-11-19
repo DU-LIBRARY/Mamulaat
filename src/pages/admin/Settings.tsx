@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers } from '../../hooks/useAdminData';
-import { saveSettings, setAssistant, transferAdmin, updateOwnProfile } from '../../lib/db';
+import { saveSettings, setAssistant, transferAdmin } from '../../lib/db';
 import { useDialog } from '../../components/Dialog';
-import { pushSupport, pushSupportMessage, reminderSchedule, registerDevice, unregisterDevice, type PushSupport } from '../../lib/messaging';
+import { pushSupportMessage, reminderSchedule } from '../../lib/messaging';
+import { useDeviceNotifications } from '../../hooks/useDeviceNotifications';
 import { Notice } from '../../components/ui';
 import { WEEKDAY_NAMES, isValidTimezone, utcOffsetMinutes } from '../../lib/dates';
 import type { AppSettings } from '../../types';
@@ -81,29 +82,7 @@ function PasswordSignIn() {
 /** Lets the admin get a push on this device when someone finishes signing up. */
 function AdminNotifications() {
   const { profile } = useActiveSession();
-  const [support, setSupport] = useState<PushSupport | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => {
-    pushSupport().then(setSupport);
-  }, []);
-  const on = !!profile.reminderEnabled;
-  const toggle = async () => {
-    setMsg(null);
-    if (on) {
-      updateOwnProfile(profile.id, { reminderEnabled: false });
-      await unregisterDevice(profile.id);
-      return;
-    }
-    setBusy(true);
-    const res = await registerDevice(profile.id);
-    setBusy(false);
-    setSupport(res.ok ? { ok: true } : res);
-    if (res.ok) {
-      updateOwnProfile(profile.id, { reminderEnabled: true });
-      setMsg('Notifications are on for this device.');
-    } else setMsg(pushSupportMessage[res.reason]);
-  };
+  const { on, busy, msg, support, toggle } = useDeviceNotifications(profile);
   return (
     <section className="card">
       <h2 className="section-title">Notifications</h2>
