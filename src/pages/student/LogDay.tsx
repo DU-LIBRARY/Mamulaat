@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Check, Plus } from '@phosphor-icons/react';
 import { useActiveSession } from '../../hooks/useSession';
-import { useMyData } from '../../hooks/useStudentData';
+import { useLoadFrom, useMyData } from '../../hooks/useStudentData';
 import { Checklist } from '../../components/Checklist';
 import { FridayMamool } from '../../components/FridayMamool';
 import { DateLine } from '../../components/DateLine';
@@ -23,12 +23,14 @@ import { dayStats, scheduledFor } from '../../lib/scoring';
 /** The student's main page: today's checklist (or an earlier day still open for filling in). */
 export function LogDay() {
   const { profile, today, settings, actor } = useActiveSession();
-  const { logs, all } = useMyData();
+  const data = useMyData();
+  const { logs, all } = data;
   const [adding, setAdding] = useState(false);
   const undo = useUndo();
   const nudge = useDocData<Nudge>(nudgeRef(profile.id, today), `nudge:${profile.id}:${today}`);
   const params = useParams();
   const day = params.day && isValidYmd(params.day) && params.day <= today ? params.day : today;
+  useLoadFrom(data, day);
   const editable = isDayEditable(day, today, settings.backfillDays);
   const mams = scheduledFor(day, all);
   const s = dayStats(day, logs.get(day), all);

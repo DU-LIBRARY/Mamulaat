@@ -14,12 +14,13 @@ import { ThemePicker } from '../../components/ThemePicker';
 import { InstallApp } from '../../components/InstallApp';
 import { useDialog } from '../../components/Dialog';
 import { useSyncState } from '../../lib/sync';
-import { useMyData } from '../../hooks/useStudentData';
+import { useLoadFrom, useMyData } from '../../hooks/useStudentData';
 import { YearSummary } from '../../components/YearChart';
 
 export function Me() {
   const { profile, settings, signOut, today } = useActiveSession();
   const mine = useMyData();
+  useLoadFrom(mine, `${today.slice(0, 4)}-01-01`); // the year chart
   const sync = useSyncState();
   const { confirm } = useDialog();
   const cls = useDocData<ClassDoc>(profile.classId ? doc(classesCol(), profile.classId) : null, `class:${profile.classId}`);

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses } from '../../hooks/useAdminData';
-import { useStudentLive } from '../../hooks/useStudentData';
+import { useLoadFrom, useStreakHistory, useStudentLive } from '../../hooks/useStudentData';
 import { mamoolLabel, WeekGrid, type GridRow } from '../../components/WeekGrid';
 import { MamoolEditor } from '../../components/MamoolEditor';
 import { BlankAvatar, EmptyState, Spinner, Stat, StatRow } from '../../components/ui';
@@ -76,6 +76,12 @@ export function StudentDetail() {
   const d = sp.get('date');
   const anchor = d && isValidYmd(d) && d <= today ? d : today;
   const days = weekDays(weekStartOf(anchor, settings.weekStart));
+  // Load what this page can show: this year (chart, best streak) and the week and month being looked at.
+  const yearStart = `${today.slice(0, 4)}-01-01`;
+  useLoadFrom(data, [yearStart, days[0], `${anchor.slice(0, 7)}-01`].sort()[0]);
+  const streak = currentStreak(today, data.logs, data.all);
+  useStreakHistory(data, today, streak);
+  const thisYear = useMemo(() => new Map([...data.logs].filter(([day]) => day >= yearStart)), [data.logs, yearStart]);
 
   const week = useMemo(() => (student ? studentWeek(student, days, data.all, data.logs, today) : null), [student, days.join(), data.all, data.logs, today]);
 
@@ -110,9 +116,9 @@ export function StudentDetail() {
       {err && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{err}</div>}
 
       {!limited && <StatRow>
-        <Stat label="Streak" value={currentStreak(today, data.logs, data.all)} sub={`Best ${bestStreak(today, data.logs, data.all)}`} />
+        <Stat label="Streak" value={streak} sub={`Best this year ${bestStreak(today, thisYear, data.all)}`} />
         <Stat label="This week" value={pct(week?.completion)} sub={`${week?.fullDays ?? 0} full days`} />
-        <Stat label="Logged" value={[...data.logs.entries()].filter(([d, l]) => d <= today && dayStats(d, l, data.all).hasLog).length} sub="days in total" />
+        <Stat label="Logged" value={[...thisYear.entries()].filter(([d, l]) => d <= today && dayStats(d, l, data.all).hasLog).length} sub="days this year" />
       </StatRow>}
 
       <div className="no-print flex overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Student sections">
