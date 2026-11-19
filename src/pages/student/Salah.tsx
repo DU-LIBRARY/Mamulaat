@@ -2,7 +2,7 @@ import { doc, query, where } from 'firebase/firestore';
 import { useParams } from 'react-router-dom';
 import { db } from '../../firebase';
 import { useActiveSession } from '../../hooks/useSession';
-import { useMyData } from '../../hooks/useStudentData';
+import { useLoadFrom, useMyData } from '../../hooks/useStudentData';
 import { useCollectionData, useDocData } from '../../hooks/useFirestore';
 import { DayChips } from '../../components/DayChips';
 import { DateLine } from '../../components/DateLine';
@@ -43,11 +43,13 @@ export function useMonitoredClasses() {
 
 export function Salah() {
   const { profile, today, settings } = useActiveSession();
-  const { salah } = useMyData();
+  const data = useMyData();
+  const { salah } = data;
   const cls = useMyClass();
   const monitored = useMonitoredClasses().data;
   const params = useParams();
   const day = params.day && isValidYmd(params.day) && params.day <= today ? params.day : today;
+  useLoadFrom(data, day);
   const editable = isDayEditable(day, today, settings.backfillDays);
   const record = salah.get(day);
   const s = salahStats(record);

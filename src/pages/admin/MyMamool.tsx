@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Check } from '@phosphor-icons/react';
 import { useActiveSession } from '../../hooks/useSession';
-import { useStudentLive } from '../../hooks/useStudentData';
+import { useStreakHistory, useStudentLive } from '../../hooks/useStudentData';
 import { Checklist, targetLabel } from '../../components/Checklist';
 import { FridayMamool } from '../../components/FridayMamool';
 import { MamoolEditor } from '../../components/MamoolEditor';
@@ -31,6 +31,7 @@ export function MyMamool() {
       streak: currentStreak(today, logs, all),
     };
   }, [logs, all, today, settings.weekStart]);
+  useStreakHistory(data, today, stats.streak);
 
   if (data.loading && !all.length) return <Spinner />;
   const todays = scheduledFor(today, all).filter((m) => m.active);
