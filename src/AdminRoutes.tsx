@@ -5,6 +5,7 @@ import { useAllUsers } from './hooks/useAdminData';
 import { AdminLayout } from './components/AdminLayout';
 import { Toast } from './components/Toast';
 import { refreshToken, onForegroundMessage } from './lib/messaging';
+import { updateOwnProfile } from './lib/db';
 import { Overview } from './pages/admin/Overview';
 import { MyMamool } from './pages/admin/MyMamool';
 import { Classes } from './pages/admin/Classes';
@@ -23,11 +24,15 @@ export default function AdminRoutes() {
   const pending = users.data.filter((u) => u.status === 'pending').length;
   const uid = profile!.id;
   useEffect(() => {
-    if (profile?.reminderEnabled) refreshToken(uid);
+    // Per device: keeps this device's subscription alive if it has notifications on, and marks the
+    // account as reachable if an older version of the app had switched it off from another device.
+    refreshToken(uid).then((ok) => {
+      if (ok && !profile?.reminderEnabled) updateOwnProfile(uid, { reminderEnabled: true });
+    });
     let unsub: (() => void) | undefined;
     onForegroundMessage((t, b) => setToast(`${t}: ${b}`)).then((u) => (unsub = u));
     return () => unsub?.();
-  }, [uid, profile?.reminderEnabled]);
+  }, [uid]); // once per sign-in
   return (
     <AdminLayout pending={pending} limited={limited}>
       {toast && <Toast text={toast} onClose={() => setToast(null)} />}

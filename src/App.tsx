@@ -19,7 +19,7 @@ import { ManageMamoolaat } from './pages/student/ManageMamoolaat';
 import { Me } from './pages/student/Me';
 import { DialogProvider } from './components/Dialog';
 import { UndoProvider } from './components/Undo';
-import { syncFajrRoll, touchLastSeen } from './lib/db';
+import { syncFajrRoll, touchLastSeen, updateOwnProfile } from './lib/db';
 import { checkLeftovers } from './lib/unsynced';
 import { isDayEditable } from './lib/dates';
 import { UpdatePrompt } from './components/UpdatePrompt';
@@ -38,11 +38,15 @@ function StudentRoutes() {
   const uid = profile!.id;
 
   useEffect(() => {
-    if (profile?.reminderEnabled) refreshToken(uid);
+    // Per device: keeps this device's subscription alive if it has notifications on, and marks the
+    // account as reachable if an older version of the app had switched it off from another device.
+    refreshToken(uid).then((ok) => {
+      if (ok && !profile?.reminderEnabled) updateOwnProfile(uid, { reminderEnabled: true });
+    });
     let unsub: (() => void) | undefined;
     onForegroundMessage((t, b) => setToast(`${t}: ${b}`)).then((u) => (unsub = u));
     return () => unsub?.();
-  }, [uid, profile?.reminderEnabled]);
+  }, [uid]); // once per sign-in
 
   // "Last seen" for the admin's Students page: at most every 30 minutes, when the app is in front.
   const lastSeenMs = profile?.lastSeenAt?.toMillis?.() ?? 0;
