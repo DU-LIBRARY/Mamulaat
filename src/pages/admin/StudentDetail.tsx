@@ -174,7 +174,7 @@ export function StudentDetail() {
       )}
 
       {tab === 'day' && (() => {
-        const dayId = d && isValidYmd(d) ? d : today;
+        const dayId = anchor;
         const log = data.logs.get(dayId);
         const mams = scheduledFor(dayId, data.all);
         const st = dayStats(dayId, log, data.all);
@@ -213,13 +213,30 @@ export function StudentDetail() {
       })()}
 
       {tab === 'salah' && (() => {
-        const dayId = d && isValidYmd(d) ? d : today;
+        const dayId = anchor;
         const rec = data.salah.get(dayId);
         const wk = weekDays(weekStartOf(dayId, settings.weekStart));
         const st = salahStats(rec);
         const owner = { uid, name: student.name ?? student.email, classId: student.classId };
         return (
           <>
+            <p className="text-sm text-slate-500">Edit this student's salah for any day, even locked ones. Each change is stamped with your name and recorded in the audit log. Fajr changes also update the class's Fajr roll.</p>
+            <div className="flex items-center gap-2">
+              <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Previous day" onClick={() => setAnchor(addDays(dayId, -1))}>
+                <IconChevronLeft size={20} />
+              </button>
+              <input type="date" aria-label="Day" className="input text-center" value={dayId} max={today} onChange={(e) => e.target.value && setAnchor(e.target.value)} />
+              <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Next day" disabled={dayId >= today} onClick={() => setAnchor(addDays(dayId, 1))}>
+                <IconChevronRight size={20} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <DateLine day={dayId} />
+              <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.logged ? `${st.inJamaat}/5 in jamaat` : 'No log'}</span>
+            </div>
+            {rec?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {rec.editedByName ?? 'the teacher'}.</div>}
+            <SalahChecklist key={dayId} day={dayId} record={rec} editable admin onChange={(n, s) => adminSaveSalah(owner, dayId, n, s, actor)} />
+            <h2 className="section-title mt-2 mb-0">Week</h2>
             <div className="no-print flex items-center justify-between">
               <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Previous week" onClick={() => setAnchor(addDays(wk[0], -7))}>
                 <IconChevronLeft size={20} />
@@ -231,6 +248,10 @@ export function StudentDetail() {
                 <IconChevronRight size={20} />
               </button>
             </div>
+            <p className="text-sm text-slate-500">Tap a day to edit it.</p>
+            <div className="rounded-xl bg-surface p-2">
+              <SalahWeek days={wk} salah={data.salah} today={today} onPick={setAnchor} admin />
+            </div>
             <ExportBar
               week={() => downloadCsv(`salah-${fileSafe(displayName(student))}-${wk[0]}.csv`, [['Salah', ...wk, 'Days in jamaat'], ...salahRows(data.salah, wk, today)])}
               monthLabel={formatMonth(dayId)}
@@ -239,16 +260,6 @@ export function StudentDetail() {
                 downloadCsv(`salah-${fileSafe(displayName(student))}-${dayId.slice(0, 7)}.csv`, [['Salah', ...md, 'Days in jamaat'], ...salahRows(data.salah, md, today)]);
               }}
             />
-            <div className="rounded-xl bg-surface p-2">
-              <SalahWeek days={wk} salah={data.salah} today={today} onPick={setAnchor} admin />
-            </div>
-            <div className="flex items-center justify-between">
-              <DateLine day={dayId} />
-              <span className="chip num bg-slate-100 px-2.5 py-1 text-sm text-slate-700">{st.inJamaat}/5 in jamaat</span>
-            </div>
-            <p className="text-sm text-slate-500">Correct this student's salah for any day. Each change is stamped with your name and recorded in the audit log. Fajr changes also update the class's Fajr roll.</p>
-            {rec?.editedBy && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Last edited by {rec.editedByName ?? 'the teacher'}.</div>}
-            <SalahChecklist day={dayId} record={rec} editable admin onChange={(n, s) => adminSaveSalah(owner, dayId, n, s, actor)} />
           </>
         );
       })()}
