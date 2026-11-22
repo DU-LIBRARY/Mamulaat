@@ -1,6 +1,6 @@
 import { adminStatus, fajrRollSummary, missedCount, salahStats, unloggedIsMissed } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
-import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, formatHijri } from '../../src/lib/dates';
+import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, weekendOf, formatHijri } from '../../src/lib/dates';
 import { currentStreak, dayStats, entryFraction, fridayEntry, isFridayMamoolDay, logsByDay, scheduledFor, withFriday } from '../../src/lib/scoring';
 import { needsAttention } from '../../src/lib/reports';
 import { toCsv } from '../../src/lib/csv';
@@ -19,6 +19,13 @@ describe('dates', () => {
     expect(weekStartOf('2026-11-07', 1)).toBe('2026-11-02'); // Saturday -> Monday
     expect(weekStartOf('2026-11-08', 1)).toBe('2026-11-02'); // Sunday
     expect(weekStartOf('2026-11-08', 0)).toBe('2026-11-08');
+  });
+  it('finds the latest weekend that has started', () => {
+    expect(weekendOf('2026-11-21')).toEqual(['2026-11-21', '2026-11-22']); // Saturday
+    expect(weekendOf('2026-11-22')).toEqual(['2026-11-21', '2026-11-22']); // Sunday
+    expect(weekendOf('2026-11-23')).toEqual(['2026-11-21', '2026-11-22']); // Monday
+    expect(weekendOf('2026-11-27')).toEqual(['2026-11-21', '2026-11-22']); // Friday
+    expect(weekendOf('2027-01-01')).toEqual(['2026-12-26', '2026-12-27']);
   });
   it('computes today in a timezone', () => {
     const t = new Date('2026-11-07T22:30:00Z');

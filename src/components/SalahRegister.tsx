@@ -8,7 +8,8 @@ import { adminStatus, missedCount, SALAH_LABEL, STATUS_DESC, unloggedIsMissed } 
 /** F D A M I: Fajr, Dhuhr (Zuhr), Asr, Maghrib, Isha. */
 const LETTER = ['F', 'D', 'A', 'M', 'I'];
 
-function bar(s: SalahStatus | undefined, future: boolean, unloggedMissed: boolean) {
+/** One salah's mark in the register: green = in jamaat, red = missed, qadha or not logged on a day that's over. */
+export function bar(s: SalahStatus | undefined, future: boolean, unloggedMissed: boolean) {
   if (future) return 'bg-transparent';
   if (!s && unloggedMissed) return 'bg-red-400'; // not logged on a day that's over counts as missed
   if (s === 'jamaat' || s === 'takbir') return 'bg-green-600';

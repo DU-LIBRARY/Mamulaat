@@ -14,7 +14,7 @@ import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays,
 import { dayStats, entryFor, entryFraction, FRIDAY_ID, pct, scheduledFor, withFriday } from '../../lib/scoring';
 import { studentWeek } from '../../lib/reports';
 import { downloadCsv } from '../../lib/csv';
-import { fetchStudentsRange, rosterRef, setFajrMonitor, syncRoster } from '../../lib/db';
+import { fetchStudentsRange, rosterRef, setFajrMonitor, setWeekendRep, syncRoster } from '../../lib/db';
 import { fajrRollSummary } from '../../lib/salah';
 import { fileSafe, registerRows } from '../../lib/exports';
 import { ExportBar } from '../../components/ExportBar';
@@ -51,18 +51,22 @@ export function ClassView() {
   const roster = useDocData<ClassRoster>(classId ? rosterRef(classId) : null, `roster:${classId}`);
   const rosterNames = useMemo(() => Object.fromEntries(students.map((s) => [s.id, displayName(s)])), [students]);
   const monitorId = cls?.fajrMonitorId ?? null;
-  // The monitor's "not logged yet" list needs the class's names; keep them current while a monitor is set.
+  const repId = cls?.weekendRepId ?? null;
+  // The monitor's "not logged yet" list and the weekend rep's sheet need the class's names; keep
+  // them current while either is set.
   useEffect(() => {
-    if (monitorId && !roster.loading && !users.loading) syncRoster(classId, roster.data?.names, rosterNames);
-  }, [monitorId, classId, roster.loading, roster.data, rosterNames, users.loading]);
+    if ((monitorId || repId) && !roster.loading && !users.loading) syncRoster(classId, roster.data?.names, rosterNames);
+  }, [monitorId, repId, classId, roster.loading, roster.data, rosterNames, users.loading]);
   const [monitorErr, setMonitorErr] = useState<string | null>(null);
+  const [repErr, setRepErr] = useState<string | null>(null);
   const everyone = users.data.filter((u) => u.status === 'active' && u.role === 'student');
   const { confirm } = useDialog();
   const { hash } = useLocation();
   const ready = !users.loading && !classes.loading;
-  // "Choose / change" on the Classes page links straight to the Fajr monitor card.
+  // "Choose / change" on the Classes page links straight to the Fajr monitor or weekend rep card.
   useEffect(() => {
     if (ready && hash === '#fajr-monitor') document.getElementById('fajr-monitor-card')?.scrollIntoView({ block: 'start' });
+    if (ready && hash === '#weekend-rep') document.getElementById('weekend-rep-card')?.scrollIntoView({ block: 'start' });
   }, [ready, hash]);
 
   const setParam = (k: string, v: string) => {
@@ -173,7 +177,39 @@ export function ClassView() {
     </section>
   );
 
-  // A limited admin sees who is in the class and can choose its Fajr monitor, nothing of their records.
+  const repCard = (
+    <section id="weekend-rep-card" className="no-print card flex scroll-mt-4 flex-col gap-2">
+      <label htmlFor="weekend-rep" className="section-title mb-0">
+        Weekend salah representative
+      </label>
+      <p className="text-xs text-slate-500">
+        A student of this class who sees everyone's salah here for Saturday and Sunday, on one sheet they can screenshot and pass on. They see nothing else of anyone's, and stop seeing it if they leave the class. Every student in this class is told who it is.
+      </p>
+      <select
+        id="weekend-rep"
+        className="input"
+        value={repId ?? ''}
+        onChange={(e) => {
+          const next = students.find((x) => x.id === e.target.value) ?? null;
+          setWeekendRep(cls, rosterNames, next, actor).then(() => setRepErr(null), (er) => setRepErr((er as Error).message));
+        }}
+      >
+        <option value="">Nobody</option>
+        {repId && !students.some((x) => x.id === repId) && (
+          <option value={repId}>{users.data.find((u) => u.id === repId)?.name ?? 'Someone'} (no longer in this class)</option>
+        )}
+        {students.map((st) => (
+          <option key={st.id} value={st.id}>
+            {displayName(st)}
+          </option>
+        ))}
+      </select>
+      {repErr && <p className="text-sm text-red-700">{repErr}</p>}
+    </section>
+  );
+
+  // A limited admin sees who is in the class and can choose its Fajr monitor and weekend salah
+  // representative, nothing of their records.
   if (limited)
     return (
       <div className="flex flex-col gap-4">
@@ -195,6 +231,7 @@ export function ClassView() {
           </ul>
         )}
         {monitorCard}
+        {repCard}
       </div>
     );
 
@@ -320,6 +357,7 @@ export function ClassView() {
         </>
       )}
       {monitorCard}
+      {repCard}
     </div>
   );
 }

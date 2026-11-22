@@ -14,6 +14,7 @@ import { LogDay } from './pages/student/LogDay';
 import { Week } from './pages/student/Week';
 import { Salah } from './pages/student/Salah';
 import { FajrRoll } from './pages/student/FajrRoll';
+import { WeekendSalah } from './pages/student/WeekendSalah';
 import { Messages } from './pages/student/Messages';
 import { ManageMamoolaat } from './pages/student/ManageMamoolaat';
 import { Me } from './pages/student/Me';
@@ -114,6 +115,7 @@ function StudentRoutes() {
         <Route path="/log/:day" element={<LogDay />} />
         <Route path="/salah" element={<Salah />} />
         <Route path="/salah/fajr" element={<FajrRoll />} />
+        <Route path="/salah/weekend" element={<WeekendSalah />} />
         <Route path="/salah/:day" element={<Salah />} />
         <Route path="/week" element={<Week />} />
         <Route path="/messages" element={<Messages />} />

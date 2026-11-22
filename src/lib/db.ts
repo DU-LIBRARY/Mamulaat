@@ -56,6 +56,8 @@ export const fajrRollRef = (classId: string, day: string) => doc(db, 'classes', 
 export const rosterRef = (classId: string) => doc(db, 'classes', classId, 'meta', 'roster');
 /** { name } of the class's Fajr monitor: readable only by the class, the monitor and the staff. */
 export const monitorRef = (classId: string) => doc(db, 'classes', classId, 'meta', 'monitor');
+/** { name } of the class's weekend salah representative: readable only by the class and the staff. */
+export const weekendRepRef = (classId: string) => doc(db, 'classes', classId, 'meta', 'weekendRep');
 
 export function salahRangeQuery(uid: string, from: string, to: string) {
   return query(salahCol(uid), where(documentId(), '>=', from), where(documentId(), '<=', to));
@@ -301,6 +303,29 @@ export function setFajrMonitor(
     }
     addAudit(batch, actor, 'class.fajrMonitor', { classId: cls.id, className: cls.name, monitorId: student?.id ?? null, monitorName: student?.name ?? null });
   }
+  return track(batch.commit());
+}
+
+/**
+ * Make one student of a class its weekend salah representative (or nobody, with null). They see
+ * every classmate's salah for Saturdays and Sundays, and nothing else. Their name goes in
+ * meta/weekendRep (which only the class reads) and the class roster is saved with it.
+ */
+export function setWeekendRep(
+  cls: ClassDoc,
+  roster: Record<string, string>,
+  student: Pick<UserProfile, 'id' | 'name' | 'email'> | null,
+  actor: Actor,
+) {
+  const batch = writeBatch(db);
+  batch.update(doc(classesCol(), cls.id), { weekendRepId: student?.id ?? null });
+  if (student) {
+    batch.set(weekendRepRef(cls.id), { name: (student.name ?? student.email).slice(0, 200) });
+    batch.set(rosterRef(cls.id), { names: roster });
+  } else {
+    batch.delete(weekendRepRef(cls.id));
+  }
+  addAudit(batch, actor, 'class.weekendRep', { classId: cls.id, className: cls.name, repId: student?.id ?? null, repName: student?.name ?? null });
   return track(batch.commit());
 }
 
@@ -770,7 +795,7 @@ export const ASSISTANT_AUDIT_ACTIONS = [
   'user.approve', 'user.reject', 'user.deactivate', 'user.reactivate', 'user.move', 'user.rename',
   'user.pending', 'user.delete', 'user.assistant', 'user.unassistant',
   'class.create', 'class.rename', 'class.delete', 'class.template', 'class.fajrMonitor',
-  'comment.add', 'comment.delete', 'nudge.send', 'settings.update', 'admin.transfer',
+  'class.weekendRep', 'comment.add', 'comment.delete', 'nudge.send', 'settings.update', 'admin.transfer',
 ];
 
 export function auditQuery(limited = false) {

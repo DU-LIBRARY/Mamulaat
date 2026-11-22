@@ -7,7 +7,7 @@ export function PrivacyNote({ compact = false }: { compact?: boolean }) {
       <div>
         <div className="text-slate-900">Who can see your data</div>
         <p className="mt-1 leading-relaxed">
-          Your mamoolaat, daily logs, salah and streaks are visible only to you and the admin (the asaatidhah). Other students can never see them. The one exception: if your class has a Fajr monitor, they see whether you prayed Fajr, and nothing else. Signing out removes your data from this device.
+          Your mamoolaat, daily logs, salah and streaks are visible only to you and the admin (the asaatidhah). Other students can never see them, with two exceptions: if your class has a Fajr monitor, they see whether you prayed Fajr; and if it has a weekend salah representative, they see your Saturday and Sunday salah. Neither sees anything else. Signing out removes your data from this device.
         </p>
       </div>
     </div>

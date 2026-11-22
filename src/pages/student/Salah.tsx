@@ -12,7 +12,7 @@ import { Row, Rows } from '../../components/quiet';
 import { IconInfo, IconPencil } from '../../components/icons';
 import { LockedDayNotice, PendingSyncNotice, LostEntriesNotice } from '../../components/LockNotices';
 import { isDayEditable, isValidYmd, lastEditableDay } from '../../lib/dates';
-import { classesCol, saveSalah, saveSalahEntries, monitorRef } from '../../lib/db';
+import { classesCol, saveSalah, saveSalahEntries, monitorRef, weekendRepRef } from '../../lib/db';
 import { salahStats } from '../../lib/salah';
 import { SALAH_NAMES, type ClassDoc, type SalahName, type SalahStatus } from '../../types';
 import { Check } from '@phosphor-icons/react';
@@ -31,6 +31,13 @@ export function useMyMonitorName(wanted: boolean) {
   const { profile } = useActiveSession();
   const id = wanted ? profile.classId : null;
   return useDocData<{ name?: string }>(id ? monitorRef(id) : null, `monitor:${id ?? ''}`).data?.name ?? null;
+}
+
+/** The name of the weekend salah representative of the student's own class. */
+export function useMyWeekendRepName(wanted: boolean) {
+  const { profile } = useActiveSession();
+  const id = wanted ? profile.classId : null;
+  return useDocData<{ name?: string }>(id ? weekendRepRef(id) : null, `weekendRep:${id ?? ''}`).data?.name ?? null;
 }
 
 /** The classes whose Fajr roll this student may see (the admin made them its Fajr monitor). */
@@ -56,6 +63,9 @@ export function Salah() {
   const monitorId = cls?.fajrMonitorId ?? null;
   const isMonitor = monitored.length > 0;
   const monitorName = useMyMonitorName(!!monitorId && monitorId !== profile.id);
+  const repId = cls?.id === profile.classId ? (cls?.weekendRepId ?? null) : null;
+  const isRep = repId === profile.id;
+  const repName = useMyWeekendRepName(!!repId && !isRep);
   const owner = { uid: profile.id, name: profile.name ?? profile.email, classId: profile.classId };
   const undo = useUndo();
   // Only the salah still empty become Jamaat; anything already marked is kept.
@@ -114,6 +124,14 @@ export function Salah() {
         </Rows>
       )}
 
+      {isRep && cls && (
+        <Rows className={isMonitor ? '' : 'mt-2'}>
+          <Row to="/salah/weekend" sub="Everyone’s Saturday and Sunday salah on one sheet, to screenshot and send">
+            Weekend salah · {cls.name}
+          </Row>
+        </Rows>
+      )}
+
       {isMonitor && (
         <Notice icon={<IconInfo size={18} />}>
           As Fajr monitor, you can see each student’s Fajr status in the classes you look after. Nothing else of theirs is shared with you.
@@ -121,7 +139,12 @@ export function Salah() {
       )}
       {monitorId && monitorId !== profile.id && (
         <Notice icon={<IconInfo size={18} />}>
-          Your Fajr status is shared with your class’s Fajr monitor{monitorName ? `, ${monitorName}` : ''}. Your other salah and your mamoolaat stay between you and your teacher.
+          Your Fajr status is shared with your class’s Fajr monitor{monitorName ? `, ${monitorName}` : ''}. {repId && !isRep ? 'Your mamoolaat stay between you and your teacher.' : 'Your other salah and your mamoolaat stay between you and your teacher.'}
+        </Notice>
+      )}
+      {repId && !isRep && (
+        <Notice icon={<IconInfo size={18} />}>
+          Your Saturday and Sunday salah are shared with your class’s weekend salah representative{repName ? `, ${repName}` : ''}, who passes the class’s weekend record on. Your weekday salah and your mamoolaat are not shared.
         </Notice>
       )}
     </div>
