@@ -241,6 +241,7 @@ export function Classes() {
                         <span className="num">{members.length}</span> student{members.length === 1 ? '' : 's'}
                         {c.template?.length ? <> · <span className="num">{c.template.length}</span> class mamoolaat</> : null}
                         {' · '}Fajr monitor: {c.fajrMonitorId ? (users.data.find((u) => u.id === c.fajrMonitorId)?.name ?? 'someone') : 'none'}
+                        {c.weekendRepId ? <>{' · '}Weekend salah: {users.data.find((u) => u.id === c.weekendRepId)?.name ?? 'someone'}</> : null}
                       </div>
                     </div>
                     <IconChevronRight size={18} className="shrink-0 text-slate-400" />
@@ -257,6 +258,9 @@ export function Classes() {
                     <div className="-ml-2 flex flex-wrap items-center gap-x-1 text-sm">
                       <Link className="btn-ghost min-h-11 px-2 text-sm" to={`/admin/class/${c.id}#fajr-monitor`}>
                         Fajr monitor
+                      </Link>
+                      <Link className="btn-ghost min-h-11 px-2 text-sm" to={`/admin/class/${c.id}#weekend-rep`}>
+                        Weekend salah rep
                       </Link>
                       <button
                         className="btn-ghost min-h-11 px-2 text-sm"

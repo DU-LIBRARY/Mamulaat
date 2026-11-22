@@ -85,6 +85,12 @@ export function weekStartOf(ymd: string, weekStart: number): string {
   return addDays(ymd, -offset);
 }
 
+/** The Saturday and Sunday of the latest weekend that has started by `day`. */
+export function weekendOf(day: string): [string, string] {
+  const sat = addDays(day, -((dayOfWeek(day) + 1) % 7)); // Sat → 0 back, Sun → 1, Mon → 2 ... Fri → 6
+  return [sat, addDays(sat, 1)];
+}
+
 export function weekDays(start: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }

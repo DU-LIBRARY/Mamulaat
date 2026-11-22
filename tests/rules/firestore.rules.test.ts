@@ -886,7 +886,7 @@ describe('limited admin (assistant)', () => {
   const ASSIST = 'assistant-uid';
   const audit = (uid: string, action: string) => ({ actorId: uid, actorName: 'x', action, details: {}, createdAt: serverTimestamp() });
   const ALLOWED = ['user.approve', 'user.reject', 'user.deactivate', 'user.reactivate', 'user.move', 'user.rename', 'user.pending', 'user.delete', 'user.assistant', 'user.unassistant',
-    'class.create', 'class.rename', 'class.delete', 'class.template', 'class.fajrMonitor', 'comment.add', 'comment.delete', 'nudge.send', 'settings.update', 'admin.transfer'];
+    'class.create', 'class.rename', 'class.delete', 'class.template', 'class.fajrMonitor', 'class.weekendRep', 'comment.add', 'comment.delete', 'nudge.send', 'settings.update', 'admin.transfer'];
 
   beforeEach(async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
@@ -1060,5 +1060,94 @@ describe('Fajr roll written on its own, after the salah record', () => {
     await assertSucceeds(setDoc(doc(f, `users/${A}/salah/${today}`), salahDoc('jamaat'), { merge: true }));
     await assertFails(setDoc(doc(f, `classes/class-1/fajrRoll/${today}`), { r: { [A]: { status: 'prayed' } } }, { merge: true }));
     await assertSucceeds(setDoc(doc(f, `classes/class-2/fajrRoll/${today}`), { r: { [A]: { status: 'prayed' } } }, { merge: true }));
+  });
+});
+
+describe('weekend salah representative', () => {
+  const ASSIST = 'assistant-uid';
+  const C = 'student-c'; // in class-2
+  const FRI = '2026-11-20';
+  const SAT = '2026-11-21';
+  const SUN = '2026-11-22';
+  const MON = '2026-11-23';
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const f = ctx.firestore();
+      await setDoc(doc(f, `users/${ASSIST}`), profile('assistant', 'active'));
+      await setDoc(doc(f, `users/${C}`), profile('student', 'active', { classId: 'class-2' }));
+      await setDoc(doc(f, 'classes/class-1'), { name: 'Class 1', weekendRepId: B });
+      await setDoc(doc(f, 'classes/class-2'), { name: 'Class 2', weekendRepId: C });
+      for (const uid of [A, C, ADMIN])
+        for (const day of [FRI, SAT, SUN, MON])
+          await setDoc(doc(f, `users/${uid}/salah/${day}`), { date: day, entries: { fajr: 'jamaat' }, updatedAt: Timestamp.now() });
+      await setDoc(doc(f, 'classes/class-1/meta/roster'), { names: { [A]: 'A', [B]: 'B' } });
+      await setDoc(doc(f, 'classes/class-1/meta/weekendRep'), { name: 'B' });
+    });
+  });
+
+  it("reads a classmate's Saturday and Sunday salah, one day at a time", async () => {
+    const f = db(B);
+    await assertSucceeds(getDoc(doc(f, `users/${A}/salah/${SAT}`)));
+    await assertSucceeds(getDoc(doc(f, `users/${A}/salah/${SUN}`)));
+    await assertSucceeds(getDoc(doc(f, `users/${A}/salah/2026-11-28`))); // not logged yet: still allowed
+    await assertSucceeds(getDoc(doc(f, 'classes/class-1/meta/roster')));
+  });
+
+  it('cannot read weekdays, list or query salah, or read anything else of theirs', async () => {
+    const f = db(B);
+    await assertFails(getDoc(doc(f, `users/${A}/salah/${FRI}`)));
+    await assertFails(getDoc(doc(f, `users/${A}/salah/${MON}`)));
+    await assertFails(getDocs(collection(f, `users/${A}/salah`)));
+    await assertFails(getDocs(query(collection(f, `users/${A}/salah`), where('date', '==', SAT))));
+    await assertFails(getDoc(doc(f, `users/${A}/logs/${daysAgo(1)}`)));
+    await assertFails(getDocs(collection(f, `users/${A}/mamoolaat`)));
+    await assertFails(getDoc(doc(f, `users/${A}`)));
+    await assertFails(setDoc(doc(f, `users/${A}/salah/${SAT}`), { date: SAT, entries: { fajr: 'missed' }, updatedAt: serverTimestamp() }));
+  });
+
+  it('only covers their own class, and never the admin', async () => {
+    const f = db(B);
+    await assertFails(getDoc(doc(f, `users/${C}/salah/${SAT}`)));
+    await assertFails(getDoc(doc(f, `users/${ADMIN}/salah/${SAT}`)));
+    await assertFails(getDoc(doc(f, 'classes/class-2/meta/roster')));
+    // another student of the class who is not the rep sees nothing
+    await assertFails(getDoc(doc(db(A), `users/${B}/salah/${SAT}`)));
+  });
+
+  it('loses access when moved to another class or deactivated', async () => {
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${B}`), { classId: 'class-2' }));
+    await assertFails(getDoc(doc(db(B), `users/${A}/salah/${SAT}`)));
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${B}`), { classId: 'class-1', status: 'inactive' }));
+    await assertFails(getDoc(doc(db(B), `users/${A}/salah/${SAT}`)));
+  });
+
+  it("the class's students can read the rep's name; other classes cannot", async () => {
+    await assertSucceeds(getDoc(doc(db(A), 'classes/class-1/meta/weekendRep')));
+    await assertFails(getDoc(doc(db(C), 'classes/class-1/meta/weekendRep')));
+    await assertFails(getDoc(doc(db(PENDING), 'classes/class-1/meta/weekendRep')));
+  });
+
+  it('the limited admin (or admin) chooses a student of that class; nobody else can', async () => {
+    const f = db(ASSIST);
+    await assertSucceeds(updateDoc(doc(f, 'classes/class-1'), { weekendRepId: A }));
+    await assertSucceeds(setDoc(doc(f, 'classes/class-1/meta/weekendRep'), { name: 'A' }));
+    await assertSucceeds(setDoc(doc(f, 'auditLog/w1'), { actorId: ASSIST, actorName: 'x', action: 'class.weekendRep', details: {}, createdAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(f, 'classes/class-1'), { weekendRepId: C })); // in another class
+    await assertFails(updateDoc(doc(f, 'classes/class-1'), { weekendRepId: PENDING }));
+    await assertFails(updateDoc(doc(f, 'classes/class-1'), { weekendRepId: ASSIST }));
+    await assertFails(updateDoc(doc(f, 'classes/class-1'), { weekendRepId: 'nobody' }));
+    await assertSucceeds(updateDoc(doc(f, 'classes/class-1'), { weekendRepId: null }));
+    await assertSucceeds(deleteDoc(doc(f, 'classes/class-1/meta/weekendRep')));
+    await assertSucceeds(updateDoc(doc(db(ADMIN), 'classes/class-1'), { weekendRepId: B }));
+    await assertFails(updateDoc(doc(db(A), 'classes/class-1'), { weekendRepId: A }));
+    await assertFails(setDoc(doc(db(A), 'classes/class-1/meta/weekendRep'), { name: 'A' }));
+    // the limited admin still can't read the salah themselves
+    await assertFails(getDoc(doc(f, `users/${A}/salah/${SAT}`)));
+  });
+
+  it('a class can still be renamed after its rep has left it', async () => {
+    await env.withSecurityRulesDisabled((ctx) => updateDoc(doc(ctx.firestore(), `users/${B}`), { classId: 'class-2' }));
+    await assertSucceeds(updateDoc(doc(db(ASSIST), 'classes/class-1'), { name: 'Mishkat' }));
   });
 });

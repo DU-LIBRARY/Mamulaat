@@ -93,7 +93,9 @@ await db.doc('settings/app').set({
   fajrReportTime: '08:00',
 });
 // Yusuf is the Fajr monitor of both classes: he sees the class's daily Fajr roll (Salah tab).
-await db.doc('classes/demo-class-a').set({ name: 'Class A — Girls', fajrMonitorId: 'demo-yusuf' });
+// Aisha is Class A's weekend salah representative: she sees the class's Saturday and Sunday salah.
+await db.doc('classes/demo-class-a').set({ name: 'Class A — Girls', fajrMonitorId: 'demo-yusuf', weekendRepId: 'demo-aisha' });
+await db.doc('classes/demo-class-a/meta/weekendRep').set({ name: 'Aisha Rahman' });
 await db.doc('classes/demo-class-b').set({ name: 'Class B — Boys', fajrMonitorId: 'demo-yusuf' });
 for (const c of ['demo-class-a', 'demo-class-b']) await db.doc(`classes/${c}/meta/monitor`).set({ name: 'Yusuf Ali' });
 

@@ -10,6 +10,7 @@ Mamūlāt is an offline-first PWA for students to track their daily **mamoolaat*
 - Signing out deletes the offline copy of the account's data from that phone or browser (it stays on the server). Deleting a student also removes their entries from class Fajr rolls and rosters. (Exception: a Fajr monitor, chosen by the admin on a class page and able to cover several classes, sees those students' Fajr status only.)
 - Salah tab: each of the five prayers marked Takbir / Jamaat / Qadha / Missed, stored in `users/{uid}/salah/{day}`.
 - Fajr roll: each student's Fajr status is also written to `classes/{classId}/fajrRoll/{day}` (own key only, must match their salah record). A class's Fajr monitor (any active student; one person can cover several classes) sees who missed, prayed qadha or hasn't logged, and the Notifications job pushes each monitor one summary each morning, with a line per class, at **Settings → Fajr report time**. It also keeps `classes/{classId}/meta/roster` (names of active students) current.
+- Weekend salah representative: on a class page, the admin or a limited admin can choose one student **of that class** as its weekend salah representative. Under Salah → Weekend salah they see every classmate's Saturday and Sunday salah on one sheet (laid out like the admin's weekly register, with class totals), ready to screenshot and send on. The rules let them fetch only Saturday and Sunday salah docs of active students in their own class, one day at a time; they lose access as soon as they leave the class or are deactivated. The class's students are told who it is (`classes/{classId}/meta/weekendRep`).
 - **Hosting: GitHub Pages** (built and published by a GitHub Action on every push to `main`). Firebase is the backend only: sign-in, Firestore, push messaging and the reminder function.
 - Stack: React + Vite + TypeScript, Tailwind v4, vite-plugin-pwa, Firebase JS SDK (modular), Firestore with a persistent offline cache, Google sign-in, standard Web Push, and a scheduled GitHub Action that sends the notifications.
 - **Access control lives entirely in `firestore.rules`.** The UI is never trusted. The rules are tested with the Emulator Suite (`tests/rules`).
@@ -89,7 +90,7 @@ Click **Sign in with Google**. The Auth emulator's popup lists the seeded accoun
 | Account | Role |
 |---|---|
 | `admin@demo.test` | admin |
-| `aisha@demo.test`, `yusuf@demo.test`, `مریم` (`maryam@demo.test`) | students, Class A |
+| `aisha@demo.test`, `yusuf@demo.test`, `مریم` (`maryam@demo.test`) | students, Class A. Aisha is its weekend salah representative |
 | `bilal@demo.test` | student, Class B. Hasn't logged for days, so he shows under "needs attention" |
 | `newstudent@demo.test` | pending (approve them as admin) |
 | `teacher@demo.test` | approved user with no class. Use this account to try **Transfer admin** |
@@ -115,6 +116,7 @@ The rules tests show that:
 - pending and inactive users are blocked from everything except their own basic profile;
 - a **limited admin** can approve, move, rename and deactivate students, run classes and settings and leave notes, but can't read or write anyone's mamoolaat, logs, salah or the Fajr roll, delete a student, hand out roles, or see the audit entries about those records;
 - class names can be read only by people who have signed up (waiting or approved), and the Fajr monitor's name only by that class;
+- a class's weekend salah representative can read their classmates' Saturday and Sunday salah only (never weekdays, other classes, the admin, logs or mamoolaat, and never by query), and only while they are active and in that class; staff can choose only a student of that class;
 - an approved student can't change their own name;
 - the admin can't create a second admin or demote themselves except through a handover;
 - after a handover, **the old admin loses all access**, can't take the role back, and the new admin has access;

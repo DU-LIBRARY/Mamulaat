@@ -10,7 +10,8 @@
 //  - Approved: tells a student when the admin approves them.
 //  - Fajr roll: each morning (settings.fajrReportTime) tells each Fajr monitor, for every class
 //    they look after (combined), how many missed Fajr (incl. qadha) or haven't logged it. Also keeps each such
-//    class's roster (names of its active students) current for the monitor's screen.
+//    class's roster (names of its active students) current for the monitor's screen, and for the
+//    screen of each class's weekend salah representative (whose name it also keeps current).
 //
 // Env:
 //   FIREBASE_SERVICE_ACCOUNT  service-account JSON key (the same secret the backend deploy uses)
@@ -246,15 +247,23 @@ for (const c of classes.docs) {
     if (!wantName && savedName !== null) await monitorRef.delete();
     if (c.get('fajrMonitorName') !== undefined) await c.ref.update({ fajrMonitorName: admin.firestore.FieldValue.delete() });
   }
-  if (!hasMonitor) continue;
+  // The weekend salah representative's name (meta/weekendRep, read by the class) follows renames.
+  const rep = c.get('weekendRepId');
+  const hasRep = typeof rep === 'string' && !!rep;
+  if (hasRep && !dry) {
+    const repName = String((typeof byId.get(rep)?.name === 'string' && byId.get(rep).name) || 'Weekend salah representative').slice(0, 200);
+    const repRef = db.doc(`classes/${c.id}/meta/weekendRep`);
+    if ((await repRef.get()).data()?.name !== repName) await repRef.set({ name: repName });
+  }
+  if (!hasMonitor && !hasRep) continue;
   const roster = Object.fromEntries(
     [...byId].filter(([, d]) => d.role === 'student' && d.status === 'active' && d.classId === c.id).map(([uid, d]) => [uid, typeof d.name === 'string' && d.name ? d.name : d.email ?? 'Unnamed']),
   );
-  // Keep the roster the monitor's screen reads in step (written only when it changed).
+  // Keep the roster the monitor's and the weekend rep's screens read in step (written only when it changed).
   const rosterRef = db.doc(`classes/${c.id}/meta/roster`);
   const saved = (await rosterRef.get()).data()?.names ?? {};
   if (!same(saved, roster) && !dry) await rosterRef.set({ names: roster });
-  if (byId.get(monitor)?.status !== 'active') continue;
+  if (!hasMonitor || byId.get(monitor)?.status !== 'active') continue;
   const roll = (await db.doc(`classes/${c.id}/fajrRoll/${today}`).get()).data();
   const list = byMonitor.get(monitor) ?? [];
   list.push({ name: typeof c.get('name') === 'string' ? c.get('name') : 'Class', report: fajrReport(roster, roll) });
