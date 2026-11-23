@@ -252,6 +252,37 @@ There's no server and no Cloud Functions, so this works on the free Spark plan. 
 - GitHub can start scheduled jobs a few minutes late. GitHub also pauses scheduled workflows in a repository with no commits for 60 days; re-enable it from the Actions tab.
 - `functions/` (the old Cloud Functions version) is no longer needed. Don't deploy both, or reminders could be sent twice.
 
+## 7b. Backups (weekly, encrypted)
+
+The free Firebase plan keeps no backups, so a GitHub Action (`.github/workflows/backup.yml`, `tools/push/backup.mjs`) takes one **every Monday at 02:37 UTC**.
+
+- **Encrypted before it's stored.** This repository is public, and anyone signed in to GitHub can download a public repository's artifacts, so each backup is sealed inside the job (AES-256-GCM, key from your passphrase). Without the passphrase the file is unreadable. The job's log shows only counts.
+- **What's in it:** everything (students, mamoolaat, logs, salah, notes, classes, Fajr rolls, settings, audit log), except phones' push keys. Each backup is complete on its own.
+- **Kept:** each weekly backup stays on its run for **90 days**, so there are always about 13 to choose from. Optionally a copy of every backup also goes to **Google Drive** and stays until you delete it (below).
+- **Cheap:** each backup builds on last week's and reads only what changed, so it stays far inside the free plan's daily reads. A student or class you delete is dropped from the next backup (older backups still have it for 90 days).
+
+**Setup (once):**
+1. Add a repository secret **`BACKUP_PASSPHRASE`**: a long random passphrase (at least 16 characters; 30+ random characters is better, e.g. from a password manager). **Save a copy in your password manager too.** Without it no backup can ever be opened, and nobody can recover it.
+2. `FIREBASE_SERVICE_ACCOUNT` (from §7) is reused.
+3. Test it: **Actions → Backup → Run workflow**. The run ends with "First (full) backup: N documents" and an artifact `mamulaat-backup-<date>.enc`.
+
+**Restoring** (works from an iPad): **Actions → Restore backup → Run workflow**, type `RESTORE`.
+- *run_id* empty = the latest backup, or paste the number from an older Backup run's URL.
+- *mode* `missing` (default, safe) only puts back documents that were deleted since the backup and never touches anything newer. `overwrite` replaces every document with its backup copy.
+- *only*: restore just one student (`users/<uid>`) or class (`classes/<classId>`). Use it when you can: a full `missing` restore reads every document once, which on a big database can use up a day's free reads.
+
+**Reading a backup on a computer:** download the artifact (or the Drive file), then
+`BACKUP_PASSPHRASE='…' node tools/push/backup.mjs decrypt mamulaat-backup-<date>.enc backup.json` (after `npm install` in `tools/push`).
+
+**Optional: a permanent copy in Google Drive.** The job can also put each encrypted backup in a **Mamulaat backups** folder in your Drive. It uses the narrow `drive.file` permission, so it can see only the files it creates, nothing else in your Drive.
+1. In the [Google Cloud console](https://console.cloud.google.com), pick your Firebase project. **APIs & Services → Library → Google Drive API → Enable.**
+2. **APIs & Services → OAuth consent screen:** user type *External*, fill in the app name and your email. Under **Audience**, add yourself as a test user, then press **Publish app** (*In production*). An app left in *Testing* stops working after 7 days. No Google review is needed for this permission.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID → Web application.** Under *Authorized redirect URIs* add `https://developers.google.com/oauthplayground`. Copy the client ID and secret.
+4. Open the [OAuth Playground](https://developers.google.com/oauthplayground). Tap the gear: tick **Use your own OAuth credentials**, paste the client ID and secret. In *Step 1*, type the scope `https://www.googleapis.com/auth/drive.file` → **Authorize APIs** → sign in with the Google account whose Drive should hold the backups (continue past "Google hasn't verified this app"). In *Step 2* tap **Exchange authorization code for tokens** and copy the **refresh token**.
+5. Add three repository secrets: **`GDRIVE_CLIENT_ID`**, **`GDRIVE_CLIENT_SECRET`**, **`GDRIVE_REFRESH_TOKEN`**. Run **Actions → Backup** once to check: the log ends "Copied … to Google Drive".
+
+Drive's copies pile up weekly (a few MB each); delete old ones whenever you like. To stop the Drive copy, delete the three secrets.
+
 ## 8. How it works
 
 **Data model (Firestore)**

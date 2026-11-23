@@ -1,0 +1,59 @@
+# Writes a backup taken by the "Backup" workflow back into Firestore (tools/push/backup.mjs).
+#
+# By default it only puts back documents that no longer exist (anything deleted since the
+# backup), and never overwrites newer entries. Leave "only" empty to restore everything in the
+# backup, or give a path such as users/<uid> to restore one student.
+name: Restore backup
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type RESTORE to write the backup into the live database'
+        required: true
+      run_id:
+        description: 'Backup run to restore from (the number in its URL). Empty = the latest backup'
+        required: false
+      mode:
+        description: 'missing = only put back what was deleted (safe); overwrite = replace every document with the backup copy'
+        type: choice
+        options: [missing, overwrite]
+        default: missing
+      only:
+        description: 'Optional: restore only this path, e.g. users/<uid> or classes/<classId>'
+        required: false
+concurrency:
+  group: backup
+  cancel-in-progress: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  restore:
+    if: ${{ github.event.inputs.confirm == 'RESTORE' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund --omit=dev
+        working-directory: tools/push
+      - name: Fetch the backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.inputs.run_id }}
+        run: |
+          id="$RUN_ID"
+          if [ -z "$id" ]; then
+            id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow backup.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          fi
+          if [ -z "$id" ]; then echo "::error::No backup found."; exit 1; fi
+          gh run download "$id" --repo "$GITHUB_REPOSITORY" -D backup
+      - name: Restore
+        run: node tools/push/backup.mjs restore "$(find backup -name '*.enc' | sort | tail -n 1)"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          RESTORE_MODE: ${{ github.event.inputs.mode }}
+          RESTORE_PREFIX: ${{ github.event.inputs.only }}
