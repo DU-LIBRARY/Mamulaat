@@ -30,10 +30,15 @@ function offsetLabel(tz: string) {
 }
 
 function PasswordSignIn() {
-  const { profile, hasPassword, setPassword, removePassword } = useActiveSession();
+  const { profile, user, hasPassword, setPassword, removePassword } = useActiveSession();
   const [pw, setPw] = useState('');
+  const [current, setCurrent] = useState('');
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Without Google on the account, the current password is the only way to prove it's them.
+  const hasGoogle = user.providerData.some((p) => p.providerId === 'google.com');
+  const needCurrent = hasPassword && !hasGoogle;
   const act = async (fn: () => Promise<void>, ok: string) => {
     setBusy(true);
     setMsg(null);
@@ -41,6 +46,7 @@ function PasswordSignIn() {
       await fn();
       setMsg({ ok: true, text: ok });
       setPw('');
+      setCurrent('');
     } catch (e) {
       setMsg({ ok: false, text: (e as Error).message });
     } finally {
@@ -49,27 +55,55 @@ function PasswordSignIn() {
   };
   return (
     <section className="card">
-      <h2 className="section-title">Password sign-in for this account</h2>
+      <h2 className="section-title">{hasPassword ? 'Change password' : 'Password sign-in for this account'}</h2>
       <p className="mb-3 text-sm text-slate-600">
-        Lets someone (e.g. the teacher) open this admin account without Google: on the sign-in screen they tap “Sign in with email &amp; password” and use{' '}
-        <b>{profile.email}</b> with the password below. Anyone with it has full admin access — remove it when no longer needed.
+        Sign in without Google: on the sign-in screen tap “Use email and password instead” and use <b>{profile.email}</b> with this password. Anyone with it has full admin access.
       </p>
       <p className="mb-2 text-sm">
         Status: {hasPassword ? <b className="text-brand-700">password sign-in is ON</b> : <b className="text-slate-500">off</b>}
       </p>
       <form
-        className="flex gap-2"
+        className="flex flex-col gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          act(() => setPassword(pw), hasPassword ? 'Password changed.' : 'Password sign-in turned on.');
+          act(() => setPassword(pw, hasPassword ? current : undefined), hasPassword ? 'Password changed.' : 'Password sign-in turned on.');
         }}
       >
-        <input className="input" type="text" aria-label="Password" placeholder={hasPassword ? 'New password' : 'Choose a password (6+ characters)'} minLength={6} value={pw} onChange={(e) => setPw(e.target.value)} autoCapitalize="off" autoCorrect="off" required />
-        <button className="btn-primary shrink-0 px-4" disabled={busy || pw.length < 6}>
-          {hasPassword ? 'Change' : 'Set'}
-        </button>
+        {hasPassword && (
+          <input
+            className="input"
+            type={show ? 'text' : 'password'}
+            aria-label="Current password"
+            placeholder={needCurrent ? 'Current password' : 'Current password (or confirm with Google)'}
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            required={needCurrent}
+          />
+        )}
+        <div className="flex gap-2">
+          <input
+            className="input"
+            type={show ? 'text' : 'password'}
+            aria-label={hasPassword ? 'New password' : 'Password'}
+            placeholder={hasPassword ? 'New password (6+ characters)' : 'Choose a password (6+ characters)'}
+            autoComplete="new-password"
+            minLength={6}
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            autoCapitalize="off"
+            autoCorrect="off"
+            required
+          />
+          <button className="btn-primary shrink-0 px-4" disabled={busy || pw.length < 6 || (needCurrent && !current)}>
+            {hasPassword ? 'Change' : 'Set'}
+          </button>
+        </div>
+        <label className="flex min-h-11 items-center gap-2 text-sm text-slate-600">
+          <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> Show passwords
+        </label>
       </form>
-      {hasPassword && (
+      {hasPassword && hasGoogle && (
         <button className="btn-secondary mt-2 w-full" disabled={busy} onClick={() => act(removePassword, 'Password sign-in removed.')}>
           Remove password sign-in
         </button>

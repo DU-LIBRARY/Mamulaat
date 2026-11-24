@@ -4,6 +4,7 @@ import {
   getRedirectResult,
   linkWithCredential,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   reauthenticateWithPopup,
   signInWithEmailAndPassword,
   unlink,
@@ -47,7 +48,8 @@ interface Session {
   signIn: () => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   /** Add (or change) an email + password sign-in on the signed-in account. */
-  setPassword: (password: string) => Promise<void>;
+  /** Set or change the password. Changing it needs the current one (or Google, if they have it). */
+  setPassword: (password: string, current?: string) => Promise<void>;
   removePassword: () => Promise<void>;
   hasPassword: boolean;
   signOut: () => Promise<void>;
@@ -196,18 +198,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     },
     hasPassword: !!user?.providerData.some((p) => p.providerId === 'password'),
-    async setPassword(password) {
+    async setPassword(password, current) {
       const u = auth.currentUser;
       if (!u?.email) throw new Error('This account has no email address.');
-      const run = () =>
-        u.providerData.some((p) => p.providerId === 'password')
-          ? updatePassword(u, password)
-          : linkWithCredential(u, EmailAuthProvider.credential(u.email!, password));
+      const has = u.providerData.some((p) => p.providerId === 'password');
+      const run = () => (has ? updatePassword(u, password) : linkWithCredential(u, EmailAuthProvider.credential(u.email!, password)));
       try {
+        // Changing it: check the current password first (this also counts as a recent sign-in).
+        if (has && current) await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, current));
         await run();
       } catch (e: unknown) {
         const code = (e as { code?: string }).code ?? '';
-        if (code === 'auth/requires-recent-login') {
+        if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
+          throw new Error('The current password is wrong.');
+        } else if (code === 'auth/too-many-requests') {
+          throw new Error('Too many tries. Wait a few minutes and try again.');
+        } else if (code === 'auth/requires-recent-login') {
+          if (!u.providerData.some((p) => p.providerId === 'google.com')) throw new Error('Enter your current password to change it.');
           await reauthenticateWithPopup(u, googleProvider);
           await run();
         } else if (code === 'auth/operation-not-allowed') {
