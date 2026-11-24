@@ -81,8 +81,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setProfile(undefined);
     hadProfile.current = false;
     let creating = false;
+    // True from creating the profile until the server has it. Until then the profile exists only
+    // on this device, so the rules (which look it up on the server) still refuse reads such as the
+    // class list, and a refused listener never retries. So don't show the app before then.
+    let awaitingCreate = false;
     return onSnapshot(
       userRef(user.uid),
+      { includeMetadataChanges: true },
       (snap) => {
         setProfileError(null);
         if (!snap.exists()) {
@@ -99,6 +104,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           }
           if (!creating) {
             creating = true;
+            awaitingCreate = true;
             createPendingProfile({
               uid: user.uid,
               email: user.email ?? '',
@@ -107,6 +113,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             }).catch((e) => setProfileError(e));
           }
           return;
+        }
+        if (awaitingCreate) {
+          if (snap.metadata.hasPendingWrites) return; // still only on this device
+          awaitingCreate = false;
         }
         const p = { id: snap.id, ...snap.data() } as UserProfile;
         hadProfile.current = true;

@@ -68,7 +68,12 @@ export function Signup({ profile }: { profile: UserProfile }) {
             {classes.loading ? (
               <Spinner label="Loading classes…" />
             ) : classes.error ? (
-              <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">Could not load the class list: {classes.error.message}</p>
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <p>Could not load the class list: {classes.error.message}</p>
+                <button type="button" className="btn-secondary mt-3" onClick={() => window.location.reload()}>
+                  Try again
+                </button>
+              </div>
             ) : classes.data.length === 0 ? (
               <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">No classes have been set up yet. Please ask your teacher, then try again.</p>
             ) : (
