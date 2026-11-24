@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses } from '../../hooks/useAdminData';
-import { applyTemplate, bulkUpdateUsers, createClass, deleteClass, moveMonitorNames, renameClass, sameMamoolName, saveClassTemplate } from '../../lib/db';
-import { EmptyState, Notice, Spinner } from '../../components/ui';
+import { syncClassMamoolaatFor, bulkUpdateUsers, createClass, deleteClass, moveMonitorNames, renameClass, sameMamoolName, saveClassTemplate } from '../../lib/db';
+import { EmptyState, Spinner } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
 import { useUndo } from '../../components/Undo';
 import { MamoolForm, SUGGESTIONS } from '../../components/MamoolEditor';
@@ -13,55 +13,34 @@ import { ClassSelect } from './Students';
 import type { ClassDoc, TemplateItem, UserProfile } from '../../types';
 
 /**
- * The class's standard mamoolaat. They are ADDED to each student's own list (never replacing it):
- * automatically when a student is approved into the class, or for everyone now with one tap.
- * Students keep their own items and can tidy any overlaps themselves.
+ * The class's mamoolaat. Saving the list applies it to everyone in the class (even if the class
+ * is empty for now, it's kept for whoever joins): students who join get it, and lose the class
+ * mamoolaat of the class they left. Their personal mamoolaat are never touched.
  */
 function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) {
   const { actor, today, limited } = useActiveSession();
-  const { confirm, notify } = useDialog();
+  const { notify } = useDialog();
   const undo = useUndo();
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const items = c.template ?? [];
-  const save = (next: TemplateItem[]) => saveClassTemplate(c.id, next, actor).catch((e) => notify('Could not save', (e as Error).message));
-  const add = (t: TemplateItem) => {
-    if (items.some((x) => sameMamoolName(x.name, t.name))) return void notify('Already in the template', `“${t.name}” is already in this class's list.`);
-    if (items.length >= 50) return void notify('Template is full', 'A class template can have up to 50 mamoolaat.');
-    save([...items, t]);
-  };
-
-  const applyNow = async () => {
-    if (!items.length || !members.length) return;
-    const ok = await confirm({
-      title: `Add ${items.length} mamool${items.length === 1 ? '' : 'aat'} to ${members.length} student${members.length === 1 ? '' : 's'}?`,
-      message: (
-        <>
-          <p>Each student keeps their own list. These are added at the end, starting today; anything a student already has with the same name is skipped.</p>
-          <p className="mt-2">Students see what was added in their Inbox and can remove or rename anything that overlaps.</p>
-        </>
-      ),
-      confirmLabel: 'Add to students',
-    });
-    if (!ok) return;
-    if (!navigator.onLine) return void notify('You are offline', 'Adding to students needs an internet connection.');
-    setBusy(true);
-    setResult(null);
+  const save = async (next: TemplateItem[]) => {
     try {
-      const r = await applyTemplate(members.map((m) => m.id), items, today, actor);
-      setResult(`Added ${r.added} mamool${r.added === 1 ? '' : 'aat'} in total${r.skipped ? `; skipped ${r.skipped} that students already had` : ''}.`);
+      await saveClassTemplate(c.id, next, actor);
+      // A limited admin can't write students' lists: each student's app applies it when it opens.
+      if (!limited && members.length) await syncClassMamoolaatFor(members.map((m) => m.id), { id: c.id, template: next }, today, actor);
     } catch (e) {
-      await notify('Could not finish', (e as Error).message);
-    } finally {
-      setBusy(false);
+      await notify('Could not save', (e as Error).message);
     }
+  };
+  const add = (t: TemplateItem) => {
+    if (items.some((x) => sameMamoolName(x.name, t.name))) return void notify('Already in the list', `“${t.name}” is already in this class's mamoolaat.`);
+    if (items.length >= 50) return void notify('List is full', 'A class can have up to 50 mamoolaat.');
+    void save([...items, t]);
   };
 
   return (
     <div className="mt-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
       <p className="text-sm text-slate-600">
-        Mamoolaat everyone in <b dir="auto">{c.name}</b> should do. They are <b>added</b> to each student's own list — when you approve someone into this class, or now with the button
-        below. Nothing a student already has is removed.
+        Mamoolaat everyone in <b dir="auto">{c.name}</b> does. Changes apply to the whole class straight away, and to anyone who joins later. Students keep their own mamoolaat.
       </p>
       {items.length === 0 ? (
         <EmptyState>No class mamoolaat yet.</EmptyState>
@@ -79,10 +58,10 @@ function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) 
               </span>
               <button
                 className="btn-ghost min-h-11 px-3 text-sm text-red-700"
-                aria-label={`Remove ${t.name} from the class template`}
+                aria-label={`Remove ${t.name} from the class mamoolaat`}
                 onClick={() => {
-                  save(items.filter((_, j) => j !== i));
-                  undo.undoable(`Removed “${t.name}” from the template`, () => save(items));
+                  void save(items.filter((_, j) => j !== i));
+                  undo.undoable(`Removed “${t.name}” from the class`, () => save(items));
                 }}
               >
                 Remove
@@ -91,7 +70,7 @@ function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) 
           ))}
         </ul>
       )}
-      <MamoolForm submitLabel="Add to template" onSubmit={add} />
+      <MamoolForm submitLabel="Add to class" onSubmit={add} />
       <div className="flex flex-wrap gap-2">
         {SUGGESTIONS.filter((x) => !items.some((t) => sameMamoolName(t.name, x.name))).map((x) => (
           <button key={x.name} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-slate-200 bg-surface px-3 text-sm text-slate-700 hover:border-brand-500" dir="auto" onClick={() => add(x)}>
@@ -100,20 +79,13 @@ function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) 
           </button>
         ))}
       </div>
-      {items.length > 0 && limited && <Notice>Adding these to students' own lists is done by the admin, since it touches their mamoolaat.</Notice>}
-      {items.length > 0 && !limited && (
-        <button className="btn-primary" disabled={busy || !members.length} onClick={applyNow}>
-          {busy ? 'Adding…' : members.length ? `Add to all ${members.length} student${members.length === 1 ? '' : 's'} now` : 'No active students in this class yet'}
-        </button>
-      )}
-      {result && <Notice tone="info">{result}</Notice>}
     </div>
   );
 }
 
 /** Inline panel: move everyone out (optional), then delete the class. */
 function DeletePanel({ c, classes, related, done }: { c: ClassDoc; classes: ClassDoc[]; related: UserProfile[]; done: () => void }) {
-  const { actor } = useActiveSession();
+  const { actor, today, limited } = useActiveSession();
   const { notify } = useDialog();
   const [target, setTarget] = useState('');
   const [busy, setBusy] = useState(false);
@@ -125,6 +97,7 @@ function DeletePanel({ c, classes, related, done }: { c: ClassDoc; classes: Clas
     setBusy(true);
     try {
       await deleteClass(c.id, actor, related, target || null);
+      if (!limited) await syncClassMamoolaatFor(inClass.filter((u) => u.role === 'student').map((u) => u.id), classes.find((x) => x.id === target) ?? null, today, actor);
       done();
     } catch (e) {
       await notify('Could not delete the class', (e as Error).message);
@@ -157,7 +130,7 @@ function DeletePanel({ c, classes, related, done }: { c: ClassDoc; classes: Clas
 }
 
 export function Classes() {
-  const { actor } = useActiveSession();
+  const { actor, today, limited } = useActiveSession();
   const classes = useClasses();
   const users = useAllUsers();
   const { notify } = useDialog();
@@ -300,7 +273,9 @@ export function Classes() {
                     onClick={async () => {
                       setBusy(true);
                       try {
-                        await bulkUpdateUsers(related.filter((u) => u.classId === c.id).map((u) => u.id), { kind: 'move', classId: moveTo }, actor);
+                        const moving = related.filter((u) => u.classId === c.id).map((u) => u.id);
+                        await bulkUpdateUsers(moving, { kind: 'move', classId: moveTo }, actor);
+                        if (!limited) await syncClassMamoolaatFor(related.filter((u) => moving.includes(u.id) && u.role === 'student').map((u) => u.id), classes.data.find((x) => x.id === moveTo) ?? null, today, actor);
                         setMoveFrom(null);
                       } catch (e) {
                         await notify('Could not move students', (e as Error).message);

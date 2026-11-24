@@ -21,6 +21,7 @@ import { DEFAULT_TIMEZONE, utcOffsetMinutes } from './dates';
 import { fire, track } from './sync';
 import { noteWrite } from './unsynced';
 import { sameMamoolName } from './names';
+import { planClassMamoolaat } from './classMamool';
 import { rollStatusOf } from './salah';
 
 export { sameMamoolName };
@@ -584,31 +585,25 @@ export function saveClassTemplate(classId: string, template: TemplateItem[], act
 }
 
 /**
- * Add the class template to each student's OWN list. Nothing is replaced or removed:
- * items the student already has (same name) are skipped, the rest go at the end of their list,
- * and each addition is recorded so the student sees it and can tidy up any overlaps.
+ * Bring one student's class mamoolaat in step with their class (see planClassMamoolaat):
+ * the class's list is added or updated, other classes' are removed, personal ones are kept.
+ * The student's own app runs this whenever it opens; the admin runs it straight away when they
+ * change a class's list or move someone, so it shows at once. Returns the number of changes.
  */
-export async function applyTemplate(uids: string[], template: TemplateItem[], today: string, actor: Actor) {
-  let added = 0;
-  let skipped = 0;
-  for (const uid of uids) {
-    const snap = await getDocs(mamoolaatCol(uid));
-    const existing = snap.docs.map((d) => d.data() as Mamool);
-    let order = existing.reduce((mx, m) => Math.max(mx, (m.order ?? 0) + 1), 0);
-    const toAdd = template.filter((t) => {
-      const dup = existing.some((m) => m.active && sameMamoolName(m.name, t.name));
-      if (dup) skipped++;
-      return !dup;
-    });
-    if (!toAdd.length) continue;
-    const batch = writeBatch(db);
-    for (const t of toAdd) {
-      const ref = doc(mamoolaatCol(uid));
-      const m = cleanInput(t);
+export function syncClassMamoolaat(uid: string, existing: Mamool[], cls: Pick<ClassDoc, 'id' | 'template'> | null, today: string, actor: Actor) {
+  const ops = planClassMamoolaat(existing, cls?.template ?? null, cls?.id ?? null, uid, today);
+  if (!ops.length) return { count: 0, done: Promise.resolve() };
+  const batch = writeBatch(db);
+  const byAdmin = actor.uid !== uid;
+  for (const op of ops) {
+    if (op.kind === 'add') {
+      const ref = doc(mamoolaatCol(uid), op.id);
+      const m = cleanInput(op.input);
       batch.set(ref, {
         ...m,
         active: true,
-        order: order++,
+        order: op.order,
+        fromClass: cls!.id,
         createdBy: actor.uid,
         createdAt: serverTimestamp(),
         createdDate: today,
@@ -616,12 +611,32 @@ export async function applyTemplate(uids: string[], template: TemplateItem[], to
         updatedBy: actor.uid,
         updatedAt: serverTimestamp(),
       });
-      recordChange(batch, uid, actor, 'added', ref.id, m.name, null, m);
-      added++;
+      if (byAdmin) recordChange(batch, uid, actor, 'added', op.id, m.name, null, m);
+    } else if (op.kind === 'update') {
+      batch.update(doc(mamoolaatCol(uid), op.m.id), { ...op.patch, updatedBy: actor.uid, updatedAt: serverTimestamp() });
+      const after = { name: op.patch.name ?? op.m.name, target: op.patch.target ?? op.m.target, unit: op.patch.unit ?? op.m.unit };
+      const changed = op.restored || after.name !== op.m.name || after.target !== op.m.target || after.unit !== op.m.unit;
+      if (byAdmin && changed)
+        recordChange(batch, uid, actor, op.restored ? 'added' : 'updated', op.m.id, after.name, op.restored ? null : { name: op.m.name, target: op.m.target, unit: op.m.unit }, after);
+    } else {
+      batch.update(doc(mamoolaatCol(uid), op.m.id), { active: false, removedDate: today, updatedBy: actor.uid, updatedAt: serverTimestamp() });
+      if (byAdmin) recordChange(batch, uid, actor, 'removed', op.m.id, op.m.name, { name: op.m.name, target: op.m.target, unit: op.m.unit }, null);
     }
-    await track(batch.commit());
   }
-  return { added, skipped };
+  return { count: ops.length, done: track(batch.commit()).then(() => undefined) };
+}
+
+/** The admin's side of the above, for several students: reads each one's list first. */
+export async function syncClassMamoolaatFor(uids: string[], cls: Pick<ClassDoc, 'id' | 'template'> | null, today: string, actor: Actor) {
+  let changed = 0;
+  for (const uid of uids) {
+    const snap = await getDocs(mamoolaatCol(uid));
+    const existing = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Mamool);
+    const r = syncClassMamoolaat(uid, existing, cls, today, actor);
+    changed += r.count;
+    await r.done;
+  }
+  return changed;
 }
 
 // ---------- one-off reads for exports ----------

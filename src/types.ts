@@ -73,6 +73,12 @@ export interface Mamool {
   gaps?: { from: string; to: string }[];
   updatedBy: string;
   updatedAt?: Timestamp;
+  /**
+   * Set on mamoolaat that come from a class's mamoolaat (the class id). They follow the class:
+   * added when the student joins it, changed with it, removed when they leave. Personal
+   * mamoolaat (no fromClass) are never touched by a class change.
+   */
+  fromClass?: string | null;
 }
 
 export type EntryStatus = 'done' | 'partial' | 'missed';

@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
 import { useAllUsers, useClasses, useStudentsRange } from '../../hooks/useAdminData';
-import { applyTemplate, approveUser, bulkUpdateUsers, deleteStudent, reactivateUser, rejectUser, type Actor, type BulkAction } from '../../lib/db';
+import { syncClassMamoolaatFor, approveUser, bulkUpdateUsers, deleteStudent, reactivateUser, rejectUser, type Actor, type BulkAction } from '../../lib/db';
 import { BlankAvatar, EmptyState, Spinner, cellClass } from '../../components/ui';
 import { useDialog } from '../../components/Dialog';
 import { IconCheck, IconChevronRight } from '../../components/icons';
@@ -11,12 +11,12 @@ import { displayName } from '../../lib/display';
 import { daysAgoLabel, diffDays, todayIn, weekDays, weekStartOf } from '../../lib/dates';
 import { periodCompletion, pct } from '../../lib/scoring';
 
-/** Approve, then add the class template (if any) to the student's own list. */
+/** Approve, then give the students the class's mamoolaat (and drop any other class's). */
 async function approveInto(uids: string[], cls: ClassDoc | undefined, classId: string, today: string, actor: Actor, limited = false) {
   if (uids.length === 1) await approveUser(uids[0], classId, actor);
   else await bulkUpdateUsers(uids, { kind: 'approve', classId }, actor);
-  // A limited admin can't touch students' own lists: the admin adds the class mamoolaat from Classes.
-  if (cls?.template?.length && !limited) await applyTemplate(uids, cls.template, today, actor);
+  // A limited admin can't touch students' own lists: each student's app does it when it next opens.
+  if (cls && !limited) await syncClassMamoolaatFor(uids, cls, today, actor);
 }
 
 /** "Approve all into the class they asked for", grouped by class, with one confirmation. */
@@ -234,6 +234,7 @@ function BulkBar({ selected, users, classes, actor, clear, today }: { selected: 
     try {
       if (action.kind === 'approve') await approveInto(uids, classes.find((c) => c.id === action.classId), action.classId, today, actor, limited);
       else await bulkUpdateUsers(uids, action, actor);
+      if (action.kind === 'move' && !limited) await syncClassMamoolaatFor(uids, classes.find((c) => c.id === action.classId) ?? null, today, actor);
       clear();
     } catch (e) {
       await notify('Could not finish', (e as Error).message);

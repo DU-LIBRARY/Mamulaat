@@ -221,7 +221,7 @@ A **limited admin** (role `assistant` in `users/{uid}`) helps run the app withou
 | Settings, notes to students (and to their phones), reminders, sign-up notifications | yes | yes |
 | Audit log | all of it | only entries about the above |
 | See or edit anyone's mamoolaat, logs, salah, Fajr roll, Overview | yes | **no** |
-| Add the class mamoolaat to students' own lists | yes | no (it touches their lists) |
+| Class mamoolaat reach students' lists | straight away | when each student next opens the app |
 | Delete a student, make limited admins, transfer the admin role | yes | no |
 
 **To make one:** the person signs in and is approved like anyone else. Then the admin opens them under
@@ -312,7 +312,7 @@ Drive's copies pile up weekly (a few MB each); delete old ones whenever you like
 
 **Admin controls.** The admin can: edit any student's log for any day (Student → *Day* tab; locked days too; the log is stamped `editedBy` and audited, and the student sees a note); rename a student, change class/status (including back to pending); hard-delete a mamool, a day's log, a comment or a change record; rename classes, move all students out of a class, or delete a class and move its students in one step (pending sign-ups that asked for it are asked to pick another); and select several people on the Students page to approve, move, deactivate, reactivate or delete in bulk. Restoring a removed mamool does not count the days it was removed as missed.
 
-**Class mamoolaat (templates).** Admin → Classes → *Mamoolaat* sets a standard list for a class. It is **added** to each student's own list, never replacing it: automatically when a student is approved into that class, or for the whole class with *Add to all students now*. Anything a student already has with the same name is skipped; the rest are recorded as changes the student sees in their Inbox. Students keep their own items and can remove, rename or reorder anything that overlaps (likely doubles are pointed out under *My mamoolaat*).
+**Class mamoolaat.** Admin → Classes → *Mamoolaat* sets a class's list (it can be set on an empty class too). It applies to the whole class straight away and to anyone who joins later (approved into it or moved there). Each class mamool on a student's list is marked with `fromClass`; when a student moves class, the old class's ones are removed (soft, so history stays) and the new class's are added. Mamoolaat a student added themselves are never touched, and if they already have one with the same name the class one isn't added twice. Class mamoolaat can't be edited or removed by the student, only on the class. A limited admin can change the list too: each student's app applies it when it next opens (the student's app always brings its class mamoolaat in step, which also covers changes made while offline).
 
 **The admin's own mamool.** The admin's landing page (**Mine**, `/admin`) is their own mamool: today's checklist at the top to mark it, and a small **Add / edit** tab underneath to add, edit, reorder or remove items. It's stored under the admin's own `users/{uid}` like a student's. The admin's own log writes carry their `editedBy` stamp (the rules require it for every admin log write) and are not audited. The class overview moved to **Overview** (`/admin/overview`).
 

@@ -1,6 +1,6 @@
 import type { Mamool } from '../types';
 
-const norm = (x: string) => x.normalize('NFKC').toLowerCase().replace(/[\s\p{P}]+/gu, '');
+export const norm = (x: string) => x.normalize('NFKC').toLowerCase().replace(/[\s\p{P}]+/gu, '');
 
 /** Names are compared loosely so "Tasbeeh" and " tasbeeh. " count as the same mamool. */
 export function sameMamoolName(a: string, b: string) {

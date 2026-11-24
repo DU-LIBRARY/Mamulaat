@@ -20,7 +20,7 @@ import { ExportBar } from '../../components/ExportBar';
 import { downloadCsv } from '../../lib/csv';
 import { fileSafe, salahRows, studentDetailRows } from '../../lib/exports';
 import { getDocs } from 'firebase/firestore';
-import { addComment, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, reactivateUser, rejectUser, renameUser, setAssistant, setPending } from '../../lib/db';
+import { addComment, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, syncClassMamoolaatFor, reactivateUser, rejectUser, renameUser, setAssistant, setPending } from '../../lib/db';
 import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
 import { bestStreak, currentStreak, dayStats, pct, scheduledFor } from '../../lib/scoring';
@@ -366,7 +366,7 @@ export function StudentDetail() {
           <div className="card flex flex-col gap-3">
             <div>
               <span className="label">Class</span>
-              <ClassSelect label="Class" classes={classes.data} value={student.classId ?? ''} onChange={(v) => v && run(moveUser(uid, v, actor))} placeholder="No class" />
+              <ClassSelect label="Class" classes={classes.data} value={student.classId ?? ''} onChange={(v) => v && run(moveUser(uid, v, actor).then(() => (limited || student.role !== 'student' ? undefined : syncClassMamoolaatFor([uid], classes.data.find((c) => c.id === v) ?? null, today, actor))))} placeholder="No class" />
             </div>
             <div>
               <label className="label" htmlFor="sstatus">

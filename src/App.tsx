@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { configMissing } from './firebase';
 import { SessionProvider, useSession } from './hooks/useSession';
@@ -20,7 +20,9 @@ import { ManageMamoolaat } from './pages/student/ManageMamoolaat';
 import { Me } from './pages/student/Me';
 import { DialogProvider } from './components/Dialog';
 import { UndoProvider } from './components/Undo';
-import { syncFajrRoll, touchLastSeen, updateOwnProfile } from './lib/db';
+import { classesCol, syncClassMamoolaat, syncFajrRoll, touchLastSeen, updateOwnProfile } from './lib/db';
+import { doc } from 'firebase/firestore';
+import { useDocData } from './hooks/useFirestore';
 import { checkLeftovers } from './lib/unsynced';
 import { isDayEditable } from './lib/dates';
 import { UpdatePrompt } from './components/UpdatePrompt';
@@ -28,7 +30,7 @@ import { onForegroundMessage, refreshToken } from './lib/messaging';
 import { IconInbox, IconLog, IconPerson, IconSalah, IconWeek } from './components/icons';
 import { Toast } from './components/Toast';
 import { NotificationSetup } from './components/NotificationSetup';
-import type { SalahStatus } from './types';
+import type { ClassDoc, SalahStatus } from './types';
 
 // The teacher's side loads only for the teacher, so students never parse it.
 const AdminRoutes = lazy(() => import('./AdminRoutes'));
@@ -85,6 +87,21 @@ function StudentRoutes() {
     localStorage.setItem(k, mark);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, classId, today, salahReady, data.salah.size]);
+
+  // Class mamoolaat follow the class: whatever the class's list is now, this student has it, and
+  // not the class mamoolaat of a class they've left. Their own mamoolaat are never touched.
+  // (The admin does this too when they change things; this covers a limited admin's changes and
+  // anything missed while offline.)
+  const cls = useDocData<ClassDoc>(classId ? doc(classesCol(), classId) : null, `class:${classId ?? ''}`);
+  const lastSync = useRef('');
+  useEffect(() => {
+    if (data.loading || (classId && !cls.data)) return; // wait for both (and never act on a class that failed to load)
+    const key = JSON.stringify([classId, cls.data?.template ?? null, data.all.map((m) => [m.id, m.active, m.fromClass, m.name, m.target, m.unit])]);
+    if (lastSync.current === key) return;
+    lastSync.current = key;
+    syncClassMamoolaat(uid, data.all, classId ? { id: classId, template: cls.data?.template } : null, today, { uid, name: profile!.name ?? '' }).done.catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, classId, cls.data, data.loading, data.all, today]);
 
   if (data.loading && !data.all.length) return <Splash status="Loading your mamoolaat…" />;
   if (!profile!.onboarded) return <Onboarding />;

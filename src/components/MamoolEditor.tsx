@@ -133,7 +133,11 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                     </div>
                     <div className="text-sm text-slate-500" dir="auto">
                       {targetLabel(m)}
-                      {m.createdBy !== uid && <span className="chip ml-2 bg-gold-50 text-gold-900">Added by {byAdmin ? 'admin' : 'your teacher'}</span>}
+                      {m.fromClass ? (
+                        <span className="chip ml-2 bg-gold-50 text-gold-900">Class</span>
+                      ) : (
+                        m.createdBy !== uid && <span className="chip ml-2 bg-gold-50 text-gold-900">Added by {byAdmin ? 'admin' : 'your teacher'}</span>
+                      )}
                     </div>
                     {overlaps.has(m.id) && (
                       <div className="mt-1 text-xs text-amber-800" dir="auto">
@@ -141,19 +145,24 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                       </div>
                     )}
                   </div>
-                  <button className="btn-secondary px-3" onClick={() => setEditing(m.id)} aria-label={`Edit ${m.name}`}>
-                    Edit
-                  </button>
-                  <button
-                    className="btn-ghost px-3 text-red-700 hover:bg-red-50 hover:text-red-800"
-                    aria-label={`Remove ${m.name}`}
-                    onClick={() => {
-                      removeMamool(uid, m, today, actor);
-                      undo.undoable(`Removed “${m.name}”`, () => restoreMamool(uid, { ...m, active: false, removedDate: today }, today, actor));
-                    }}
-                  >
-                    Remove
-                  </button>
+                  {/* Class mamoolaat are changed for the whole class, under Classes. */}
+                  {!m.fromClass && (
+                    <>
+                      <button className="btn-secondary px-3" onClick={() => setEditing(m.id)} aria-label={`Edit ${m.name}`}>
+                        Edit
+                      </button>
+                      <button
+                        className="btn-ghost px-3 text-red-700 hover:bg-red-50 hover:text-red-800"
+                        aria-label={`Remove ${m.name}`}
+                        onClick={() => {
+                          removeMamool(uid, m, today, actor);
+                          undo.undoable(`Removed “${m.name}”`, () => restoreMamool(uid, { ...m, active: false, removedDate: today }, today, actor));
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </li>
@@ -188,9 +197,11 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                   {m.name} – {targetLabel(m)}
                 </span>
                 <span className="flex shrink-0 gap-1">
-                  <button className="btn-ghost text-sm" onClick={() => restoreMamool(uid, m, today, actor)}>
-                    Restore
-                  </button>
+                  {!m.fromClass && (
+                    <button className="btn-ghost text-sm" onClick={() => restoreMamool(uid, m, today, actor)}>
+                      Restore
+                    </button>
+                  )}
                   {byAdmin && (
                     <button
                       className="btn-ghost text-sm text-red-700 hover:bg-red-50"
