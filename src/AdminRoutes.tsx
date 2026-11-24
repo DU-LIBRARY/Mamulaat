@@ -4,6 +4,7 @@ import { useSession } from './hooks/useSession';
 import { useAllUsers } from './hooks/useAdminData';
 import { AdminLayout } from './components/AdminLayout';
 import { Toast } from './components/Toast';
+import { NotificationSetup } from './components/NotificationSetup';
 import { refreshToken, onForegroundMessage } from './lib/messaging';
 import { updateOwnProfile } from './lib/db';
 import { Overview } from './pages/admin/Overview';
@@ -34,20 +35,22 @@ export default function AdminRoutes() {
     return () => unsub?.();
   }, [uid]); // once per sign-in
   return (
-    <AdminLayout pending={pending} limited={limited}>
-      {toast && <Toast text={toast} onClose={() => setToast(null)} />}
-      <Routes>
-        {!limited && <Route path="/admin" element={<MyMamool />} />}
-        {!limited && <Route path="/admin/overview" element={<Overview />} />}
-        <Route path="/admin/classes" element={<Classes />} />
-        <Route path="/admin/class/:classId" element={<ClassView />} />
-        <Route path="/admin/students" element={<Students />} />
-        <Route path="/admin/student/:uid" element={<StudentDetail />} />
-        {limited && <Route path="/admin/remind" element={<Remind />} />}
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/admin/audit" element={<Audit />} />
-        <Route path="*" element={<Navigate to={limited ? '/admin/students' : '/admin'} replace />} />
-      </Routes>
-    </AdminLayout>
+    <NotificationSetup profile={profile!} purpose="You’ll get a notification on this device when a new student signs up and is waiting for approval.">
+      <AdminLayout pending={pending} limited={limited}>
+        {toast && <Toast text={toast} onClose={() => setToast(null)} />}
+        <Routes>
+          {!limited && <Route path="/admin" element={<MyMamool />} />}
+          {!limited && <Route path="/admin/overview" element={<Overview />} />}
+          <Route path="/admin/classes" element={<Classes />} />
+          <Route path="/admin/class/:classId" element={<ClassView />} />
+          <Route path="/admin/students" element={<Students />} />
+          <Route path="/admin/student/:uid" element={<StudentDetail />} />
+          {limited && <Route path="/admin/remind" element={<Remind />} />}
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/admin/audit" element={<Audit />} />
+          <Route path="*" element={<Navigate to={limited ? '/admin/students' : '/admin'} replace />} />
+        </Routes>
+      </AdminLayout>
+    </NotificationSetup>
   );
 }

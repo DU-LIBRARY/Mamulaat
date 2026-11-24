@@ -3,7 +3,6 @@ import { useSession } from '../hooks/useSession';
 import { useClasses } from '../hooks/useAdminData';
 import { completeSignup } from '../lib/db';
 import { FullScreen, Spinner } from '../components/ui';
-import { PrivacyNote } from '../components/PrivacyNote';
 import type { UserProfile } from '../types';
 
 /** Shown once to a new student: enter your name and pick your class, then wait for approval. */
@@ -88,9 +87,6 @@ export function Signup({ profile }: { profile: UserProfile }) {
             {busy ? 'Saving…' : 'Request access'}
           </button>
         </form>
-        <div className="mt-4">
-          <PrivacyNote compact />
-        </div>
         <div className="mt-4 text-center">
           <button className="btn-ghost" onClick={() => signOut()}>
             Sign out

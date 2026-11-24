@@ -2,7 +2,6 @@ import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
 import { MamoolEditor } from '../../components/MamoolEditor';
 import { updateOwnProfile } from '../../lib/db';
-import { PrivacyNote } from '../../components/PrivacyNote';
 
 export function Onboarding() {
   const { profile, today, actor } = useActiveSession();
@@ -18,9 +17,6 @@ export function Onboarding() {
       <button className="btn-primary mt-6 w-full" disabled={active.length === 0} onClick={() => updateOwnProfile(profile.id, { onboarded: true })}>
         {active.length ? `Start with ${active.length} mamool${active.length > 1 ? 'aat' : ''}` : 'Add at least one mamool'}
       </button>
-      <div className="mt-6">
-        <PrivacyNote compact />
-      </div>
     </div>
   );
 }

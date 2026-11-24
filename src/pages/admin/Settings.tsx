@@ -82,7 +82,7 @@ function PasswordSignIn() {
 /** Lets the admin get a push on this device when someone finishes signing up. */
 function AdminNotifications() {
   const { profile } = useActiveSession();
-  const { on, busy, msg, support, toggle } = useDeviceNotifications(profile);
+  const { on, busy, msg, support, toggle, test } = useDeviceNotifications(profile);
   return (
     <section className="card">
       <h2 className="section-title">Notifications</h2>
@@ -102,6 +102,11 @@ function AdminNotifications() {
           <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-300 ease-calm ${on ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>
       </div>
+      {on && (
+        <button type="button" className="btn-secondary mt-3 w-full" onClick={test}>
+          Send a test notification
+        </button>
+      )}
       {msg && (
         <div className="mt-3">
           <Notice>{msg}</Notice>

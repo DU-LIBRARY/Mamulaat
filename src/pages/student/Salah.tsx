@@ -1,44 +1,22 @@
-import { doc, query, where } from 'firebase/firestore';
+import { query, where } from 'firebase/firestore';
 import { useParams } from 'react-router-dom';
-import { db } from '../../firebase';
 import { useActiveSession } from '../../hooks/useSession';
 import { useLoadFrom, useMyData } from '../../hooks/useStudentData';
-import { useCollectionData, useDocData } from '../../hooks/useFirestore';
+import { useCollectionData } from '../../hooks/useFirestore';
 import { DayChips } from '../../components/DayChips';
 import { DateLine } from '../../components/DateLine';
 import { SalahChecklist } from '../../components/SalahChecklist';
 import { Notice, ProgressRing } from '../../components/ui';
 import { Row, Rows } from '../../components/quiet';
-import { IconInfo, IconPencil } from '../../components/icons';
+import { IconPencil } from '../../components/icons';
 import { LockedDayNotice, PendingSyncNotice, LostEntriesNotice } from '../../components/LockNotices';
 import { isDayEditable, isValidYmd, lastEditableDay } from '../../lib/dates';
-import { classesCol, saveSalah, saveSalahEntries, monitorRef, weekendRepRef } from '../../lib/db';
+import { classesCol, saveSalah, saveSalahEntries } from '../../lib/db';
 import { salahStats } from '../../lib/salah';
 import { SALAH_NAMES, type ClassDoc, type SalahName, type SalahStatus } from '../../types';
 import { Check } from '@phosphor-icons/react';
 import { Cta } from '../../components/quiet';
 import { useUndo } from '../../components/Undo';
-
-/** The student's class doc (name and Fajr monitor), or null when they have no class. */
-export function useMyClass() {
-  const { profile } = useActiveSession();
-  const id = profile.classId;
-  return useDocData<ClassDoc>(id ? doc(db, 'classes', id) : null, `class:${id ?? ''}`).data;
-}
-
-/** The name of the Fajr monitor of the student's own class (kept where only that class can read it). */
-export function useMyMonitorName(wanted: boolean) {
-  const { profile } = useActiveSession();
-  const id = wanted ? profile.classId : null;
-  return useDocData<{ name?: string }>(id ? monitorRef(id) : null, `monitor:${id ?? ''}`).data?.name ?? null;
-}
-
-/** The name of the weekend salah representative of the student's own class. */
-export function useMyWeekendRepName(wanted: boolean) {
-  const { profile } = useActiveSession();
-  const id = wanted ? profile.classId : null;
-  return useDocData<{ name?: string }>(id ? weekendRepRef(id) : null, `weekendRep:${id ?? ''}`).data?.name ?? null;
-}
 
 /** The classes whose Fajr roll this student may see (the admin made them its Fajr monitor). */
 export function useMonitoredClasses() {
@@ -48,24 +26,27 @@ export function useMonitoredClasses() {
   return { ...r, data };
 }
 
+/** The classes whose weekend salah this student may see (the staff made them its weekend rep). */
+export function useRepClasses() {
+  const { profile } = useActiveSession();
+  const r = useCollectionData<ClassDoc>(query(classesCol(), where('weekendRepId', '==', profile.id)), `repOf:${profile.id}`);
+  const data = [...r.data].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  return { ...r, data };
+}
+
 export function Salah() {
   const { profile, today, settings } = useActiveSession();
   const data = useMyData();
   const { salah } = data;
-  const cls = useMyClass();
   const monitored = useMonitoredClasses().data;
+  const repOf = useRepClasses().data;
   const params = useParams();
   const day = params.day && isValidYmd(params.day) && params.day <= today ? params.day : today;
   useLoadFrom(data, day);
   const editable = isDayEditable(day, today, settings.backfillDays);
   const record = salah.get(day);
   const s = salahStats(record);
-  const monitorId = cls?.fajrMonitorId ?? null;
   const isMonitor = monitored.length > 0;
-  const monitorName = useMyMonitorName(!!monitorId && monitorId !== profile.id);
-  const repId = cls?.id === profile.classId ? (cls?.weekendRepId ?? null) : null;
-  const isRep = repId === profile.id;
-  const repName = useMyWeekendRepName(!!repId && !isRep);
   const owner = { uid: profile.id, name: profile.name ?? profile.email, classId: profile.classId };
   const undo = useUndo();
   // Only the salah still empty become Jamaat; anything already marked is kept.
@@ -124,28 +105,14 @@ export function Salah() {
         </Rows>
       )}
 
-      {isRep && cls && (
+      {repOf.length > 0 && (
         <Rows className={isMonitor ? '' : 'mt-2'}>
-          <Row to="/salah/weekend" sub="Everyone’s Saturday and Sunday salah on one sheet, to screenshot and send">
-            Weekend salah · {cls.name}
-          </Row>
+          {repOf.map((c) => (
+            <Row key={c.id} to={`/salah/weekend?class=${c.id}`} sub="Everyone’s Saturday and Sunday salah on one sheet, to screenshot and send">
+              Weekend salah · {c.name}
+            </Row>
+          ))}
         </Rows>
-      )}
-
-      {isMonitor && (
-        <Notice icon={<IconInfo size={18} />}>
-          As Fajr monitor, you can see each student’s Fajr status in the classes you look after. Nothing else of theirs is shared with you.
-        </Notice>
-      )}
-      {monitorId && monitorId !== profile.id && (
-        <Notice icon={<IconInfo size={18} />}>
-          Your Fajr status is shared with your class’s Fajr monitor{monitorName ? `, ${monitorName}` : ''}. {repId && !isRep ? 'Your mamoolaat stay between you and your teacher.' : 'Your other salah and your mamoolaat stay between you and your teacher.'}
-        </Notice>
-      )}
-      {repId && !isRep && (
-        <Notice icon={<IconInfo size={18} />}>
-          Your Saturday and Sunday salah are shared with your class’s weekend salah representative{repName ? `, ${repName}` : ''}, who passes the class’s weekend record on. Your weekday salah and your mamoolaat are not shared.
-        </Notice>
       )}
     </div>
   );

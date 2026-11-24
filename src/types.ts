@@ -42,7 +42,7 @@ export interface ClassDoc {
   /** Old place for the monitor's name; now kept in classes/{id}/meta/monitor. */
   fajrMonitorName?: string | null;
   /**
-   * A student of this class who sees the whole class's salah for Saturdays and Sundays (set by
+   * Any active student (in any class) who sees this class's salah for Saturdays and Sundays (set by
    * the admin or a limited admin). Their name is kept in classes/{id}/meta/weekendRep.
    */
   weekendRepId?: string | null;

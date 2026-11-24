@@ -27,6 +27,7 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { onForegroundMessage, refreshToken } from './lib/messaging';
 import { IconInbox, IconLog, IconPerson, IconSalah, IconWeek } from './components/icons';
 import { Toast } from './components/Toast';
+import { NotificationSetup } from './components/NotificationSetup';
 import type { SalahStatus } from './types';
 
 // The teacher's side loads only for the teacher, so students never parse it.
@@ -89,41 +90,43 @@ function StudentRoutes() {
   if (!profile!.onboarded) return <Onboarding />;
 
   return (
-    <Layout
-      nav={[
-        { to: '/', label: 'Mamool', icon: <IconLog />, end: true, also: ['/log', '/mamoolaat'] },
-        { to: '/salah', label: 'Salah', icon: <IconSalah /> },
-        { to: '/week', label: 'Week', icon: <IconWeek /> },
-        { to: '/messages', label: 'Inbox', icon: <IconInbox />, badge: data.unreadComments + data.unseenChanges },
-      ]}
-      right={
-        <NavLink
-          to="/me"
-          className={({ isActive }) =>
-            `inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900'}`
-          }
-        >
-          <IconPerson />
-          <span>Me</span>
-        </NavLink>
-      }
-    >
-      {toast && <Toast text={toast} onClose={() => setToast(null)} />}
-      <Routes>
-        <Route path="/" element={<LogDay />} />
-        <Route path="/log" element={<Navigate to="/" replace />} />
-        <Route path="/log/:day" element={<LogDay />} />
-        <Route path="/salah" element={<Salah />} />
-        <Route path="/salah/fajr" element={<FajrRoll />} />
-        <Route path="/salah/weekend" element={<WeekendSalah />} />
-        <Route path="/salah/:day" element={<Salah />} />
-        <Route path="/week" element={<Week />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/mamoolaat" element={<ManageMamoolaat />} />
-        <Route path="/me" element={<Me />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
+    <NotificationSetup profile={profile!} purpose="Your daily reminder to fill in your mamoolaat and salah, and messages from your teacher, come as notifications.">
+      <Layout
+        nav={[
+          { to: '/', label: 'Mamool', icon: <IconLog />, end: true, also: ['/log', '/mamoolaat'] },
+          { to: '/salah', label: 'Salah', icon: <IconSalah /> },
+          { to: '/week', label: 'Week', icon: <IconWeek /> },
+          { to: '/messages', label: 'Inbox', icon: <IconInbox />, badge: data.unreadComments + data.unseenChanges },
+        ]}
+        right={
+          <NavLink
+            to="/me"
+            className={({ isActive }) =>
+              `inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm transition-colors ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900'}`
+            }
+          >
+            <IconPerson />
+            <span>Me</span>
+          </NavLink>
+        }
+      >
+        {toast && <Toast text={toast} onClose={() => setToast(null)} />}
+        <Routes>
+          <Route path="/" element={<LogDay />} />
+          <Route path="/log" element={<Navigate to="/" replace />} />
+          <Route path="/log/:day" element={<LogDay />} />
+          <Route path="/salah" element={<Salah />} />
+          <Route path="/salah/fajr" element={<FajrRoll />} />
+          <Route path="/salah/weekend" element={<WeekendSalah />} />
+          <Route path="/salah/:day" element={<Salah />} />
+          <Route path="/week" element={<Week />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/mamoolaat" element={<ManageMamoolaat />} />
+          <Route path="/me" element={<Me />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
+    </NotificationSetup>
   );
 }
 

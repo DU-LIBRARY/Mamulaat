@@ -4,7 +4,7 @@ import { onSnapshot } from 'firebase/firestore';
 import { useActiveSession } from '../../hooks/useSession';
 import { DayChips } from '../../components/DayChips';
 import { Notice, Spinner } from '../../components/ui';
-import { IconCheck, IconChevronLeft, IconLock } from '../../components/icons';
+import { IconCheck, IconChevronLeft } from '../../components/icons';
 import { formatGregorian, formatHijri, isValidYmd } from '../../lib/dates';
 import { fajrRollRef, rosterRef } from '../../lib/db';
 import { fajrRollSummary, MISSED_RULE_FROM, type RollPerson } from '../../lib/salah';
@@ -135,8 +135,6 @@ export function FajrRoll() {
 
       {failed && <Notice tone="warn">Some of the register couldn’t load. Check your connection.</Notice>}
       <MissedList people={missed} ready={ready} />
-
-      <Notice icon={<IconLock size={18} />}>Only you and your teacher can see this. Please keep it to yourself and use it to encourage, not to embarrass.</Notice>
     </div>
   );
 }

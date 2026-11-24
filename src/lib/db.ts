@@ -307,9 +307,9 @@ export function setFajrMonitor(
 }
 
 /**
- * Make one student of a class its weekend salah representative (or nobody, with null). They see
- * every classmate's salah for Saturdays and Sundays, and nothing else. Their name goes in
- * meta/weekendRep (which only the class reads) and the class roster is saved with it.
+ * Make any active student a class's weekend salah representative (or nobody, with null). They
+ * see the class's salah for Saturdays and Sundays, and nothing else. They need not be in the
+ * class. Their name goes in meta/weekendRep and the class roster is saved with it.
  */
 export function setWeekendRep(
   cls: ClassDoc,

@@ -13,8 +13,9 @@ rules_version = '2';
 //   classes, settings, notes to students, the audit log of those actions) EXCEPT see or change any
 //   individual's mamoolaat, logs or salah (including the Fajr roll), delete a student, or hand
 //   out roles. Only the admin can make someone an assistant. isStaff() = admin or assistant.
-//   The staff may make one student of a class its WEEKEND SALAH REPRESENTATIVE: while they stay
-//   active and in that class, they can read their classmates' salah for Saturdays and Sundays only.
+//   The staff may make any active student a class's WEEKEND SALAH REPRESENTATIVE (they need not be
+//   in it, and may cover several classes): while active, they can read that class's salah for
+//   Saturdays and Sundays only.
 // Status: 'pending' | 'active' | 'inactive' | 'rejected'
 
 service cloud.firestore {
@@ -53,13 +54,13 @@ service cloud.firestore {
     // ---------- classes (helpers used by the user rules too) ----------
     function classPath(classId) { return /databases/$(database)/documents/classes/$(classId); }
     // The class's weekend salah representative: a student the staff chose, who must still be
-    // active and IN that class (moving or deactivating them ends their access).
+    // active (deactivating them ends their access). They can be in any class, like the Fajr monitor.
     function isWeekendRepOf(classId) {
-      return isActive() && me().role == 'student' && me().get('classId', null) == classId
+      return isActive() && me().role == 'student'
         && get(classPath(classId)).data.get('weekendRepId', null) == request.auth.uid;
     }
-    // May the signed-in user read student `uid`'s salah for `day` as their class's weekend rep?
-    // Only another active student of the rep's own class, and only on a Saturday or Sunday.
+    // May the signed-in user read student `uid`'s salah for `day` as the weekend rep of their class?
+    // Only an active student of a class they look after, and only on a Saturday or Sunday.
     function isWeekendRepFor(uid, day) {
       let st = get(userPath(uid)).data;
       return !isSelf(uid) && isWeekendDay(day)
@@ -357,14 +358,13 @@ service cloud.firestore {
       // hasn't updated yet keeps working; the current app and the Notifications job remove it.
       allow read: if hasProfile() && me().status in ['active', 'pending'];
       // `template`: mamoolaat the admin adds to each student's own list (never replacing it).
-      // `weekendRepId`: a student of THIS class, checked whenever it is set or changed (so the
-      // class can still be renamed after its rep has left it).
+      // `weekendRepId`: any active student, checked whenever it is set or changed (so the class
+      // can still be renamed after its rep has been deactivated).
       function validWeekendRep(v) {
         return v == null
           || (v is string && exists(userPath(v))
               && get(userPath(v)).data.status == 'active'
-              && get(userPath(v)).data.role == 'student'
-              && get(userPath(v)).data.get('classId', null) == classId);
+              && get(userPath(v)).data.role == 'student');
       }
       function validClass() {
         return request.resource.data.keys().hasOnly(['name', 'template', 'fajrMonitorId', 'fajrMonitorName', 'weekendRepId'])

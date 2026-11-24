@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useSession } from '../hooks/useSession';
-import { PrivacyNote } from '../components/PrivacyNote';
 import { DateLine } from '../components/DateLine';
 import { Sky } from '../components/Sky';
 
@@ -89,9 +88,6 @@ export function SignIn() {
             {error}
           </p>
         )}
-      </div>
-      <div className="mx-auto w-full max-w-sm pb-8">
-        <PrivacyNote compact />
       </div>
     </div>
   );

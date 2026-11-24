@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { updateOwnProfile } from '../lib/db';
-import { deviceNotificationsOn, pushSupport, pushSupportMessage, registerDevice, unregisterDevice, type PushSupport } from '../lib/messaging';
+import { deviceNotificationsOn, pushSupport, pushSupportMessage, registerDevice, sendTestNotification, unregisterDevice, type PushSupport } from '../lib/messaging';
 import type { UserProfile } from '../types';
 
 /**
@@ -36,12 +36,19 @@ export function useDeviceNotifications(profile: Pick<UserProfile, 'id' | 'remind
       if (res.ok) {
         setOn(true);
         if (!profile.reminderEnabled) updateOwnProfile(uid, { reminderEnabled: true });
-        setMsg('Notifications are on for this device.');
+        const shown = await sendTestNotification();
+        setMsg(shown ? 'Notifications are on for this device. We sent a test notification: if it didn’t appear, check that notifications for this app are allowed and Do Not Disturb is off.' : 'Notifications are on for this device.');
       } else setMsg(pushSupportMessage[res.reason]);
     } finally {
       setBusy(false);
     }
   };
 
-  return { on, busy, msg, support, toggle };
+  /** Shows a test notification on this device, so the student can check they appear. */
+  const test = async () => {
+    const shown = await sendTestNotification();
+    setMsg(shown ? 'Test sent. If it didn’t appear, check that notifications for this app are allowed and Do Not Disturb is off.' : 'Couldn’t show a test notification. Check that notifications are allowed for this app.');
+  };
+
+  return { on, busy, msg, support, toggle, test };
 }

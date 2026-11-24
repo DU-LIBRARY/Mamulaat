@@ -3,7 +3,6 @@ import { useActiveSession } from '../../hooks/useSession';
 import { useDocData } from '../../hooks/useFirestore';
 import { classesCol } from '../../lib/db';
 import { doc } from 'firebase/firestore';
-import { PrivacyNote } from '../../components/PrivacyNote';
 import { pushSupportMessage, reminderSchedule } from '../../lib/messaging';
 import { useDeviceNotifications } from '../../hooks/useDeviceNotifications';
 import { isIOS, isStandalone } from '../../lib/pwa';
@@ -24,7 +23,7 @@ export function Me() {
   const sync = useSyncState();
   const { confirm } = useDialog();
   const cls = useDocData<ClassDoc>(profile.classId ? doc(classesCol(), profile.classId) : null, `class:${profile.classId}`);
-  const { on, busy, msg, support, toggle } = useDeviceNotifications(profile);
+  const { on, busy, msg, support, toggle, test } = useDeviceNotifications(profile);
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,6 +73,11 @@ export function Me() {
             <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-300 ease-calm ${on ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </label>
+        {on && (
+          <button type="button" className="btn-secondary mt-3 w-full" onClick={test}>
+            Send a test notification
+          </button>
+        )}
         {msg && <div className="mt-3"><Notice>{msg}</Notice></div>}
         {support && !support.ok && !msg && (on || support.reason === 'denied') && (
           <div className="mt-3"><Notice>{pushSupportMessage[support.reason]}</Notice></div>
@@ -85,16 +89,11 @@ export function Me() {
             there.{isStandalone() ? ' You are using the Home Screen app.' : ''}
           </p>
         )}
-        <p className="mt-3 text-xs text-slate-500">
-          If notifications aren't available, you'll still see a reminder banner when you open the app and haven't logged.
-        </p>
       </section>
 
       <InstallApp />
 
       <ThemePicker />
-
-      <PrivacyNote />
 
       <button
         className="min-h-11 self-start text-[15px] text-brand-700 hover:text-brand-900"
@@ -113,9 +112,6 @@ export function Me() {
       >
         Sign out
       </button>
-      <p className="-mt-4 text-xs text-slate-500">
-        Signing out removes your data from this device. It stays safe on the server and comes back when you sign in again.
-      </p>
     </div>
   );
 }

@@ -77,7 +77,7 @@ export function Week() {
       </section>
       <p className="text-xs text-slate-500">
         A day counts toward your streak at 50%+
-        completion. Only you and your teacher can see this.
+        completion.
       </p>
     </div>
   );

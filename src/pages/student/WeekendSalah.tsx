@@ -4,13 +4,13 @@ import { onSnapshot } from 'firebase/firestore';
 import { useActiveSession } from '../../hooks/useSession';
 import { useDocData } from '../../hooks/useFirestore';
 import { Notice, Spinner } from '../../components/ui';
-import { IconChevronLeft, IconChevronRight, IconLock } from '../../components/icons';
+import { IconChevronLeft, IconChevronRight } from '../../components/icons';
 import { bar } from '../../components/SalahRegister';
 import { addDays, formatGregorian, formatHijri, isValidYmd, weekendOf } from '../../lib/dates';
 import { rosterRef, salahRef } from '../../lib/db';
 import { adminStatus, missedCount, SALAH_LABEL, STATUS_DESC, unloggedIsMissed } from '../../lib/salah';
 import { SALAH_NAMES, type ClassRoster, type SalahDay } from '../../types';
-import { useMyClass } from './Salah';
+import { useRepClasses } from './Salah';
 
 const LETTER = ['F', 'D', 'A', 'M', 'I'];
 
@@ -88,15 +88,15 @@ function counted(by: Map<string, SalahDay> | undefined, days: string[], today: s
  * marks a day, laid out like the teacher's weekly register so it can be screenshotted and sent on.
  */
 export function WeekendSalah() {
-  const { profile, today } = useActiveSession();
-  const cls = useMyClass();
+  const { today } = useActiveSession();
+  const repOf = useRepClasses();
   const [sp, setSp] = useSearchParams();
+  const cls = repOf.data.find((c) => c.id === sp.get('class')) ?? repOf.data[0] ?? null;
   const latest = weekendOf(today)[0];
   const p = sp.get('sat');
   const sat = p && isValidYmd(p) && p <= today ? weekendOf(p)[0] : latest;
   const days = [sat, addDays(sat, 1)];
-  const isRep = !!cls && cls.weekendRepId === profile.id && profile.classId === cls.id;
-  const roster = useDocData<ClassRoster>(isRep ? rosterRef(cls.id) : null, `roster:${isRep ? cls.id : ''}`);
+  const roster = useDocData<ClassRoster>(cls ? rosterRef(cls.id) : null, `roster:${cls?.id ?? ''}`);
   const names = roster.data?.names ?? {};
   const people = Object.entries(names)
     .map(([uid, name]) => ({ uid, name: name || 'Unnamed student' }))
@@ -106,10 +106,10 @@ export function WeekendSalah() {
     days,
   );
 
-  if (cls === null && profile.classId) return <Spinner />;
-  if (!isRep) return <Navigate to="/salah" replace />;
+  if (repOf.loading && !cls) return <Spinner />;
+  if (!cls) return <Navigate to="/salah" replace />;
 
-  const go = (d: string) => setSp(d === latest ? {} : { sat: d }, { replace: true });
+  const go = (d: string) => setSp({ class: cls.id, ...(d === latest ? {} : { sat: d }) }, { replace: true });
   const ready = !roster.loading && sheet.arrived + sheet.failed >= people.length * 2;
   const hijri = [formatHijri(days[0]), formatHijri(days[1])];
   const hijriLine = hijri[0] && hijri[1] ? `${hijri[0]} – ${hijri[1]}` : '';
@@ -128,6 +128,21 @@ export function WeekendSalah() {
       <Link to="/salah" className="link -mb-1 inline-flex items-center gap-1 self-start">
         <IconChevronLeft size={16} /> Salah
       </Link>
+
+      {repOf.data.length > 1 && (
+        <select
+          className="input"
+          aria-label="Class"
+          value={cls.id}
+          onChange={(e) => setSp({ class: e.target.value, ...(sat === latest ? {} : { sat }) }, { replace: true })}
+        >
+          {repOf.data.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="flex items-center gap-2">
         <button className="btn-secondary w-11 shrink-0 px-0" aria-label="Previous weekend" onClick={() => go(addDays(sat, -7))}>
@@ -271,9 +286,6 @@ export function WeekendSalah() {
       </section>
 
       {sheet.failed > 0 && <Notice tone="warn">Some students’ salah couldn’t load. Check your connection, or ask your teacher whether the class list is up to date.</Notice>}
-      <Notice icon={<IconLock size={18} />}>
-        As your class’s weekend salah representative you see everyone’s salah for Saturday and Sunday, nothing else. Please share it only with the person your teacher asked you to send it to.
-      </Notice>
     </div>
   );
 }

@@ -114,7 +114,7 @@ export function ClassView() {
         Fajr monitor
       </label>
       <p className="text-xs text-slate-500">
-        A student who sees this class's daily Fajr roll in their app (qadha and not logged count as missed), and gets a push each morning at {settings.fajrReportTime}. They can be in any class and can cover several classes. They see nothing else of anyone's. Every student in this class is told who it is.
+        Sees this class's daily Fajr roll in their app (qadha and not logged count as missed), and gets a push each morning at {settings.fajrReportTime}. Can be in any class and can cover several classes.
       </p>
       <select
         id="fajr-monitor"
@@ -183,26 +183,38 @@ export function ClassView() {
         Weekend salah representative
       </label>
       <p className="text-xs text-slate-500">
-        A student of this class who sees everyone's salah here for Saturday and Sunday, on one sheet they can screenshot and pass on. They see nothing else of anyone's, and stop seeing it if they leave the class. Every student in this class is told who it is.
+        Sees this class's Saturday and Sunday salah on one sheet they can screenshot and pass on. Can be anyone, in any class, and can cover several classes.
       </p>
       <select
         id="weekend-rep"
         className="input"
         value={repId ?? ''}
         onChange={(e) => {
-          const next = students.find((x) => x.id === e.target.value) ?? null;
+          const next = everyone.find((x) => x.id === e.target.value) ?? null;
           setWeekendRep(cls, rosterNames, next, actor).then(() => setRepErr(null), (er) => setRepErr((er as Error).message));
         }}
       >
         <option value="">Nobody</option>
-        {repId && !students.some((x) => x.id === repId) && (
-          <option value={repId}>{users.data.find((u) => u.id === repId)?.name ?? 'Someone'} (no longer in this class)</option>
+        {repId && !everyone.some((x) => x.id === repId) && <option value={repId}>{users.data.find((u) => u.id === repId)?.name ?? 'Someone'} (no longer active)</option>}
+        {students.length > 0 && (
+          <optgroup label="In this class">
+            {students.map((st) => (
+              <option key={st.id} value={st.id}>
+                {displayName(st)}
+              </option>
+            ))}
+          </optgroup>
         )}
-        {students.map((st) => (
-          <option key={st.id} value={st.id}>
-            {displayName(st)}
-          </option>
-        ))}
+        <optgroup label="Other classes">
+          {everyone
+            .filter((x) => x.classId !== classId)
+            .map((st) => (
+              <option key={st.id} value={st.id}>
+                {displayName(st)}
+                {classes.data.find((c) => c.id === st.classId)?.name ? ` (${classes.data.find((c) => c.id === st.classId)?.name})` : ''}
+              </option>
+            ))}
+        </optgroup>
       </select>
       {repErr && <p className="text-sm text-red-700">{repErr}</p>}
     </section>

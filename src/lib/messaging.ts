@@ -206,3 +206,43 @@ export function reminderSchedule(): string {
   const text = parts.length > 1 ? `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}` : parts[0] ?? '';
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+/**
+ * Shows a notification on this device straight away, through the service worker, the same way a
+ * reminder is shown. It checks that notifications are allowed and actually appear (not hidden by
+ * Focus / Do Not Disturb or the phone's notification settings). It doesn't go through the server.
+ */
+export async function sendTestNotification(): Promise<boolean> {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    const reg = await getSwRegistration();
+    if (!reg) return false;
+    await reg.showNotification('Mamūlāt notifications are on', {
+      body: 'This is a test. Your reminders will arrive like this.',
+      icon: new URL('icons/v3/icon-192.png', reg.scope).href,
+      badge: new URL('icons/v3/badge-72.png', reg.scope).href,
+      tag: 'mamulaat-test',
+      data: { url: reg.scope },
+    });
+    return true;
+  } catch (e) {
+    console.warn('[push] could not show a test notification', e);
+    return false;
+  }
+}
+
+const SETUP_KEY = 'mamulaat.notifSetup'; // `${uid}|done` or `${uid}|skipped|<ms>` on this device
+const SKIP_DAYS = 3;
+
+/** Whether to show the "turn on notifications" screen on this device when the app opens. */
+export function notificationSetupDue(uid: string): boolean {
+  if (deviceNotificationsOn(uid)) return false;
+  const [who, state, at] = (localStorage.getItem(SETUP_KEY) ?? '').split('|');
+  if (who !== uid) return true;
+  if (state === 'done') return false;
+  if (state === 'skipped') return Date.now() - Number(at) > SKIP_DAYS * 86_400_000;
+  return true;
+}
+export function markNotificationSetup(uid: string, state: 'done' | 'skipped') {
+  localStorage.setItem(SETUP_KEY, state === 'done' ? `${uid}|done` : `${uid}|skipped|${Date.now()}`);
+}
