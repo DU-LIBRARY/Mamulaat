@@ -6,6 +6,7 @@ Mamūlāt is an offline-first PWA for students to track their daily **mamoolaat*
 
 - Each student types in their own list once. After that the app is a daily checklist with streaks, completion percentages and weekly summaries.
 - Progress and streaks are private: only the student and the admin can see them (a limited admin, §6b, can't).
+- **Admin cut-off (24 Nov 2026):** the admin sees students' logs, salah and Fajr roll from 24 November 2026 on only. Everything before it stays visible to the student, and to nobody else in the app. It's a fixed, one-time line in `firestore.rules` (`adminRecordsFrom`) and `src/lib/dates.ts` (`ADMIN_RECORDS_FROM`) and is never moved. Admin views count nothing before it (no "missed" days). The admin's own records aren't affected. It doesn't apply outside the app: the Firebase console, the service account and the backups still hold everything.
 - A student's name is typed at sign-up. After approval only the teacher can change it.
 - Signing out deletes the offline copy of the account's data from that phone or browser (it stays on the server). Deleting a student also removes their entries from class Fajr rolls and rosters. (Exception: a Fajr monitor, chosen by the admin on a class page and able to cover several classes, sees those students' Fajr status only.)
 - Salah tab: each of the five prayers marked Takbir / Jamaat / Qadha / Missed, stored in `users/{uid}/salah/{day}`.

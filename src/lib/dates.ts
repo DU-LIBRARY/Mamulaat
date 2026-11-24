@@ -6,6 +6,17 @@
 
 export const DEFAULT_TIMEZONE = 'UTC';
 
+/**
+ * The admin sees students' logs and salah from this day on only. Everything before it stays
+ * visible to the student themselves. A fixed, one-time line: firestore.rules has the same date
+ * (adminRecordsFrom) and is what enforces it. Never move it later or earlier.
+ */
+export const ADMIN_RECORDS_FROM = '2026-11-24';
+/** Mamoolaat as the admin sees them: nothing counts before ADMIN_RECORDS_FROM (no "missed" days). */
+export function adminView<T extends { createdDate: string }>(list: T[]): T[] {
+  return list.map((m) => (m.createdDate < ADMIN_RECORDS_FROM ? { ...m, createdDate: ADMIN_RECORDS_FROM } : m));
+}
+
 function parts(date: Date, timeZone: string) {
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone,

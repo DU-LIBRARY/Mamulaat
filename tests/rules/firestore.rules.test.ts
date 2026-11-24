@@ -41,6 +41,11 @@ function ymd(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 const today = ymd(new Date());
+// The admin sees students' logs and salah from this day on only (firestore.rules adminRecordsFrom).
+const CUT = '2026-11-24';
+const BEFORE = '2026-11-23';
+/** The admin's way to list someone's logs/salah: filtered on `date`, from the cut-off. */
+const fromCut = (f: ReturnType<typeof db>, path: string) => query(collection(f, path), where('date', '>=', CUT));
 const daysAgo = (n: number) => ymd(new Date(Date.now() - n * 86400000));
 const tomorrow = ymd(new Date(Date.now() + 86400000 * 2));
 
@@ -387,8 +392,10 @@ describe('admin edits student logs (any day)', () => {
   it('admin can write today, a locked day and an old day, stamped with their uid', async () => {
     const f = db(ADMIN);
     await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${today}`), adminLog(today)));
-    await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${daysAgo(30)}`), adminLog(daysAgo(30))));
-    await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${daysAgo(400)}`), adminLog(daysAgo(400))));
+    await assertSucceeds(setDoc(doc(f, `users/${A}/logs/${CUT}`), adminLog(CUT))); // locked, but from the cut-off
+    // before the cut-off the admin can't write (or read) a student's days
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${BEFORE}`), adminLog(BEFORE)));
+    await assertFails(setDoc(doc(f, `users/${A}/logs/${daysAgo(400)}`), adminLog(daysAgo(400))));
   });
 
   it('admin log must carry their own uid as editedBy', async () => {
@@ -525,8 +532,35 @@ describe('admin', () => {
   it('admin can read every student and their data', async () => {
     const f = db(ADMIN);
     await assertSucceeds(getDocs(collection(f, 'users')));
-    await assertSucceeds(getDocs(collection(f, `users/${B}/logs`)));
+    await assertSucceeds(getDocs(fromCut(f, `users/${B}/logs`)));
     await assertSucceeds(getDocs(collection(f, `users/${B}/mamoolaat`)));
+  });
+
+  it("admin can't see a student's logs or salah before the cut-off; the student still can", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const g = ctx.firestore();
+      await setDoc(doc(g, `users/${B}/logs/${BEFORE}`), { date: BEFORE, entries: {}, updatedAt: Timestamp.now() });
+      await setDoc(doc(g, `users/${B}/salah/${BEFORE}`), { date: BEFORE, entries: { fajr: 'jamaat' }, updatedAt: Timestamp.now() });
+      await setDoc(doc(g, `users/${B}/salah/${CUT}`), { date: CUT, entries: { fajr: 'jamaat' }, updatedAt: Timestamp.now() });
+      await setDoc(doc(g, `classes/class-1/fajrRoll/${BEFORE}`), { r: { [B]: { status: 'prayed' } } });
+    });
+    const f = db(ADMIN);
+    await assertFails(getDoc(doc(f, `users/${B}/logs/${BEFORE}`)));
+    await assertFails(getDoc(doc(f, `users/${B}/salah/${BEFORE}`)));
+    await assertFails(getDocs(collection(f, `users/${B}/logs`)));
+    await assertFails(getDocs(collection(f, `users/${B}/salah`)));
+    await assertFails(getDocs(query(collection(f, `users/${B}/salah`), where('date', '>=', '2026-01-01'))));
+    await assertFails(getDoc(doc(f, `classes/class-1/fajrRoll/${BEFORE}`)));
+    await assertSucceeds(getDoc(doc(f, `users/${B}/salah/${CUT}`)));
+    await assertSucceeds(getDocs(fromCut(f, `users/${B}/salah`)));
+    // the student themselves: everything, as before
+    await assertSucceeds(getDoc(doc(db(B), `users/${B}/logs/${BEFORE}`)));
+    await assertSucceeds(getDocs(collection(db(B), `users/${B}/salah`)));
+    // the admin's own records are theirs: no cut-off
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `users/${ADMIN}/logs/${BEFORE}`), { date: BEFORE, entries: {}, updatedAt: Timestamp.now() }));
+    await assertSucceeds(getDoc(doc(f, `users/${ADMIN}/logs/${BEFORE}`)));
+    // deleting a student still works: old days can be deleted without being read
+    await assertSucceeds(deleteDoc(doc(f, `users/${B}/logs/${BEFORE}`)));
   });
 
   it('admin can approve, assign, comment and edit mamoolaat', async () => {
@@ -579,17 +613,21 @@ describe('admin deleting a student (full control)', () => {
     });
   });
 
+  // Logs (and salah) are listed from the cut-off; older days are deleted by id without reading them.
+  const listOf = (f: ReturnType<typeof db>, sub: string) => (sub === 'logs' ? fromCut(f, `users/${B}/${sub}`) : collection(f, `users/${B}/${sub}`));
+
   it('admin can list every sub-collection of a student (needed to delete them)', async () => {
     const f = db(ADMIN);
-    for (const sub of SUBS) await assertSucceeds(getDocs(collection(f, `users/${B}/${sub}`)));
+    for (const sub of SUBS) await assertSucceeds(getDocs(listOf(f, sub)));
   });
 
   it('admin can delete an active student and ALL their data, then the profile', async () => {
     const f = db(ADMIN);
     for (const sub of SUBS) {
-      const snap = await assertSucceeds(getDocs(collection(f, `users/${B}/${sub}`)));
+      const snap = await assertSucceeds(getDocs(listOf(f, sub)));
       for (const d of snap.docs) await assertSucceeds(deleteDoc(d.ref));
     }
+    await assertSucceeds(deleteDoc(doc(f, `users/${B}/logs/${daysAgo(1)}`))); // (may be before the cut-off)
     await assertSucceeds(deleteDoc(doc(f, `users/${B}`)));
     await env.withSecurityRulesDisabled(async (ctx) => {
       for (const sub of SUBS) {
@@ -669,7 +707,7 @@ describe('admin handover', () => {
     await handover();
     const f = db(TEACHER);
     await assertSucceeds(getDocs(collection(f, 'users')));
-    await assertSucceeds(getDocs(collection(f, `users/${A}/logs`)));
+    await assertSucceeds(getDocs(fromCut(f, `users/${A}/logs`)));
     await assertSucceeds(getDocs(collection(f, 'auditLog')));
   });
 });
@@ -786,8 +824,9 @@ describe('salah', () => {
     await assertFails(getDoc(doc(db(B), `users/${A}/salah/${today}`)));
     await assertFails(setDoc(doc(db(B), `users/${A}/salah/${today}`), salah(today)));
     await assertSucceeds(getDoc(doc(db(ADMIN), `users/${A}/salah/${today}`)));
-    await assertSucceeds(setDoc(doc(db(ADMIN), `users/${A}/salah/${daysAgo(9)}`), { ...salah(daysAgo(9)), editedBy: ADMIN, editedByName: 'Admin' }));
-    await assertFails(setDoc(doc(db(ADMIN), `users/${A}/salah/${daysAgo(9)}`), salah(daysAgo(9))));
+    await assertSucceeds(setDoc(doc(db(ADMIN), `users/${A}/salah/${CUT}`), { ...salah(CUT), editedBy: ADMIN, editedByName: 'Admin' }));
+    await assertFails(setDoc(doc(db(ADMIN), `users/${A}/salah/${CUT}`), salah(CUT)));
+    await assertFails(setDoc(doc(db(ADMIN), `users/${A}/salah/${BEFORE}`), { ...salah(BEFORE), editedBy: ADMIN, editedByName: 'Admin' }));
   });
 });
 
@@ -1003,7 +1042,7 @@ describe('limited admin (assistant)', () => {
     b.update(doc(f, `users/${ASSIST}`), { role: 'admin', status: 'active', classId: null });
     b.update(doc(f, `users/${ADMIN}`), { role: 'student', status: 'inactive', classId: null, handedOverTo: ASSIST });
     await assertSucceeds(b.commit());
-    await assertSucceeds(getDocs(collection(db(ASSIST), `users/${A}/logs`)));
+    await assertSucceeds(getDocs(fromCut(db(ASSIST), `users/${A}/logs`)));
   });
 });
 

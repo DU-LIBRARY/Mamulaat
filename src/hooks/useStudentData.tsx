@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { documentId, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { changesCol, commentsCol, logsCol, mamoolaatCol, salahCol } from '../lib/db';
+import { changesCol, commentsCol, logsCol, mamoolaatCol, othersRecordsQuery, salahCol } from '../lib/db';
 import { logsByDay } from '../lib/scoring';
-import { addDays } from '../lib/dates';
+import { addDays, adminView, ADMIN_RECORDS_FROM } from '../lib/dates';
 import type { ChangeRecord, Comment, DayLog, Mamool, SalahDay } from '../types';
 import { useCollectionData } from './useFirestore';
 import { useSession } from './useSession';
@@ -65,7 +65,7 @@ interface Chunk {
  * for an older week adds only that month's listeners instead of re-reading everything.
  * Listeners (not one-off reads) so an admin's edit to an old day shows up straight away.
  */
-function useOlderMonths(uid: string | null, earliest: string | null, liveFrom: string) {
+function useOlderMonths(uid: string | null, earliest: string | null, liveFrom: string, other = false) {
   const [chunks, setChunks] = useState<Record<string, Chunk>>({});
   const subs = useRef(new Map<string, () => void>());
   const wanted = uid && earliest && earliest < liveFrom ? monthStarts(earliest, liveFrom).map((m) => `${uid}|${m}|${liveFrom}`) : [];
@@ -85,21 +85,30 @@ function useOlderMonths(uid: string | null, earliest: string | null, liveFrom: s
       const [u, start, until] = k.split('|');
       const next = nextMonth(start);
       const end = next < until ? next : until;
-      const range = (col: ReturnType<typeof logsCol>) => query(col, where(documentId(), '>=', start), where(documentId(), '<', end));
+      // Someone else's (the admin looking at a student): by date, and only from ADMIN_RECORDS_FROM.
+      const range = (col: ReturnType<typeof logsCol>) => (other ? othersRecordsQuery(col, start, end, true) : query(col, where(documentId(), '>=', start), where(documentId(), '<', end)));
       const set = (patch: Partial<Chunk>, which: 'l' | 's') =>
         setChunks((prev) => {
           const cur = prev[k] ?? { logs: [], salah: [], pending: [], loaded: { l: false, s: false } };
           return { ...prev, [k]: { ...cur, ...patch, loaded: { ...cur.loaded, [which]: true } } };
         });
+      const lq = range(logsCol(u));
+      const sq = range(salahCol(u));
+      if (!lq || !sq) {
+        set({}, 'l');
+        set({}, 's');
+        subs.current.set(k, () => undefined);
+        continue;
+      }
       const u1 = onSnapshot(
-        range(logsCol(u)),
+        lq,
         { includeMetadataChanges: true },
         (snap) =>
           set({ logs: snap.docs.map((d) => ({ id: d.id, ...d.data() }) as DayLog), pending: snap.docs.filter((d) => d.metadata.hasPendingWrites).map((d) => d.id) }, 'l'),
         () => set({}, 'l'),
       );
       const u2 = onSnapshot(
-        range(salahCol(u)),
+        sq,
         (snap) => set({ salah: snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SalahDay) }, 's'),
         () => set({}, 's'),
       );
@@ -140,11 +149,14 @@ export function sortMamoolaat(list: Mamool[]) {
 export function useStudentLive(uid: string, records = true): StudentData {
   // `records: false` (a limited admin): only the teacher's notes are loaded, never the student's
   // mamoolaat, logs, salah or the changes made to their list.
-  const { today } = useSession();
-  const liveFrom = addDays(today, -LIVE_DAYS);
+  const { today, user } = useSession();
+  // The admin looking at a student sees their logs and salah from ADMIN_RECORDS_FROM on only.
+  const other = !!user && user.uid !== uid;
+  const liveFrom = other && addDays(today, -LIVE_DAYS) < ADMIN_RECORDS_FROM ? ADMIN_RECORDS_FROM : addDays(today, -LIVE_DAYS);
+  const recQ = (col: ReturnType<typeof logsCol>) => (other ? othersRecordsQuery(col, liveFrom, null) : query(col, where(documentId(), '>=', liveFrom)));
   const mam = useCollectionData<Mamool>(records ? mamoolaatCol(uid) : null, `mam:${uid}:${records}`);
-  const logs = useCollectionData<DayLog>(records ? query(logsCol(uid), where(documentId(), '>=', liveFrom)) : null, `logs:${uid}:${records}:${liveFrom}`);
-  const salah = useCollectionData<SalahDay>(records ? query(salahCol(uid), where(documentId(), '>=', liveFrom)) : null, `salah:${uid}:${records}:${liveFrom}`);
+  const logs = useCollectionData<DayLog>(records ? recQ(logsCol(uid)) : null, `logs:${uid}:${records}:${liveFrom}:${other}`);
+  const salah = useCollectionData<SalahDay>(records ? recQ(salahCol(uid)) : null, `salah:${uid}:${records}:${liveFrom}:${other}`);
   // The earliest day any screen has asked for, per student (a new student starts again).
   const [asked, setAsked] = useState<{ uid: string; day: string } | null>(null);
   const earliest = asked?.uid === uid ? asked.day : null;
@@ -152,11 +164,11 @@ export function useStudentLive(uid: string, records = true): StudentData {
     (day: string) => setAsked((a) => (a?.uid === uid && a.day <= day ? a : { uid, day: a?.uid === uid && a.day < day ? a.day : day })),
     [uid],
   );
-  const older = useOlderMonths(records ? uid : null, earliest, liveFrom);
+  const older = useOlderMonths(records ? uid : null, earliest, liveFrom, other);
   const comments = useCollectionData<Comment>(query(commentsCol(uid), orderBy('createdAt', 'desc')), `com:${uid}`);
   const changes = useCollectionData<ChangeRecord>(records ? query(changesCol(uid), orderBy('createdAt', 'desc')) : null, `chg:${uid}:${records}`);
   return useMemo(() => {
-    const all = sortMamoolaat(mam.data);
+    const all = other ? adminView(sortMamoolaat(mam.data)) : sortMamoolaat(mam.data);
     return {
       loading: mam.loading || logs.loading,
       all,
@@ -173,7 +185,7 @@ export function useStudentLive(uid: string, records = true): StudentData {
       needFrom,
       olderLoading: older.loading,
     };
-  }, [mam.data, mam.loading, logs.data, logs.loading, logs.pendingIds, salah.data, salah.pendingIds, comments.data, changes.data, older, earliest, liveFrom, needFrom]);
+  }, [mam.data, mam.loading, logs.data, logs.loading, logs.pendingIds, salah.data, salah.pendingIds, comments.data, changes.data, older, earliest, liveFrom, needFrom, other]);
 }
 
 const Ctx = createContext<StudentData | null>(null);

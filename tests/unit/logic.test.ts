@@ -1,6 +1,6 @@
 import { adminStatus, fajrRollSummary, missedCount, salahStats, unloggedIsMissed } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
-import { addDays, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, weekendOf, formatHijri } from '../../src/lib/dates';
+import { addDays, ADMIN_RECORDS_FROM, adminView, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, weekendOf, formatHijri } from '../../src/lib/dates';
 import { currentStreak, dayStats, entryFraction, fridayEntry, isFridayMamoolDay, logsByDay, scheduledFor, withFriday } from '../../src/lib/scoring';
 import { needsAttention } from '../../src/lib/reports';
 import { toCsv } from '../../src/lib/csv';
@@ -223,24 +223,30 @@ describe('salah', () => {
 });
 
 describe('missedCount', () => {
+  // Unlogged counts as missed from MISSED_RULE_FROM (12 Nov) and, for the admin's views, only from
+  // ADMIN_RECORDS_FROM (24 Nov), the later of the two.
   const day = (entries: Record<string, string>) => ({ entries }) as never;
   const by = new Map([
-    ['2026-11-10', day({ fajr: 'missed' })], // before the rule starts: only what's logged counts
-    ['2026-11-12', day({ fajr: 'missed', zuhr: 'qadha', asr: 'jamaat', maghrib: 'takbir' })], // isha not logged
-    ['2026-11-14', day({ fajr: 'missed' })], // today: the rest not logged yet
+    ['2026-11-22', day({ fajr: 'missed' })], // before the rule starts: only what's logged counts
+    ['2026-11-24', day({ fajr: 'missed', zuhr: 'qadha', asr: 'jamaat', maghrib: 'takbir' })], // isha not logged
+    ['2026-11-26', day({ fajr: 'missed' })], // today: the rest not logged yet
   ]);
-  const days = ['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15'];
-  it('counts missed, qadha and unlogged from 12 Nov, not earlier unlogged, today’s unlogged or future days', () => {
-    // 11-10: 1 logged missed; 11-11: 0 (before the rule); 11-12: missed+qadha+isha = 3; 11-13: nothing logged = 5; 11-14: 1
-    expect(missedCount(by, days, '2026-11-14')).toBe(10);
+  const days = ['2026-11-22', '2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27'];
+  it('counts missed, qadha and unlogged from 24 Nov, not earlier unlogged, today’s unlogged or future days', () => {
+    // 11-22: 1 logged missed; 11-23: 0 (before the rule); 11-24: missed+qadha+isha = 3; 11-25: nothing logged = 5; 11-26: 1
+    expect(missedCount(by, days, '2026-11-26')).toBe(10);
   });
   it('can count Fajr only', () => {
-    expect(missedCount(by, days, '2026-11-14', ['fajr'])).toBe(4);
+    expect(missedCount(by, days, '2026-11-26', ['fajr'])).toBe(4);
   });
-  it('unloggedIsMissed only for days that are over, from 12 Nov', () => {
-    expect(unloggedIsMissed('2026-11-11', '2026-11-14')).toBe(false);
-    expect(unloggedIsMissed('2026-11-12', '2026-11-14')).toBe(true);
-    expect(unloggedIsMissed('2026-11-14', '2026-11-14')).toBe(false);
+  it('unloggedIsMissed only for days that are over, from 24 Nov', () => {
+    expect(unloggedIsMissed('2026-11-12', '2026-11-26')).toBe(false);
+    expect(unloggedIsMissed('2026-11-23', '2026-11-26')).toBe(false);
+    expect(unloggedIsMissed('2026-11-24', '2026-11-26')).toBe(true);
+    expect(unloggedIsMissed('2026-11-26', '2026-11-26')).toBe(false);
+  });
+  it("the admin's view of mamoolaat starts at ADMIN_RECORDS_FROM", () => {
+    expect(adminView([{ createdDate: '2026-01-01' }, { createdDate: '2026-12-01' }])).toEqual([{ createdDate: ADMIN_RECORDS_FROM }, { createdDate: '2026-12-01' }]);
   });
 });
 

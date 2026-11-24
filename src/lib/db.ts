@@ -2,7 +2,6 @@ import {
   collection,
   deleteField,
   doc,
-  documentId,
   FieldPath,
   getDoc,
   getDocs,
@@ -13,11 +12,12 @@ import {
   updateDoc,
   where,
   writeBatch,
+  type CollectionReference,
   type WriteBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { AppSettings, ClassDoc, DayLog, LogEntry, Mamool, SalahDay, SalahName, SalahStatus, TemplateItem, UserProfile } from '../types';
-import { DEFAULT_TIMEZONE, utcOffsetMinutes } from './dates';
+import { addDays, ADMIN_RECORDS_FROM, adminView, DEFAULT_TIMEZONE, utcOffsetMinutes } from './dates';
 import { fire, track } from './sync';
 import { noteWrite } from './unsynced';
 import { sameMamoolName } from './names';
@@ -60,12 +60,25 @@ export const monitorRef = (classId: string) => doc(db, 'classes', classId, 'meta
 /** { name } of the class's weekend salah representative: readable only by the class and the staff. */
 export const weekendRepRef = (classId: string) => doc(db, 'classes', classId, 'meta', 'weekendRep');
 
-export function salahRangeQuery(uid: string, from: string, to: string) {
-  return query(salahCol(uid), where(documentId(), '>=', from), where(documentId(), '<=', to));
+/**
+ * Someone else's logs or salah in [from, to] (or [from, to) with `toExclusive`), as the admin may
+ * read them: by the `date` field, which the rules check, and never before ADMIN_RECORDS_FROM.
+ * null when nothing in the range can be read.
+ */
+export function othersRecordsQuery(col: CollectionReference, from: string, to: string | null, toExclusive = false) {
+  const f = from < ADMIN_RECORDS_FROM ? ADMIN_RECORDS_FROM : from;
+  if (to !== null && (toExclusive ? to <= f : to < f)) return null;
+  return to === null ? query(col, where('date', '>=', f)) : query(col, where('date', '>=', f), where('date', toExclusive ? '<' : '<=', to));
 }
 
+/** Admin: one student's salah in [from, to] (from ADMIN_RECORDS_FROM on). */
+export function salahRangeQuery(uid: string, from: string, to: string) {
+  return othersRecordsQuery(salahCol(uid), from, to);
+}
+
+/** Admin: one student's logs in [from, to] (from ADMIN_RECORDS_FROM on). */
 export function logsRangeQuery(uid: string, from: string, to: string) {
-  return query(logsCol(uid), where(documentId(), '>=', from), where(documentId(), '<=', to));
+  return othersRecordsQuery(logsCol(uid), from, to);
 }
 
 export interface Actor {
@@ -649,11 +662,13 @@ export async function fetchStudentsRange(uids: string[], from: string, to: strin
   const out = new Map<string, { mamoolaat: Mamool[]; logs: Map<string, DayLog>; salah: Map<string, SalahDay> }>();
   await Promise.all(
     uids.map(async (uid) => {
-      const [m, l, sl] = await Promise.all([getDocs(mamoolaatCol(uid)), getDocs(logsRangeQuery(uid, from, to)), getDocs(salahRangeQuery(uid, from, to))]);
+      const lq = logsRangeQuery(uid, from, to);
+      const sq = salahRangeQuery(uid, from, to);
+      const [m, l, sl] = await Promise.all([getDocs(mamoolaatCol(uid)), lq ? getDocs(lq) : null, sq ? getDocs(sq) : null]);
       out.set(uid, {
-        mamoolaat: m.docs.map((d) => ({ id: d.id, ...d.data() }) as Mamool),
-        logs: new Map(l.docs.map((d) => [d.id, { id: d.id, ...d.data() } as DayLog])),
-        salah: new Map(sl.docs.map((d) => [d.id, { id: d.id, ...d.data() } as SalahDay])),
+        mamoolaat: adminView(m.docs.map((d) => ({ id: d.id, ...d.data() }) as Mamool)),
+        logs: new Map((l?.docs ?? []).map((d) => [d.id, { id: d.id, ...d.data() } as DayLog])),
+        salah: new Map((sl?.docs ?? []).map((d) => [d.id, { id: d.id, ...d.data() } as SalahDay])),
       });
     }),
   );
@@ -715,12 +730,22 @@ export async function deleteStudent(uid: string, actor: Actor, name: string) {
   const failed: string[] = [];
   // Delete every sub-collection; keep going if one fails so we never leave a half-deleted student,
   // and only remove the profile once everything else is gone (so a retry can finish the job).
+  // Logs and salah before ADMIN_RECORDS_FROM can't be read by the admin, only deleted: those are
+  // removed day by day (deleting a day that has nothing is harmless), from the account's start.
+  const profileSnap = await getDoc(userRef(uid)).catch(() => null);
+  const created = (profileSnap?.get('createdAt') as { toDate?: () => Date } | undefined)?.toDate?.();
+  const start = created ? new Date(created.getTime() - 2 * 86_400_000).toISOString().slice(0, 10) : '2025-01-01';
+  const hiddenDays: string[] = [];
+  for (let d = start < '2025-01-01' ? '2025-01-01' : start; d < ADMIN_RECORDS_FROM; d = addDays(d, 1)) hiddenDays.push(d);
   for (const sub of subs) {
     try {
-      const snap = await getDocs(collection(db, 'users', uid, sub));
-      for (let i = 0; i < snap.docs.length; i += 400) {
+      const col = collection(db, 'users', uid, sub);
+      const hidden = sub === 'logs' || sub === 'salah';
+      const snap = await getDocs(hidden ? othersRecordsQuery(col, ADMIN_RECORDS_FROM, null)! : col);
+      const refs = [...snap.docs.map((d) => d.ref), ...(hidden ? hiddenDays.map((d) => doc(col, d)) : [])];
+      for (let i = 0; i < refs.length; i += 400) {
         const batch = writeBatch(db);
-        snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+        refs.slice(i, i + 400).forEach((r) => batch.delete(r));
         await track(batch.commit());
       }
     } catch (e) {

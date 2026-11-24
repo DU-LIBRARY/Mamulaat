@@ -45,6 +45,10 @@ service cloud.firestore {
     function appSettings() {
       return exists(settingsPath()) ? get(settingsPath()).data : {};
     }
+    // The admin sees students' logs and salah (and the Fajr roll) from this day on only; what came
+    // before stays visible to the student alone. A fixed, one-time line, the same as
+    // ADMIN_RECORDS_FROM in src/lib/dates.ts. It is never moved.
+    function adminRecordsFrom() { return '2026-11-24'; }
     function validDayId(day) { return day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
     // Saturday or Sunday (dayOfWeek(): 1 = Monday ... 7 = Sunday).
     function isWeekendDay(day) {
@@ -247,11 +251,13 @@ service cloud.firestore {
       }
 
       match /logs/{day} {
-        allow read: if isActiveSelf(uid) || isAdmin();
+        // The admin: only days from adminRecordsFrom() (queries must filter on `date`).
+        allow get: if isActiveSelf(uid) || (isAdmin() && day >= adminRecordsFrom());
+        allow list: if isActiveSelf(uid) || (isAdmin() && resource.data.date >= adminRecordsFrom());
         // A student writes their own logs, only inside the backfill window. The admin can write any day.
         allow create, update: if (isActiveSelf(uid) && !isAdmin() && validDayId(day) && dayEditable(day)
                                   && validStudentLog(request.resource.data, day))
-                              || (isAdmin() && validDayId(day) && exists(userPath(uid))
+                              || (isAdmin() && validDayId(day) && day >= adminRecordsFrom() && exists(userPath(uid))
                                   && validAdminLog(request.resource.data, day));
         allow delete: if (isActiveSelf(uid) && validDayId(day) && dayEditable(day)) || isAdmin();
       }
@@ -274,12 +280,12 @@ service cloud.firestore {
 
       match /salah/{day} {
         // The class's weekend salah rep may fetch single weekend days, never list or query them.
-        allow get: if isActiveSelf(uid) || isAdmin() || isWeekendRepFor(uid, day);
-        allow list: if isActiveSelf(uid) || isAdmin();
+        allow get: if isActiveSelf(uid) || (isAdmin() && day >= adminRecordsFrom()) || isWeekendRepFor(uid, day);
+        allow list: if isActiveSelf(uid) || (isAdmin() && resource.data.date >= adminRecordsFrom());
         allow create, update: if (isActiveSelf(uid) && !isAdmin() && validDayId(day) && dayEditable(day)
                                   && validSalah(request.resource.data, day)
                                   && !('editedBy' in request.resource.data) && !('editedByName' in request.resource.data))
-                              || (isAdmin() && validDayId(day) && exists(userPath(uid))
+                              || (isAdmin() && validDayId(day) && day >= adminRecordsFrom() && exists(userPath(uid))
                                   && validSalah(request.resource.data, day)
                                   && request.resource.data.get('editedBy', null) == request.auth.uid
                                   && request.resource.data.get('editedByName', '') is string
@@ -409,7 +415,10 @@ service cloud.firestore {
           : fajr == null;
       }
       match /fajrRoll/{day} {
-        allow read: if isAdmin() || isFajrMonitorOf(classId);
+        // The admin: single days from adminRecordsFrom(). (Listing is kept, but only to find a
+        // deleted student's entries; the app never shows a list.)
+        allow get: if (isAdmin() && day >= adminRecordsFrom()) || isFajrMonitorOf(classId);
+        allow list: if isAdmin() || isFajrMonitorOf(classId);
         allow create: if isActive() && !isAdmin() && me().get('classId', null) == classId
                       && validDayId(day) && dayEditable(day)
                       && request.resource.data.keys().hasOnly(['r'])

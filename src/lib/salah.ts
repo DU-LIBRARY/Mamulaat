@@ -1,3 +1,4 @@
+import { ADMIN_RECORDS_FROM } from './dates';
 import { SALAH_NAMES, type FajrRoll, type RollStatus, type SalahDay, type SalahName, type SalahStatus } from '../types';
 
 export const SALAH_LABEL: Record<SalahName, string> = {
@@ -32,7 +33,7 @@ export const SALAH_STATUSES: SalahStatus[] = ['takbir', 'jamaat', 'qadha', 'miss
 export const MISSED_RULE_FROM = '2026-11-12';
 
 /** Does nothing logged on day `d` count as missed (as of `today`)? Only for days that are over, from MISSED_RULE_FROM. */
-export const unloggedIsMissed = (d: string, today: string) => d < today && d >= MISSED_RULE_FROM;
+export const unloggedIsMissed = (d: string, today: string) => d < today && d >= MISSED_RULE_FROM && d >= ADMIN_RECORDS_FROM;
 
 /** Missed and qadha both count as missed for the Fajr register; takbir and jamaat as prayed. */
 export const rollStatusOf = (s: SalahStatus): RollStatus => (s === 'missed' || s === 'qadha' ? 'missed' : 'prayed');

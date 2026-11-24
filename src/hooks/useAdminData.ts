@@ -1,3 +1,4 @@
+import { adminView } from '../lib/dates';
 import { useEffect, useMemo, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { classesCol, logsRangeQuery, mamoolaatCol, salahRangeQuery, usersCol } from '../lib/db';
@@ -49,14 +50,17 @@ export function useStudentsRange(uids: string[], from: string, to: string) {
     const unsubs = uids.flatMap((uid) => [
       onSnapshot(
         mamoolaatCol(uid),
-        (s) => update(uid, { mamoolaat: sortMamoolaat(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Mamool)) }, 'm'),
+        (s) => update(uid, { mamoolaat: adminView(sortMamoolaat(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Mamool))) }, 'm'),
         () => update(uid, {}, 'm'),
       ),
-      onSnapshot(
-        logsRangeQuery(uid, from, to),
-        (s) => update(uid, { logs: new Map(s.docs.map((d) => [d.id, { id: d.id, ...d.data() } as DayLog])) }, 'l'),
-        () => update(uid, {}, 'l'),
-      ),
+      ((q) =>
+        q
+          ? onSnapshot(
+              q,
+              (s) => update(uid, { logs: new Map(s.docs.map((d) => [d.id, { id: d.id, ...d.data() } as DayLog])) }, 'l'),
+              () => update(uid, {}, 'l'),
+            )
+          : (update(uid, { logs: new Map() }, 'l'), () => undefined))(logsRangeQuery(uid, from, to)),
     ]);
     return () => unsubs.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,9 +74,11 @@ export function useStudentsSalah(uids: string[], from: string, to: string) {
   const [state, setState] = useState<Map<string, Map<string, SalahDay>>>(new Map());
   useEffect(() => {
     setState(new Map());
-    const unsubs = uids.map((uid) =>
-      onSnapshot(
-        salahRangeQuery(uid, from, to),
+    const unsubs = uids.map((uid) => {
+      const q = salahRangeQuery(uid, from, to);
+      if (!q) return () => undefined;
+      return onSnapshot(
+        q,
         (s) =>
           setState((prev) => {
             const n = new Map(prev);
@@ -80,8 +86,8 @@ export function useStudentsSalah(uids: string[], from: string, to: string) {
             return n;
           }),
         () => undefined,
-      ),
-    );
+      );
+    });
     return () => unsubs.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

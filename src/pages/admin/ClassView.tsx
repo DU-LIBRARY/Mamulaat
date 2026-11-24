@@ -10,7 +10,7 @@ import { DateLine } from '../../components/DateLine';
 import { useDialog } from '../../components/Dialog';
 import { EmptyState, Spinner, cellClass } from '../../components/ui';
 import { targetLabel } from '../../components/Checklist';
-import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
+import { addDays, ADMIN_RECORDS_FROM, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { dayStats, entryFor, entryFraction, FRIDAY_ID, pct, scheduledFor, withFriday } from '../../lib/scoring';
 import { studentWeek } from '../../lib/reports';
 import { downloadCsv } from '../../lib/csv';
@@ -37,7 +37,7 @@ export function ClassView() {
   const cls = classes.data.find((c) => c.id === classId);
   const view = sp.get('view') === 'week' ? 'week' : 'day';
   const dateParam = sp.get('date');
-  const date = dateParam && isValidYmd(dateParam) && dateParam <= today ? dateParam : today;
+  const date = dateParam && isValidYmd(dateParam) && dateParam <= today ? (dateParam < ADMIN_RECORDS_FROM ? ADMIN_RECORDS_FROM : dateParam) : today;
   const students = users.data.filter((u) => u.classId === classId && u.status === 'active' && u.role === 'student');
   const days = weekDays(weekStartOf(date, settings.weekStart));
   const from = view === 'week' ? days[0] : date;

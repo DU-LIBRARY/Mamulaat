@@ -21,7 +21,7 @@ import { downloadCsv } from '../../lib/csv';
 import { fileSafe, salahRows, studentDetailRows } from '../../lib/exports';
 import { getDocs } from 'firebase/firestore';
 import { addComment, adminSaveSalah, pushSubsCol, adminDeleteLog, deactivateUser, deleteChange, deleteComment, moveUser, syncClassMamoolaatFor, reactivateUser, rejectUser, renameUser, setAssistant, setPending } from '../../lib/db';
-import { addDays, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
+import { addDays, ADMIN_RECORDS_FROM, formatGregorian, formatMonth, isValidYmd, monthDays, weekDays, weekStartOf } from '../../lib/dates';
 import { studentWeek } from '../../lib/reports';
 import { bestStreak, currentStreak, dayStats, pct, scheduledFor } from '../../lib/scoring';
 import { ClassSelect, useDeleteUsers } from './Students';
@@ -74,7 +74,8 @@ export function StudentDetail() {
   const [err, setErr] = useState<string | null>(null);
   const run = (p: Promise<unknown>) => p.then(() => setErr(null)).catch((e) => setErr((e as Error).message));
   const d = sp.get('date');
-  const anchor = d && isValidYmd(d) && d <= today ? d : today;
+  // Nothing before ADMIN_RECORDS_FROM is shown to the admin (the student still sees it).
+  const anchor = d && isValidYmd(d) && d <= today ? (d < ADMIN_RECORDS_FROM && uid !== actor.uid ? ADMIN_RECORDS_FROM : d) : today;
   const days = weekDays(weekStartOf(anchor, settings.weekStart));
   // Load what this page can show: this year (chart, best streak) and the week and month being looked at.
   const yearStart = `${today.slice(0, 4)}-01-01`;
