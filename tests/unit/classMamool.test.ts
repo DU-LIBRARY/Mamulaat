@@ -63,6 +63,12 @@ describe('class mamoolaat', () => {
     expect(planClassMamoolaat([mine], [], 'A', 'stu', T)).toEqual([{ kind: 'remove', m: mine }]);
   });
 
+  it('leaves a class mamool the student removed, and forgets that once they leave the class', () => {
+    const out = m('c1', 'Tasbeeh', { fromClass: 'A', active: false, removedDate: '2026-11-01', optedOut: true, classItem: { name: 'Tasbeeh', target: 1, unit: '' } });
+    expect(planClassMamoolaat([out], [{ name: 'Tasbeeh', target: 1, unit: '' }], 'A', 'stu', T)).toEqual([]);
+    expect(planClassMamoolaat([out], [], 'B', 'stu', T)).toEqual([{ kind: 'update', m: out, patch: { optedOut: null }, restored: false }]);
+  });
+
   it('with no class, removes all class mamoolaat', () => {
     const existing = [m('p1', 'Tahajjud'), m('c1', 'Tasbeeh', { fromClass: 'A' })];
     expect(planClassMamoolaat(existing, null, null, 'stu', T)).toEqual([{ kind: 'remove', m: existing[1] }]);

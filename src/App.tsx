@@ -96,7 +96,7 @@ function StudentRoutes() {
   const lastSync = useRef('');
   useEffect(() => {
     if (data.loading || (classId && !cls.data)) return; // wait for both (and never act on a class that failed to load)
-    const key = JSON.stringify([classId, cls.data?.template ?? null, data.all.map((m) => [m.id, m.active, m.fromClass, m.classItem, m.name, m.target, m.unit])]);
+    const key = JSON.stringify([classId, cls.data?.template ?? null, data.all.map((m) => [m.id, m.active, m.fromClass, m.classItem, m.optedOut, m.name, m.target, m.unit])]);
     if (lastSync.current === key) return;
     lastSync.current = key;
     syncClassMamoolaat(uid, data.all, classId ? { id: classId, template: cls.data?.template } : null, today, { uid, name: profile!.name ?? '' }).done.catch(() => undefined);

@@ -399,6 +399,8 @@ export function removeMamool(uid: string, m: Mamool, today: string, actor: Actor
   const batch = writeBatch(db);
   batch.update(doc(mamoolaatCol(uid), m.id), {
     active: false,
+    // A class mamool removed by hand stays removed (the class doesn't put it back).
+    ...(m.fromClass ? { optedOut: true } : {}),
     removedDate: today,
     updatedBy: actor.uid,
     updatedAt: serverTimestamp(),
@@ -425,6 +427,7 @@ export function restoreMamool(uid: string, m: Mamool, today: string, actor: Acto
   batch.update(doc(mamoolaatCol(uid), m.id), {
     active: true,
     removedDate: null,
+    ...(m.optedOut ? { optedOut: null } : {}),
     gaps: gaps.slice(-50),
     updatedBy: actor.uid,
     updatedAt: serverTimestamp(),

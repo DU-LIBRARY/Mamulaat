@@ -11,7 +11,7 @@ import type { Mamool, TemplateItem } from '../types';
  */
 export type ClassMamoolOp =
   | { kind: 'add'; id: string; input: TemplateItem; order: number }
-  | { kind: 'update'; m: Mamool; patch: Partial<Pick<Mamool, 'name' | 'target' | 'unit' | 'fromClass' | 'classItem' | 'active' | 'removedDate' | 'gaps'>>; restored: boolean }
+  | { kind: 'update'; m: Mamool; patch: Partial<Pick<Mamool, 'name' | 'target' | 'unit' | 'fromClass' | 'classItem' | 'optedOut' | 'active' | 'removedDate' | 'gaps'>>; restored: boolean }
   | { kind: 'remove'; m: Mamool };
 
 /** One id per class and mamool name, so leaving and rejoining a class brings back the same one. */
@@ -37,6 +37,7 @@ export function planClassMamoolaat(existing: Mamool[], template: TemplateItem[] 
     const mine = existing.find((m) => m.fromClass === classId && !kept.has(m.id) && sameMamoolName(m.classItem?.name ?? m.name, t.name));
     if (mine) {
       kept.add(mine.id);
+      if (mine.optedOut) continue; // the student removed it themselves: leave it removed
       // The student changed theirs (e.g. a bigger target): keep their version.
       const custom = !!mine.classItem && !same(mine, mine.classItem);
       const own = custom ? {} : fields;
@@ -64,6 +65,11 @@ export function planClassMamoolaat(existing: Mamool[], template: TemplateItem[] 
     ops.push({ kind: 'add', id, input: fields, order: order++ });
   }
 
-  for (const m of existing) if (m.fromClass && m.active && !kept.has(m.id)) ops.push({ kind: 'remove', m });
+  for (const m of existing) {
+    if (!m.fromClass || kept.has(m.id)) continue;
+    if (m.active) ops.push({ kind: 'remove', m });
+    // Left that class (or it dropped the mamool): forget the opt-out, so rejoining brings it back.
+    else if (m.optedOut) ops.push({ kind: 'update', m, patch: { optedOut: null }, restored: false });
+  }
   return ops;
 }

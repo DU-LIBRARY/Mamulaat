@@ -144,19 +144,16 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                   <button className="btn-secondary px-3" onClick={() => setEditing(m.id)} aria-label={`Edit ${m.name}`}>
                     Edit
                   </button>
-                  {/* Class mamoolaat can be edited (e.g. a bigger target) but stay while in the class. */}
-                  {!m.fromClass && (
-                    <button
-                      className="btn-ghost px-3 text-red-700 hover:bg-red-50 hover:text-red-800"
-                      aria-label={`Remove ${m.name}`}
-                      onClick={() => {
-                        removeMamool(uid, m, today, actor);
-                        undo.undoable(`Removed “${m.name}”`, () => restoreMamool(uid, { ...m, active: false, removedDate: today }, today, actor));
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
+                  <button
+                    className="btn-ghost px-3 text-red-700 hover:bg-red-50 hover:text-red-800"
+                    aria-label={`Remove ${m.name}`}
+                    onClick={() => {
+                      removeMamool(uid, m, today, actor);
+                      undo.undoable(`Removed “${m.name}”`, () => restoreMamool(uid, { ...m, active: false, removedDate: today, optedOut: !!m.fromClass }, today, actor));
+                    }}
+                  >
+                    Remove
+                  </button>
                 </div>
               )}
             </li>
@@ -191,7 +188,8 @@ export function MamoolEditor({ uid, all, today, actor, showSuggestions = false }
                   {m.name} – {targetLabel(m)}
                 </span>
                 <span className="flex shrink-0 gap-1">
-                  {!m.fromClass && (
+                  {/* A class mamool removed because they left the class comes back if they rejoin. */}
+                  {(!m.fromClass || m.optedOut) && (
                     <button className="btn-ghost text-sm" onClick={() => restoreMamool(uid, m, today, actor)}>
                       Restore
                     </button>

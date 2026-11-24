@@ -85,6 +85,8 @@ export interface Mamool {
    * leaves their version alone and only follows it for adding and removing.
    */
   classItem?: { name: string; target: number; unit: string } | null;
+  /** The student removed this class mamool (e.g. it clashed with their own): the class leaves it removed. */
+  optedOut?: boolean | null;
 }
 
 export type EntryStatus = 'done' | 'partial' | 'missed';
