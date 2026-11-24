@@ -8,7 +8,7 @@ import { useDialog } from '../../components/Dialog';
 import { useUndo } from '../../components/Undo';
 import { MamoolForm, SUGGESTIONS } from '../../components/MamoolEditor';
 import { targetLabel } from '../../components/Checklist';
-import { IconChevronLeft, IconChevronRight, IconPlus } from '../../components/icons';
+import { IconChevronRight, IconPencil, IconPlus } from '../../components/icons';
 import { ClassSelect } from './Students';
 import type { ClassDoc, TemplateItem, UserProfile } from '../../types';
 
@@ -17,7 +17,7 @@ import type { ClassDoc, TemplateItem, UserProfile } from '../../types';
  * is empty for now, it's kept for whoever joins): students who join get it, and lose the class
  * mamoolaat of the class they left. Their personal mamoolaat are never touched.
  */
-function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) {
+export function TemplatePanel({ c, members }: { c: ClassDoc; members: UserProfile[] }) {
   const { actor, today, limited } = useActiveSession();
   const { notify } = useDialog();
   const undo = useUndo();
@@ -141,7 +141,6 @@ export function Classes() {
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState('');
   const [templateFor, setTemplateFor] = useState<string | null>(null);
-  const [moreFor, setMoreFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Older versions kept the monitor's name on the class itself: move any that are left.
   useEffect(() => {
@@ -154,10 +153,8 @@ export function Classes() {
   return (
     <div className="flex flex-col gap-4">
       <div className="no-print">
-        <Link to="/admin/students" className="inline-flex min-h-11 items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
-          <IconChevronLeft size={16} /> Students
-        </Link>
-        <h1 className="display text-[34px] leading-tight">Manage classes</h1>
+        <h1 className="display text-[34px] leading-tight">Classes</h1>
+        <p className="mt-1 text-sm text-slate-600">Tap a class to see its records. Use “Class mamoolaat” to add the mamoolaat everyone in a class does.</p>
       </div>
       <form
         className="card flex gap-2"
@@ -219,47 +216,49 @@ export function Classes() {
                     </div>
                     <IconChevronRight size={18} className="shrink-0 text-slate-400" />
                   </Link>
-                  <div className="mt-2 -ml-2 flex flex-wrap items-center gap-x-1 border-t border-slate-200 pt-1 text-sm">
-                    <button className="btn-ghost min-h-11 px-2 text-sm" aria-expanded={templateFor === c.id} onClick={() => setTemplateFor(templateFor === c.id ? null : c.id)}>
-                      Class mamoolaat
+                  {/* Every action is on show: nothing is folded away behind a menu. */}
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                    <button
+                      className={`btn min-h-11 border px-3 text-sm ${templateFor === c.id ? 'border-brand-700 bg-brand-100 text-brand-900' : 'border-slate-300 bg-surface text-slate-800 hover:border-brand-500'}`}
+                      aria-expanded={templateFor === c.id}
+                      onClick={() => setTemplateFor(templateFor === c.id ? null : c.id)}
+                    >
+                      {c.template?.length ? <IconPencil size={16} /> : <IconPlus size={16} />}
+                      {c.template?.length ? <>Class mamoolaat (<span className="num">{c.template.length}</span>)</> : 'Add class mamoolaat'}
                     </button>
-                    <button className="btn-ghost ml-auto min-h-11 px-2 text-sm" aria-expanded={moreFor === c.id} onClick={() => setMoreFor(moreFor === c.id ? null : c.id)}>
-                      {moreFor === c.id ? 'Less' : 'More…'}
-                    </button>
+                    <Link className="btn-secondary min-h-11 px-3 text-sm" to={`/admin/class/${c.id}#fajr-monitor`}>
+                      Fajr monitor
+                    </Link>
+                    <Link className="btn-secondary min-h-11 px-3 text-sm" to={`/admin/class/${c.id}#weekend-rep`}>
+                      Weekend salah rep
+                    </Link>
                   </div>
-                  {moreFor === c.id && (
-                    <div className="-ml-2 flex flex-wrap items-center gap-x-1 text-sm">
-                      <Link className="btn-ghost min-h-11 px-2 text-sm" to={`/admin/class/${c.id}#fajr-monitor`}>
-                        Fajr monitor
-                      </Link>
-                      <Link className="btn-ghost min-h-11 px-2 text-sm" to={`/admin/class/${c.id}#weekend-rep`}>
-                        Weekend salah rep
-                      </Link>
+                  <div className="mt-1 -ml-2 flex flex-wrap items-center gap-x-1 text-sm">
+                    <button
+                      className="btn-ghost min-h-11 px-2 text-sm"
+                      onClick={() => {
+                        setEditing(c.id);
+                        setEditName(c.name);
+                      }}
+                    >
+                      Rename
+                    </button>
+                    {classes.data.length > 1 && related.some((u) => u.classId === c.id) && (
                       <button
                         className="btn-ghost min-h-11 px-2 text-sm"
+                        aria-expanded={moveFrom === c.id}
                         onClick={() => {
-                          setEditing(c.id);
-                          setEditName(c.name);
+                          setMoveFrom(moveFrom === c.id ? null : c.id);
+                          setMoveTo('');
                         }}
                       >
-                        Rename
+                        Move all students…
                       </button>
-                      {classes.data.length > 1 && related.some((u) => u.classId === c.id) && (
-                        <button
-                          className="btn-ghost min-h-11 px-2 text-sm"
-                          onClick={() => {
-                            setMoveFrom(moveFrom === c.id ? null : c.id);
-                            setMoveTo('');
-                          }}
-                        >
-                          Move all students…
-                        </button>
-                      )}
-                      <button className="btn-ghost ml-auto min-h-11 px-2 text-sm text-red-700" onClick={() => setDeleting(deleting === c.id ? null : c.id)}>
-                        Delete class
-                      </button>
-                    </div>
-                  )}
+                    )}
+                    <button className="btn-ghost ml-auto min-h-11 px-2 text-sm text-red-700" aria-expanded={deleting === c.id} onClick={() => setDeleting(deleting === c.id ? null : c.id)}>
+                      Delete class
+                    </button>
+                  </div>
                 </>
               )}
               {moveFrom === c.id && (

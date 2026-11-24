@@ -449,7 +449,7 @@ export function Students() {
             <h2 id="classes-title" className="section-title mb-0">
               Classes {limited ? '' : <span className="font-normal normal-case text-slate-500">· this week</span>}
             </h2>
-            <Link to="/admin/classes" className="btn-ghost min-h-11 px-3 text-sm">
+            <Link to="/admin/classes" className="btn-secondary min-h-11 px-3 text-sm">
               Manage classes
             </Link>
           </div>

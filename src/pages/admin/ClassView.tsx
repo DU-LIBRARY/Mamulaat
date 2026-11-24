@@ -1,4 +1,5 @@
-import { IconCheck, IconChevronLeft, IconChevronRight, IconHalf, IconX } from '../../components/icons';
+import { IconCheck, IconChevronLeft, IconChevronRight, IconHalf, IconPencil, IconPlus, IconX } from '../../components/icons';
+import { TemplatePanel } from './Classes';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useActiveSession } from '../../hooks/useSession';
@@ -59,6 +60,7 @@ export function ClassView() {
   }, [monitorId, repId, classId, roster.loading, roster.data, rosterNames, users.loading]);
   const [monitorErr, setMonitorErr] = useState<string | null>(null);
   const [repErr, setRepErr] = useState<string | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState(false);
   const everyone = users.data.filter((u) => u.status === 'active' && u.role === 'student');
   const { confirm } = useDialog();
   const { hash } = useLocation();
@@ -67,6 +69,7 @@ export function ClassView() {
   useEffect(() => {
     if (ready && hash === '#fajr-monitor') document.getElementById('fajr-monitor-card')?.scrollIntoView({ block: 'start' });
     if (ready && hash === '#weekend-rep') document.getElementById('weekend-rep-card')?.scrollIntoView({ block: 'start' });
+    if (ready && hash === '#class-mamoolaat') setEditingTemplate(true);
   }, [ready, hash]);
 
   const setParam = (k: string, v: string) => {
@@ -107,6 +110,53 @@ export function ClassView() {
     logged: w.days.map((d) => d.hasLog),
     total: w.completion,
   }));
+
+  const template = cls.template ?? [];
+  // Shown near the top of the class page so the class's mamoolaat are found where the class is.
+  const mamoolCard = (
+    <section id="class-mamoolaat-card" className="no-print card flex scroll-mt-4 flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="section-title mb-0">
+          Class mamoolaat {template.length > 0 && <span className="num font-normal text-slate-500">({template.length})</span>}
+        </h2>
+        <button
+          className={editingTemplate ? 'btn-secondary min-h-11 px-3 text-sm' : 'btn-primary min-h-11 px-3 text-sm'}
+          aria-expanded={editingTemplate}
+          aria-controls="class-mamoolaat-editor"
+          onClick={() => setEditingTemplate((v) => !v)}
+        >
+          {editingTemplate ? (
+            'Done'
+          ) : template.length ? (
+            <>
+              <IconPencil size={16} /> Add or edit
+            </>
+          ) : (
+            <>
+              <IconPlus size={16} /> Add class mamool
+            </>
+          )}
+        </button>
+      </div>
+      {!editingTemplate &&
+        (template.length === 0 ? (
+          <p className="text-sm text-slate-600">None yet. Add the mamoolaat everyone in this class does; each student gets them in their own list.</p>
+        ) : (
+          <ul className="flex flex-wrap gap-1.5">
+            {template.map((t, i) => (
+              <li key={`${t.name}-${i}`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-sm text-slate-800">
+                <span dir="auto">{t.name}</span> <span className="num text-slate-500">({targetLabel(t)})</span>
+              </li>
+            ))}
+          </ul>
+        ))}
+      {editingTemplate && (
+        <div id="class-mamoolaat-editor">
+          <TemplatePanel c={cls} members={students} />
+        </div>
+      )}
+    </section>
+  );
 
   const monitorCard = (
     <section id="fajr-monitor-card" className="no-print card flex scroll-mt-4 flex-col gap-2">
@@ -228,6 +278,7 @@ export function ClassView() {
         <h1 className="display text-[34px] leading-tight" dir="auto">
           {cls.name}
         </h1>
+        {mamoolCard}
         {students.length === 0 ? (
           <EmptyState>No active students in this class.</EmptyState>
         ) : (
@@ -262,6 +313,8 @@ export function ClassView() {
           ))}
         </div>
       </div>
+
+      {mamoolCard}
 
       <div className="no-print flex items-center gap-2">
         <button className="btn-secondary w-11 shrink-0 px-0" aria-label={view === 'week' ? 'Previous week' : 'Previous day'} onClick={() => setParam('date', addDays(date, view === 'week' ? -7 : -1))}>
