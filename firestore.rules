@@ -195,10 +195,12 @@ service cloud.firestore {
       // ----- a student's own list of mamoolaat -----
       function validMamool(d) {
         return d.keys().hasOnly(['name', 'target', 'unit', 'active', 'order', 'createdBy', 'createdAt',
-                                  'createdDate', 'removedDate', 'gaps', 'updatedBy', 'updatedAt', 'fromClass'])
+                                  'createdDate', 'removedDate', 'gaps', 'updatedBy', 'updatedAt', 'fromClass', 'classItem'])
           && (d.get('gaps', []) is list && d.get('gaps', []).size() <= 50)
           // fromClass: the class this mamool came from (class mamoolaat follow the class).
           && (d.get('fromClass', null) == null || (d.fromClass is string && d.fromClass.size() <= 128))
+          // classItem: the class's version of it, { name, target, unit }.
+          && (d.get('classItem', null) == null || (d.classItem is map && d.classItem.keys().hasOnly(['name', 'target', 'unit'])))
           && d.name is string && d.name.size() > 0 && d.name.size() <= 120
           && (d.target is int || d.target is float) && d.target > 0 && d.target <= 1000000
           && d.unit is string && d.unit.size() <= 40

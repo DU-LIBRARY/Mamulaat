@@ -79,6 +79,12 @@ export interface Mamool {
    * mamoolaat (no fromClass) are never touched by a class change.
    */
   fromClass?: string | null;
+  /**
+   * The class's version of a class mamool when it was last brought in step. A student may make
+   * theirs bigger (or otherwise edit it): when their name/target/unit differ from this, the class
+   * leaves their version alone and only follows it for adding and removing.
+   */
+  classItem?: { name: string; target: number; unit: string } | null;
 }
 
 export type EntryStatus = 'done' | 'partial' | 'missed';

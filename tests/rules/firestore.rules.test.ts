@@ -321,9 +321,11 @@ describe('class mamoolaat', () => {
   it('a student may keep a fromClass marker on their own mamool; nothing else is accepted for it', async () => {
     const f = db(A);
     const base = { name: 'Tasbeeh', target: 100, unit: '', active: true, order: 0, createdBy: A, createdAt: serverTimestamp(), createdDate: daysAgo(0), removedDate: null, updatedBy: A, updatedAt: serverTimestamp() };
-    await assertSucceeds(setDoc(doc(f, `users/${A}/mamoolaat/cls_class-1_x`), { ...base, fromClass: 'class-1' }));
+    await assertSucceeds(setDoc(doc(f, `users/${A}/mamoolaat/cls_class-1_x`), { ...base, fromClass: 'class-1', classItem: { name: 'Tasbeeh', target: 100, unit: '' } }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}/mamoolaat/cls_class-1_x`), { target: 300, updatedBy: A, updatedAt: serverTimestamp() }));
     await assertSucceeds(updateDoc(doc(f, `users/${A}/mamoolaat/cls_class-1_x`), { active: false, removedDate: daysAgo(0), updatedBy: A, updatedAt: serverTimestamp() }));
     await assertFails(setDoc(doc(f, `users/${A}/mamoolaat/bad`), { ...base, fromClass: 42 }));
+    await assertFails(setDoc(doc(f, `users/${A}/mamoolaat/bad2`), { ...base, classItem: { name: 'x', extra: 1 } }));
   });
 });
 

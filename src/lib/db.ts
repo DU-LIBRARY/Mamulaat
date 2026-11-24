@@ -604,6 +604,7 @@ export function syncClassMamoolaat(uid: string, existing: Mamool[], cls: Pick<Cl
         active: true,
         order: op.order,
         fromClass: cls!.id,
+        classItem: m,
         createdBy: actor.uid,
         createdAt: serverTimestamp(),
         createdDate: today,

@@ -23,15 +23,17 @@ describe('class mamoolaat', () => {
   });
 
   it('does nothing when already in step', () => {
-    const existing = [m('c1', 'Tasbeeh', { fromClass: 'A', target: 100, unit: 'times' })];
+    const ci = { name: 'Tasbeeh', target: 100, unit: 'times' };
+    const existing = [m('c1', 'Tasbeeh', { fromClass: 'A', target: 100, unit: 'times', classItem: ci })];
     expect(planClassMamoolaat(existing, [{ name: 'Tasbeeh', target: 100, unit: 'times' }], 'A', 'stu', T)).toEqual([]);
   });
 
   it('follows a change of target, and a removal from the class list', () => {
-    const existing = [m('c1', 'Tasbeeh', { fromClass: 'A', target: 100 }), m('c2', 'Quran', { fromClass: 'A' })];
+    const existing = [m('c1', 'Tasbeeh', { fromClass: 'A', target: 100, classItem: { name: 'Tasbeeh', target: 100, unit: '' } }), m('c2', 'Quran', { fromClass: 'A' })];
     const ops = planClassMamoolaat(existing, [{ name: 'Tasbeeh', target: 300, unit: '' }], 'A', 'stu', T);
+    const ci = { name: 'Tasbeeh', target: 300, unit: '' };
     expect(ops).toEqual([
-      { kind: 'update', m: existing[0], patch: { name: 'Tasbeeh', target: 300, unit: '' }, restored: false },
+      { kind: 'update', m: existing[0], patch: { ...ci, classItem: ci }, restored: false },
       { kind: 'remove', m: existing[1] },
     ]);
   });
@@ -39,7 +41,7 @@ describe('class mamoolaat', () => {
   it('rejoining a class brings back the same mamool, with the days away as a gap', () => {
     const old = m('c1', 'Tasbeeh', { fromClass: 'A', active: false, removedDate: '2026-11-01' });
     const ops = planClassMamoolaat([old], [{ name: 'Tasbeeh', target: 1, unit: '' }], 'A', 'stu', T);
-    expect(ops).toEqual([{ kind: 'update', m: old, patch: { name: 'Tasbeeh', target: 1, unit: '', active: true, removedDate: null, gaps: [{ from: '2026-11-01', to: T }] }, restored: true }]);
+    expect(ops).toEqual([{ kind: 'update', m: old, patch: { name: 'Tasbeeh', target: 1, unit: '', classItem: { name: 'Tasbeeh', target: 1, unit: '' }, active: true, removedDate: null, gaps: [{ from: '2026-11-01', to: T }] }, restored: true }]);
   });
 
   it("keeps a student's own mamool of the same name instead of adding a second", () => {
@@ -49,7 +51,16 @@ describe('class mamoolaat', () => {
   it('takes over one the teacher added before class mamoolaat were tracked', () => {
     const legacy = m('x', 'Tasbeeh', { createdBy: 'teacher' });
     const ops = planClassMamoolaat([legacy], [{ name: 'Tasbeeh', target: 1, unit: '' }], 'A', 'stu', T);
-    expect(ops).toEqual([{ kind: 'update', m: legacy, patch: { name: 'Tasbeeh', target: 1, unit: '', fromClass: 'A' }, restored: false }]);
+    expect(ops).toEqual([{ kind: 'update', m: legacy, patch: { name: 'Tasbeeh', target: 1, unit: '', fromClass: 'A', classItem: { name: 'Tasbeeh', target: 1, unit: '' } }, restored: false }]);
+  });
+
+  it("keeps a student's bigger version (even renamed) when the class list changes, but still removes it on leaving", () => {
+    const ci = { name: 'Tasbeeh', target: 100, unit: 'times' };
+    const mine = m('c1', 'Tasbeeh (long)', { fromClass: 'A', target: 500, unit: 'times', classItem: ci });
+    expect(planClassMamoolaat([mine], [ci], 'A', 'stu', T)).toEqual([]);
+    const ci2 = { name: 'Tasbeeh', target: 200, unit: 'times' };
+    expect(planClassMamoolaat([mine], [ci2], 'A', 'stu', T)).toEqual([{ kind: 'update', m: mine, patch: { classItem: ci2 }, restored: false }]);
+    expect(planClassMamoolaat([mine], [], 'A', 'stu', T)).toEqual([{ kind: 'remove', m: mine }]);
   });
 
   it('with no class, removes all class mamoolaat', () => {
