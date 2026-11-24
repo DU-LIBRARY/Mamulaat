@@ -1,0 +1,68 @@
+# Weekly encrypted backup of the whole Firestore database (tools/push/backup.mjs).
+#
+# The repository is public, so the backup is encrypted inside the job before it is stored;
+# only someone with the BACKUP_PASSPHRASE can read it. It is kept as this run's artifact
+# for 90 days (so there are always about 13 weekly backups to choose from).
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions → Secrets):
+#   FIREBASE_SERVICE_ACCOUNT  the same service-account key the notifications use
+#   BACKUP_PASSPHRASE         a long random passphrase (keep a copy somewhere safe: without it
+#                             no backup can ever be opened)
+# Optional: also keep a copy of every backup in Google Drive (kept until you delete it):
+#   GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, GDRIVE_REFRESH_TOKEN  (see README → Backups)
+# To restore, run the "Restore backup" workflow.
+name: Backup
+on:
+  schedule:
+    - cron: '37 2 * * 1' # Mondays 02:37 UTC
+  workflow_dispatch:
+concurrency:
+  group: backup
+  cancel-in-progress: false
+permissions:
+  contents: read
+  actions: read # to fetch last week's backup, which this one builds on
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund --omit=dev
+        working-directory: tools/push
+      - name: Fetch last week's backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow backup.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$id" ]; then
+            gh run download "$id" --repo "$GITHUB_REPOSITORY" -D prev || echo "::warning::Last week's backup could not be fetched (expired?). Taking a full backup instead."
+          else
+            echo "No earlier backup: taking a full backup."
+          fi
+      - name: Back up
+        id: backup
+        run: |
+          file="mamulaat-backup-$(date -u +%F).enc"
+          node tools/push/backup.mjs backup prev "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.backup.outputs.file }}
+          path: ${{ steps.backup.outputs.file }}
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0 # already compressed and encrypted
+      - name: Copy to Google Drive (optional)
+        run: node tools/push/backup.mjs drive "${{ steps.backup.outputs.file }}"
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}

@@ -92,10 +92,26 @@ async function pushToDevices(uid, msg) {
   return ok;
 }
 
-const users = await db.collection('users').get();
-const byId = new Map(users.docs.map((d) => [d.id, d.data()]));
+// Reads are what the free plan limits (50,000 a day), and this job runs ~100 times a day, so it
+// reads every profile only when it needs them: about once an hour, when reminders or the Fajr
+// report are due, or when the number of active students changed (someone was approved). Other
+// runs read only the few documents that matter (pending sign-ups, nudges, messages).
+let byId = null; // uid → profile, once loadUsers() has run
+async function loadUsers() {
+  if (!byId) byId = new Map((await db.collection('users').get()).docs.map((d) => [d.id, d.data()]));
+  return byId;
+}
+const oneUser = new Map();
+async function getUser(uid) {
+  if (byId) return byId.get(uid);
+  if (!oneUser.has(uid)) oneUser.set(uid, (await db.doc(`users/${uid}`).get()).data());
+  return oneUser.get(uid);
+}
 // The admin and any limited admins ("assistants"): both approve sign-ups, so both hear about them.
-const admins = users.docs.filter((d) => ['admin', 'assistant'].includes(d.get('role')) && d.get('status') === 'active').map((d) => d.id);
+const admins = (await db.collection('users').where('role', 'in', ['admin', 'assistant']).get()).docs
+  .filter((d) => d.get('status') === 'active')
+  .map((d) => d.id);
+if (TEST) await loadUsers();
 
 // TEST=fajr: every Fajr monitor gets a sample morning report with made-up numbers, clearly marked
 // as a test. Reads class names and monitors only; writes nothing.
@@ -152,6 +168,7 @@ const remindersRef = db.doc('pushState/reminders');
 const sentSlots = (await remindersRef.get()).data()?.sent ?? {};
 let reminded = 0;
 for (const { slot, key } of dueSlots(CFG.reminders ?? [], today, minutes, sentSlots)) {
+  await loadUsers();
   sentSlots[key] = Date.now(); // record first, so a crash can't cause repeated pings
   if (!dry) await remindersRef.set({ sent: Object.fromEntries(Object.entries(sentSlots).filter(([k]) => k >= addDaysYmd(today, -7))) });
   let n = 0;
@@ -173,7 +190,7 @@ const nudges = await db.collection('nudges').where('day', '==', today).get();
 for (const n of nudges.docs) {
   const v = n.data();
   if (v.pushedAt || typeof v.uid !== 'string') continue;
-  const user = byId.get(v.uid);
+  const user = await getUser(v.uid);
   const log = user?.status === 'active' ? await db.doc(`users/${v.uid}/logs/${v.day}`).get() : null;
   if (log && !hasLogged(log.data())) {
     if (await pushToUser(v.uid, { title: 'Reminder from your teacher', body: 'Please log your mamoolaat for today.', url: '.', tag: `nudge-${v.day}` })) nudged++;
@@ -186,7 +203,7 @@ let messages = 0;
 const pushMessages = await db.collection('pushMessages').get();
 for (const m of pushMessages.docs) {
   const v = m.data();
-  if (typeof v.uid === 'string' && typeof v.text === 'string' && byId.get(v.uid)) {
+  if (typeof v.uid === 'string' && typeof v.text === 'string' && (await getUser(v.uid))) {
     const from = typeof v.actorName === 'string' && v.actorName ? v.actorName : 'your teacher';
     if (await pushToUser(v.uid, { title: `Message from ${from}`, body: v.text, url: '.', tag: `msg-${m.id}` })) messages++;
   }
@@ -202,7 +219,13 @@ const seenActive = { ...(state.active ?? {}) };
 const firstRun = !state.initialized;
 let signups = 0;
 let approvals = 0;
-for (const [uid, d] of byId) {
+// A count costs 1 read (per 1,000 matches): if it moved, someone was approved (or deactivated).
+const activeCount = (await db.collection('users').where('status', '==', 'active').count().get()).data().count;
+const fullRun = firstRun || !state.fullAt || Date.now() - state.fullAt > 55 * 60e3 || activeCount !== state.activeCount;
+if (fullRun) await loadUsers();
+// Without the full list, only the people waiting for approval can need a sign-up notice.
+const candidates = byId ?? new Map((await db.collection('users').where('status', '==', 'pending').get()).docs.map((d) => [d.id, d.data()]));
+for (const [uid, d] of candidates) {
   if (userChangeNotice({ signupComplete: false }, d) === 'admin-signup' && !seenSignups[uid]) {
     seenSignups[uid] = Date.now();
     const cls = typeof d.requestedClassId === 'string' && d.requestedClassId ? String((await db.doc(`classes/${d.requestedClassId}`).get()).get('name') ?? '') : '';
@@ -210,7 +233,7 @@ for (const [uid, d] of byId) {
     for (const a of admins) await pushToUser(a, { title: 'New sign-up waiting', body: cls ? `${name} wants to join ${cls}.` : `${name} is waiting for approval.`, url: 'admin/students', tag: `signup-${uid}` });
     signups++;
   }
-  if (d.role === 'student' && d.status === 'active' && !seenActive[uid]) {
+  if (byId && d.role === 'student' && d.status === 'active' && !seenActive[uid]) {
     seenActive[uid] = Date.now();
     // On the very first run, everyone already active is just recorded, not told they were approved.
     if (!firstRun) {
@@ -220,19 +243,36 @@ for (const [uid, d] of byId) {
   }
   if (d.status !== 'pending') delete seenSignups[uid]; // decided: a later re-request notifies again
 }
-for (const uid of Object.keys(seenActive)) {
-  const d = byId.get(uid);
-  if (!d || d.status !== 'active') delete seenActive[uid]; // deactivated / deleted: re-approval notifies again
+if (byId) {
+  for (const uid of Object.keys(seenActive)) {
+    const d = byId.get(uid);
+    if (!d || d.status !== 'active') delete seenActive[uid]; // deactivated / deleted: re-approval notifies again
+  }
 }
-if (!dry) await stateRef.set({ initialized: true, signups: seenSignups, active: seenActive, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+const next = {
+  initialized: true,
+  signups: seenSignups,
+  active: seenActive,
+  activeCount: byId ? activeCount : (state.activeCount ?? null),
+  fullAt: byId ? Date.now() : (state.fullAt ?? 0),
+};
+// Written only when something changed (a write per run would add up too).
+const stable = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? `{${Object.keys(v).sort().map((k) => `${k}:${stable(v[k])}`).join(',')}}` : JSON.stringify(v));
+const strip = (o) => stable({ ...o, updatedAt: null });
+if (!dry && strip(next) !== strip(state)) await stateRef.set({ ...next, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
 
 // 5. Fajr roll → Fajr monitors, once a day at settings.fajrReportTime. One monitor may look after
 // several classes; they get a single push with a line per class.
+// Class upkeep (monitor and rep names, rosters) runs with the hourly full read; the reports only
+// in the hour after settings.fajrReportTime.
 let fajrReports = 0;
-const classes = await db.collection('classes').get();
+const fajrTime = typeof settings.fajrReportTime === 'string' ? settings.fajrReportTime : '08:00';
+const fajrWindow = dueSlots([{ time: fajrTime, body: '' }], today, minutes, {}).length > 0;
+if (fajrWindow) await loadUsers();
+const classes = byId ? (await db.collection('classes').get()).docs : [];
 const byMonitor = new Map(); // monitor uid → [{ name, report }]
 const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
-for (const c of classes.docs) {
+for (const c of classes) {
   const monitor = c.get('fajrMonitorId');
   // The monitor's name lives in meta/monitor (readable only by that class), never on the class
   // document, which people still waiting for approval can read. Keep it current, and remove
@@ -263,15 +303,14 @@ for (const c of classes.docs) {
   const rosterRef = db.doc(`classes/${c.id}/meta/roster`);
   const saved = (await rosterRef.get()).data()?.names ?? {};
   if (!same(saved, roster) && !dry) await rosterRef.set({ names: roster });
-  if (!hasMonitor || byId.get(monitor)?.status !== 'active') continue;
+  if (!fajrWindow || !hasMonitor || byId.get(monitor)?.status !== 'active') continue;
   const roll = (await db.doc(`classes/${c.id}/fajrRoll/${today}`).get()).data();
   const list = byMonitor.get(monitor) ?? [];
   list.push({ name: typeof c.get('name') === 'string' ? c.get('name') : 'Class', report: fajrReport(roster, roll) });
   byMonitor.set(monitor, list);
 }
 const fajrRef = db.doc('pushState/fajr');
-const fajrSent = (await fajrRef.get()).data()?.sent ?? {};
-const fajrTime = typeof settings.fajrReportTime === 'string' ? settings.fajrReportTime : '08:00';
+const fajrSent = byMonitor.size ? ((await fajrRef.get()).data()?.sent ?? {}) : {};
 for (const [monitor, list] of byMonitor) {
   const sentForMonitor = Object.fromEntries(Object.entries(fajrSent).filter(([k]) => k.startsWith(`${monitor} `)).map(([k, v]) => [k.slice(monitor.length + 1), v]));
   const due = dueSlots([{ time: fajrTime, body: '' }], today, minutes, sentForMonitor);
@@ -288,5 +327,6 @@ for (const [monitor, list] of byMonitor) {
 console.log(
   `${today} ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${tz}: ` +
     `${reminded} reminder(s), ${nudged} nudge(s), ${messages} message(s), ${signups} sign-up notice(s), ${approvals} approval(s), ${fajrReports} Fajr report(s)${firstRun ? ' (first run: existing students recorded)' : ''}. ` +
-    `Sent ${stats.sent} push(es); removed ${stats.removed} expired device(s); ${stats.failed} failed.`,
+    `Sent ${stats.sent} push(es); removed ${stats.removed} expired device(s); ${stats.failed} failed. ` +
+    `${byId ? 'Read every profile this run.' : 'Light run (profiles not read).'}`,
 );

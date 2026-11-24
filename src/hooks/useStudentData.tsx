@@ -9,13 +9,14 @@ import { useSession } from './useSession';
 
 /**
  * How many days back are kept live all the time. Everything a student does day to day (today,
- * the days they can still fill in, this week and the last few) is inside it.
+ * the days they can still fill in, this week and last week) is inside it. Each open of the app
+ * reads every record in this window again, so it's kept short: 14 days is ~28 reads an open.
  *
  * Older days are loaded only when a screen asks for them (needFrom), a month at a time. Loading
  * every log ever on each open would cost hundreds of reads per open by the end of the year,
  * enough to hit the free plan's daily read limit.
  */
-export const LIVE_DAYS = 42;
+export const LIVE_DAYS = 14;
 
 export interface StudentData {
   loading: boolean;
