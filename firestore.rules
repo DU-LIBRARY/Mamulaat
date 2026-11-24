@@ -358,7 +358,8 @@ service cloud.firestore {
     // The student the admin made this class's Fajr monitor. They need not be in the class (one
     // monitor may cover several classes), but they must still be active.
     function isFajrMonitorOf(classId) {
-      return isActive() && get(classPath(classId)).data.get('fajrMonitorId', null) == request.auth.uid;
+      return isActive() && me().role == 'student'
+        && get(classPath(classId)).data.get('fajrMonitorId', null) == request.auth.uid;
     }
 
     match /classes/{classId} {
@@ -388,7 +389,8 @@ service cloud.firestore {
                             && (request.resource.data.get('fajrMonitorId', null) == null
                                 || (request.resource.data.fajrMonitorId is string
                                     && exists(userPath(request.resource.data.fajrMonitorId))
-                                    && get(userPath(request.resource.data.fajrMonitorId)).data.status == 'active'));
+                                    && get(userPath(request.resource.data.fajrMonitorId)).data.status == 'active'
+                                    && get(userPath(request.resource.data.fajrMonitorId)).data.role == 'student'));
       }
       allow create: if isStaff() && validClass() && validWeekendRep(request.resource.data.get('weekendRepId', null));
       allow update: if isStaff() && validClass()
