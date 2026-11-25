@@ -53,6 +53,35 @@
           addEventListener('resize', fix);
         }
       } catch (e) {}
+      // Android: some phones (seen on Samsung with the three-button bar) draw the page under
+      // the system navigation bar but report a 0 bottom inset, which hides the tab bar.
+      // Opt out of edge-to-edge on Android (viewport-fit=cover is only for the iPhone notch),
+      // and if the page still reaches under the bar, pad by the bar's height
+      // (see --safe-bottom in src/index.css).
+      try {
+        if (/Android/.test(navigator.userAgent)) {
+          var vp = document.querySelector('meta[name="viewport"]');
+          vp.setAttribute('content', 'width=device-width, initial-scale=1.0');
+          var fixBottom = function () {
+            var root = document.documentElement;
+            var probe = document.createElement('div');
+            probe.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);visibility:hidden';
+            document.body.appendChild(probe);
+            var inset = probe.offsetHeight;
+            probe.remove();
+            var portrait = innerHeight > innerWidth;
+            var standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+            // screen.height includes the status and navigation bars. When the page is only
+            // missing the status bar (or nothing), it is running under the navigation bar.
+            var gap = screen.height - innerHeight;
+            var fallback = 0;
+            if (!inset && portrait && standalone && gap < 36) fallback = 48;
+            root.style.setProperty('--safe-bottom-fallback', fallback + 'px');
+          };
+          addEventListener('DOMContentLoaded', fixBottom);
+          addEventListener('resize', fixBottom);
+        }
+      } catch (e) {}
     </script>
   </head>
   <body>

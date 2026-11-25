@@ -49,7 +49,7 @@ export function Layout({ title, nav, children, right }: { title?: string; nav: N
             {right && <div className="flex items-center gap-2">{right}</div>}
           </div>
         </header>
-        <main id="main" tabIndex={-1} className="flex-1 px-5 pt-4 pb-28 focus:outline-none">
+        <main id="main" tabIndex={-1} className="flex-1 px-5 pt-4 pb-[calc(7rem+var(--safe-bottom))] focus:outline-none">
           {/* each screen settles in: a short rise and fade on the shared easing curve */}
           <motion.div key={pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ y: glide, opacity: fade }}>
             {children}
