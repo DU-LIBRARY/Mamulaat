@@ -278,7 +278,7 @@ export function StudentDetail() {
                     <div dir="auto">{describeChange(c)}</div>
                     <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
                       <span>
-                        {c.actorName} · {when(c.createdAt)} · {c.seenAt ? 'seen by student' : 'not seen yet'}
+                        {c.actorName} · {when(c.createdAt)} · {c.seenAt ? 'seen by student' : 'not seen yet'}{c.hiddenAt ? ' · removed from their inbox' : ''}
                       </span>
                       <button className="btn-ghost min-h-11 px-3 text-xs text-red-700" onClick={() => later(c.id, 'History entry deleted', () => deleteChange(uid, c.id, actor))}>
                         Delete
@@ -332,7 +332,7 @@ export function StudentDetail() {
                   </p>
                   <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
                     <span>
-                      {when(c.createdAt)} · {c.readAt ? `read ${when(c.readAt)}` : 'unread'}
+                      {when(c.createdAt)} · {c.readAt ? `read ${when(c.readAt)}` : 'unread'}{c.hiddenAt ? ' · removed from their inbox' : ''}
                     </span>
                     <button className="btn-ghost min-h-11 px-3 text-xs text-red-700" onClick={() => later(c.id, 'Comment deleted', () => deleteComment(uid, c.id, actor))}>
                       Delete

@@ -25,6 +25,7 @@ import {
   Users,
   User,
   type IconProps,
+  Trash,
 } from '@phosphor-icons/react';
 
 /**
@@ -64,5 +65,6 @@ export const IconInfo = make(Info, 'regular');
 export const IconSalah = make(Mosque, 'light');
 export const IconUsers = make(Users, 'regular');
 export const IconStar = make(Star, 'regular');
+export const IconTrash = make(Trash, 'regular');
 
 export type AppIconProps = ComponentProps<typeof IconToday>;

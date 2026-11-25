@@ -225,6 +225,20 @@ describe('privilege escalation', () => {
     await assertSucceeds(updateDoc(doc(f, `users/${A}/comments/c1`), { readAt: serverTimestamp() }));
   });
 
+  it('student can remove a comment or change from their inbox (and undo), but not delete it outright', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `users/${A}/changes/ch2`), { kind: 'added', actorId: ADMIN, createdAt: Timestamp.now(), seenAt: null });
+    });
+    const f = db(A);
+    await assertSucceeds(updateDoc(doc(f, `users/${A}/comments/c1`), { hiddenAt: serverTimestamp(), readAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}/comments/c1`), { hiddenAt: null }));
+    await assertSucceeds(updateDoc(doc(f, `users/${A}/changes/ch2`), { hiddenAt: serverTimestamp(), seenAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(f, `users/${A}/comments/c1`), { hiddenAt: Timestamp.fromMillis(0) }));
+    await assertFails(updateDoc(doc(f, `users/${A}/comments/c1`), { hiddenAt: serverTimestamp(), text: 'edited' }));
+    await assertFails(deleteDoc(doc(f, `users/${A}/comments/c1`)));
+    await assertFails(updateDoc(doc(db(B), `users/${A}/comments/c1`), { hiddenAt: serverTimestamp() }));
+  });
+
   it('student cannot change settings or classes, or write the audit log', async () => {
     const f = db(A);
     await assertFails(updateDoc(doc(f, 'settings/app'), { backfillDays: 30 }));
