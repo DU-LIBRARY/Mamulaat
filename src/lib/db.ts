@@ -490,6 +490,18 @@ export function markChangeSeen(uid: string, changeId: string) {
   fire(updateDoc(doc(changesCol(uid), changeId), { seenAt: serverTimestamp() }));
 }
 
+/** Remove from the student's inbox (marks it read/seen too). Undo with `unhideInboxItem`. */
+export function hideInboxItem(uid: string, kind: 'comment' | 'change', id: string, alreadyRead: boolean) {
+  const col = kind === 'comment' ? commentsCol(uid) : changesCol(uid);
+  const data: Record<string, unknown> = { hiddenAt: serverTimestamp() };
+  if (!alreadyRead) data[kind === 'comment' ? 'readAt' : 'seenAt'] = serverTimestamp();
+  fire(updateDoc(doc(col, id), data));
+}
+
+export function unhideInboxItem(uid: string, kind: 'comment' | 'change', id: string) {
+  fire(updateDoc(doc(kind === 'comment' ? commentsCol(uid) : changesCol(uid), id), { hiddenAt: null }));
+}
+
 // ---------- comments (admin side) ----------
 /** Leave a note on the student's home page; with `push`, also send it to their phone (next notifications run). */
 export function addComment(uid: string, text: string, actor: Actor, push = false) {

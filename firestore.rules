@@ -304,10 +304,12 @@ service cloud.firestore {
                       && request.resource.data.authorId == request.auth.uid
                       && request.resource.data.createdAt == request.time
                       && request.resource.data.get('readAt', null) == null;
-        // The student can only mark a comment as read.
+        // The student can only mark a comment as read, or remove it from their inbox
+        // (hiddenAt: the teacher still sees it on the student's page).
         allow update: if isActiveSelf(uid) && !isAdmin()
-                      && changed().hasOnly(['readAt'])
-                      && request.resource.data.readAt == request.time;
+                      && changed().hasOnly(['readAt', 'hiddenAt'])
+                      && (!('readAt' in changed()) || request.resource.data.readAt == request.time)
+                      && (!('hiddenAt' in changed()) || request.resource.data.hiddenAt == request.time || request.resource.data.hiddenAt == null);
         allow delete: if isStaff();
       }
 
@@ -319,8 +321,9 @@ service cloud.firestore {
                       && request.resource.data.createdAt == request.time
                       && request.resource.data.get('seenAt', null) == null;
         allow update: if isActiveSelf(uid) && !isAdmin()
-                      && changed().hasOnly(['seenAt'])
-                      && request.resource.data.seenAt == request.time;
+                      && changed().hasOnly(['seenAt', 'hiddenAt'])
+                      && (!('seenAt' in changed()) || request.resource.data.seenAt == request.time)
+                      && (!('hiddenAt' in changed()) || request.resource.data.hiddenAt == request.time || request.resource.data.hiddenAt == null);
         allow delete: if isAdmin();
       }
 

@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { cva } from 'class-variance-authority';
 import { AnimatePresence, motion } from 'motion/react';
 import { expand, fade, snap } from '../lib/motion';
@@ -24,7 +24,7 @@ function statusText(e: LogEntry | undefined, m: Pick<Mamool, 'target' | 'unit'>)
   return `${fmt(e.amount)} of ${targetLabel(m)}`;
 }
 
-/** Counted mamoolaat (e.g. 100 tasbeeh) get a +1 tap counter. */
+/** Counted mamoolaat (e.g. 100 tasbeeh) get a slider to set how many were done. */
 const isCounted = (m: Pick<Mamool, 'target'>) => m.target > 1;
 
 const STATUS: Record<EntryStatus, { label: string; icon: ReactNode }> = {
@@ -129,6 +129,54 @@ function edge(status: EntryStatus | undefined) {
   return 'before:bg-transparent';
 }
 
+/** Drag (or arrow-key) to set the count; it saves when you let go, so one drag is one write. */
+function CountSlider({ m, value, disabled, onCommit }: { m: Mamool; value: number; disabled: boolean; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState(value);
+  const [dragging, setDragging] = useState(false);
+  const pending = useRef(false);
+  // follow saved changes (Done tapped, Undo, another device) unless mid-drag
+  useEffect(() => {
+    if (!dragging) setDraft(value);
+  }, [value, dragging]);
+  const commit = () => {
+    setDragging(false);
+    if (!pending.current) return;
+    pending.current = false;
+    if (draft !== value) onCommit(draft);
+  };
+  const step = Number.isInteger(m.target) ? 1 : 0.25;
+  const pct = m.target > 0 ? Math.min(100, (draft / m.target) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <input
+        type="range"
+        className="count-slider min-w-0 flex-1"
+        style={{ ['--fill' as string]: `${pct}%` }}
+        min={0}
+        max={m.target}
+        step={step}
+        value={draft}
+        disabled={disabled}
+        onChange={(e) => {
+          setDragging(true);
+          pending.current = true;
+          setDraft(Number(e.target.value));
+        }}
+        onPointerUp={commit}
+        onPointerCancel={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+        aria-label={`How much of ${m.name}`}
+        aria-valuetext={`${fmt(draft)} of ${targetLabel(m)}`}
+      />
+      <span className="num min-w-16 shrink-0 text-right text-sm text-slate-600" aria-hidden>
+        <span className={cn('font-medium', draft >= m.target ? 'text-brand-700' : draft > 0 ? 'text-amber-800' : 'text-slate-500')}>{fmt(draft)}</span>
+        <span className="text-slate-400"> / {fmt(m.target)}</span>
+      </span>
+    </div>
+  );
+}
+
 function MamoolRow({
   m,
   entry,
@@ -167,15 +215,18 @@ function MamoolRow({
     } else onChange({ status: s, amount: s === 'done' ? m.target : 0, target: m.target });
   };
 
-  /** +1 on a counted mamool: becomes "done" when it reaches the target. */
-  const bump = () => {
+  /** Count from the slider: the target makes it "done", 0 clears it. */
+  const slide = (n: number) => {
     if (!editable) return;
-    const current = entry ? (entry.status === 'done' ? m.target : entry.amount) : 0;
-    const next = Math.min(m.target, current + 1);
     setEditingPartial(false);
-    if (next >= m.target) onChange({ status: 'done', amount: m.target, target: m.target });
-    else onChange({ status: 'partial', amount: next, target: m.target });
+    const prev = entry;
+    if (n >= m.target) onChange({ status: 'done', amount: m.target, target: m.target });
+    else if (n <= 0) {
+      onChange(null);
+      if (prev) undo.undoable(`Cleared “${m.name}”`, () => onChange(prev));
+    } else onChange({ status: 'partial', amount: n, target: m.target });
   };
+  const count = entry ? (entry.status === 'done' ? m.target : entry.amount) : 0;
 
   const savePartial = () => {
     const a = Math.max(0, Number(amount) || 0);
@@ -289,20 +340,11 @@ function MamoolRow({
             {(['partial', 'missed'] as EntryStatus[]).map((s) => (
               <StatusButton key={s} s={s} on={status === s} layout="text" disabled={!editable} onClick={() => set(s)} icon={STATUS[s].icon} label={STATUS[s].label} />
             ))}
-            {editable && isCounted(m) && (
-              <button
-                type="button"
-                onClick={bump}
-                                className="num inline-flex min-h-11 items-center justify-center rounded-md px-2 text-[13px] text-brand-700 hover:text-brand-900"
-                aria-label={`Add 1 to ${m.name} (now ${entry ? fmt(entry.status === 'done' ? m.target : entry.amount) : 0} of ${targetLabel(m)})`}
-              >
-                +1
-              </button>
-            )}
           </div>
           </motion.div>
           )}
           </AnimatePresence>
+          {editable && isCounted(m) && <CountSlider m={m} value={count} disabled={!editable} onCommit={slide} />}
         </div>
         <StatusButton s="done" on={status === 'done'} layout="circle" disabled={!editable} onClick={() => set('done')} icon={<IconCheck size={20} weight={status === 'done' ? 'bold' : 'regular'} />} label="Done" />
       </div>

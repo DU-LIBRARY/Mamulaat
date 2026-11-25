@@ -1,11 +1,27 @@
 import { useActiveSession } from '../../hooks/useSession';
 import { useMyData } from '../../hooks/useStudentData';
-import { markChangeSeen, markCommentRead } from '../../lib/db';
+import { hideInboxItem, markChangeSeen, markCommentRead, unhideInboxItem } from '../../lib/db';
 import { Link } from 'react-router-dom';
 import { EmptyState, Notice } from '../../components/ui';
 import { findOverlaps } from '../../lib/names';
 import type { ChangeRecord } from '../../types';
 import { targetLabel } from '../../components/Checklist';
+import { IconTrash } from '../../components/icons';
+import { useUndo } from '../../components/Undo';
+
+function DeleteButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:text-red-800"
+    >
+      <IconTrash size={18} />
+    </button>
+  );
+}
 
 function when(ts?: { toDate(): Date } | null) {
   return ts ? ts.toDate().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'just now';
@@ -25,7 +41,16 @@ export function describeChange(c: ChangeRecord) {
 
 export function Messages() {
   const { profile } = useActiveSession();
-  const { comments, changes, active } = useMyData();
+  const undo = useUndo();
+  const data = useMyData();
+  const { active } = data;
+  // Removed items stay on record for the teacher; the student just doesn't see them.
+  const comments = data.comments.filter((c) => !c.hiddenAt);
+  const changes = data.changes.filter((c) => !c.hiddenAt);
+  const remove = (kind: 'comment' | 'change', id: string, alreadyRead: boolean) => {
+    hideInboxItem(profile.id, kind, id, alreadyRead);
+    undo.undoable(kind === 'comment' ? 'Comment deleted' : 'Change deleted', () => unhideInboxItem(profile.id, kind, id));
+  };
   const unseen = changes.filter((c) => !c.seenAt);
   const overlapCount = findOverlaps(active).size;
   return (
@@ -45,13 +70,16 @@ export function Messages() {
                   <span>
                     {c.authorName} · {when(c.createdAt)}
                   </span>
-                  {c.readAt ? (
-                    <span>Read</span>
-                  ) : (
-                    <button className="btn-secondary min-h-11 px-3 text-sm" onClick={() => markCommentRead(profile.id, c.id)}>
-                      Mark as read
-                    </button>
-                  )}
+                  <span className="flex items-center gap-2">
+                    {c.readAt ? (
+                      <span>Read</span>
+                    ) : (
+                      <button className="btn-secondary min-h-11 px-3 text-sm whitespace-nowrap" onClick={() => markCommentRead(profile.id, c.id)}>
+                        Mark as read
+                      </button>
+                    )}
+                    <DeleteButton label="Delete comment" onClick={() => remove('comment', c.id, !!c.readAt)} />
+                  </span>
                 </div>
               </li>
             ))}
@@ -86,13 +114,16 @@ export function Messages() {
                   <span>
                     by {c.actorName} · {when(c.createdAt)}
                   </span>
-                  {c.seenAt ? (
-                    <span>Seen</span>
-                  ) : (
-                    <button className="btn-secondary min-h-11 px-3 text-sm" onClick={() => markChangeSeen(profile.id, c.id)}>
-                      Got it
-                    </button>
-                  )}
+                  <span className="flex items-center gap-2">
+                    {c.seenAt ? (
+                      <span>Seen</span>
+                    ) : (
+                      <button className="btn-secondary min-h-11 px-3 text-sm whitespace-nowrap" onClick={() => markChangeSeen(profile.id, c.id)}>
+                        Got it
+                      </button>
+                    )}
+                    <DeleteButton label="Delete" onClick={() => remove('change', c.id, !!c.seenAt)} />
+                  </span>
                 </div>
               </li>
             ))}

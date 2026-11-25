@@ -115,6 +115,8 @@ export interface Comment {
   authorName: string;
   createdAt?: Timestamp;
   readAt: Timestamp | null;
+  /** The student removed it from their inbox (the teacher still sees it). */
+  hiddenAt?: Timestamp | null;
 }
 
 export interface ChangeRecord {
@@ -128,6 +130,8 @@ export interface ChangeRecord {
   actorName: string;
   createdAt?: Timestamp;
   seenAt: Timestamp | null;
+  /** The student removed it from their inbox (the teacher still sees it). */
+  hiddenAt?: Timestamp | null;
 }
 
 export interface AppSettings {
