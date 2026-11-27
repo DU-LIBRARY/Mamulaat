@@ -3,7 +3,7 @@ import { cva } from 'class-variance-authority';
 import { AnimatePresence, motion } from 'motion/react';
 import { fade, snap } from '../lib/motion';
 import { SALAH_NAMES, type SalahDay, type SalahName, type SalahStatus } from '../types';
-import { SALAH_LABEL, STATUS_DESC, STATUS_LABEL, adminStatus } from '../lib/salah';
+import { STATUS_DESC, STATUS_LABEL, adminStatus, salahLabel } from '../lib/salah';
 import { IconCheck, IconClock, IconStar, IconX } from './icons';
 import { useUndo } from './Undo';
 
@@ -53,12 +53,14 @@ const subClass: Record<SalahStatus, string> = {
 
 function SalahRow({
   name,
+  day,
   status,
   editable,
   onChange,
   admin = false,
 }: {
   name: SalahName;
+  day: string;
   status: SalahStatus | undefined;
   editable: boolean;
   onChange: (s: SalahStatus | null) => void;
@@ -68,7 +70,7 @@ function SalahRow({
   const undo = useUndo();
   const saved = status;
   if (admin) status = adminStatus(status);
-  const label = SALAH_LABEL[name];
+  const label = salahLabel(name, day);
   const set = (s: SalahStatus) => {
     if (!editable) return;
     if (status === s) {
@@ -153,7 +155,7 @@ export function SalahChecklist({
   return (
     <ul className="divide-y divide-slate-200 border-y border-slate-200" aria-label="Salah">
       {SALAH_NAMES.map((n) => (
-        <SalahRow key={n + day} name={n} status={record?.entries?.[n]} editable={editable} admin={admin} onChange={(s) => onChange(n, s)} />
+        <SalahRow key={n + day} name={n} day={day} status={record?.entries?.[n]} editable={editable} admin={admin} onChange={(s) => onChange(n, s)} />
       ))}
     </ul>
   );

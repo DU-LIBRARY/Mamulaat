@@ -1,4 +1,4 @@
-import { adminStatus, fajrRollSummary, missedCount, salahStats, unloggedIsMissed } from '../../src/lib/salah';
+import { adminStatus, fajrRollSummary, missedCount, salahLabel, salahStats, unloggedIsMissed } from '../../src/lib/salah';
 import { describe, expect, it } from 'vitest';
 import { addDays, ADMIN_RECORDS_FROM, adminView, diffDays, isDayEditable, todayIn, utcOffsetMinutes, weekStartOf, weekendOf, formatHijri } from '../../src/lib/dates';
 import { currentStreak, dayStats, entryFraction, fridayEntry, isFridayMamoolDay, logsByDay, scheduledFor, withFriday } from '../../src/lib/scoring';
@@ -289,5 +289,13 @@ describe('Friday Mamool', () => {
     expect(s.completion).toBe(0.75);
     // a Saturday is unaffected
     expect(dayStats(SAT, { id: SAT, date: SAT, entries: { q: done() } } as never, [quran]).scheduled).toBe(1);
+  });
+});
+
+describe('salahLabel', () => {
+  it("calls Zuhr Jumu'ah on Fridays only", () => {
+    expect(salahLabel('zuhr', '2026-11-27')).toBe("Jumu'ah"); // a Friday
+    expect(salahLabel('zuhr', '2026-11-26')).toBe('Zuhr');
+    expect(salahLabel('asr', '2026-11-27')).toBe('Asr');
   });
 });

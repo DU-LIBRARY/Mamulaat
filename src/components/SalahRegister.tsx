@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { SALAH_NAMES, type SalahDay, type SalahStatus, type UserProfile } from '../types';
 import { dayNumber, formatGregorian, shortDay } from '../lib/dates';
 import { displayName, shortName } from '../lib/display';
-import { adminStatus, missedCount, SALAH_LABEL, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
+import { adminStatus, missedCount, salahLabel, STATUS_DESC, unloggedIsMissed } from '../lib/salah';
 
 /** F D A M I: Fajr, Dhuhr (Zuhr), Asr, Maghrib, Isha. */
 const LETTER = ['F', 'D', 'A', 'M', 'I'];
@@ -92,7 +92,7 @@ export function SalahRegister({ days, groups, salah, today }: { days: string[]; 
                                   <span
                                     key={n}
                                     className={`h-7 min-w-0 flex-1 rounded-[2px] ${bar(s, future, unloggedIsMissed(d, today))}`}
-                                    title={future ? '' : `${SALAH_LABEL[n]}: ${s ? STATUS_DESC[adminStatus(s)!] : unloggedIsMissed(d, today) ? 'missed (not logged)' : 'not logged'}`}
+                                    title={future ? '' : `${salahLabel(n, d)}: ${s ? STATUS_DESC[adminStatus(s)!] : unloggedIsMissed(d, today) ? 'missed (not logged)' : 'not logged'}`}
                                   />
                                 );
                               })}

@@ -1,4 +1,4 @@
-import { ADMIN_RECORDS_FROM } from './dates';
+import { ADMIN_RECORDS_FROM, dayOfWeek } from './dates';
 import { SALAH_NAMES, type FajrRoll, type RollStatus, type SalahDay, type SalahName, type SalahStatus } from '../types';
 
 export const SALAH_LABEL: Record<SalahName, string> = {
@@ -8,6 +8,9 @@ export const SALAH_LABEL: Record<SalahName, string> = {
   maghrib: 'Maghrib',
   isha: 'Isha',
 };
+
+/** The salah's name on a given day: on Fridays Zuhr is Jumu'ah. */
+export const salahLabel = (name: SalahName, day: string): string => (name === 'zuhr' && dayOfWeek(day) === 5 ? "Jumu'ah" : SALAH_LABEL[name]);
 
 export const STATUS_LABEL: Record<SalahStatus, string> = {
   takbir: 'Takbir Ula',
