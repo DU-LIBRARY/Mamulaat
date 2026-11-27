@@ -44,6 +44,12 @@ const seenMs = (v) => (v && v.lastSeen && typeof v.lastSeen.toMillis === 'functi
 const stats = { sent: 0, removed: 0, failed: 0 };
 const who = (uid) => (typeof byId?.get(uid)?.name === 'string' && byId.get(uid).name) || uid;
 
+// Which devices the last pushToUser reached, e.g. "iPhone", "Android", "Windows": for the run log.
+let lastDevices = [];
+const device = (ua) => {
+  const u = typeof ua === 'string' ? ua : '';
+  return /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac OS X/.test(u) ? 'Mac' : /Linux/.test(u) ? 'Linux' : 'unknown device';
+};
 /** Send to every device of one user; drops subscriptions the push service says are gone. */
 async function pushToUser(uid, msg) {
   // One person's bad data or unreachable phone must never stop the run for everyone after them.
@@ -61,6 +67,7 @@ async function pushToDevices(uid, msg) {
   if (all.length > subs.length) console.log(`::warning::${uid} has ${all.length} devices registered; using the ${MAX_DEVICES} most recent.`);
   const staleBefore = Date.now() - STALE_DAYS * 86400e3;
   let ok = false;
+  lastDevices = [];
   for (const s of subs) {
     const v = s.data();
     if (seenMs(v) && seenMs(v) < staleBefore) {
@@ -78,6 +85,7 @@ async function pushToDevices(uid, msg) {
       await webpush.sendNotification({ endpoint: v.endpoint, keys: { p256dh: v.p256dh, auth: v.auth } }, JSON.stringify(msg), { TTL: 4 * 3600, urgency: 'high', timeout: PUSH_TIMEOUT_MS });
       stats.sent++;
       ok = true;
+      lastDevices.push(device(v.userAgent));
     } catch (e) {
       if (e.statusCode === 404 || e.statusCode === 410) {
         stats.removed++;
@@ -173,12 +181,22 @@ for (const { slot, key } of dueSlots(CFG.reminders ?? [], today, minutes, sentSl
   if (!dry) await remindersRef.set({ sent: Object.fromEntries(Object.entries(sentSlots).filter(([k]) => k >= addDaysYmd(today, -7))) });
   let n = 0;
   const unreached = [];
+  const reached = [];
+  const skipped = [];
   for (const [uid, d] of byId) {
     if (d.role !== 'student' || d.status !== 'active') continue;
-    if (slot.fajr && (await db.doc(`users/${uid}/salah/${today}`).get()).get('entries.fajr')) continue; // already logged
-    if (await pushToUser(uid, { title: slot.title || 'Mamūlāt', body: slot.body, url: slot.url || '.', tag: `reminder-${key}` })) n++;
-    else unreached.push(typeof d.name === 'string' && d.name ? d.name : uid);
+    const name = typeof d.name === 'string' && d.name ? d.name : uid;
+    if (slot.fajr && (await db.doc(`users/${uid}/salah/${today}`).get()).get('entries.fajr')) {
+      skipped.push(name); // already logged
+      continue;
+    }
+    if (await pushToUser(uid, { title: slot.title || 'Mamūlāt', body: slot.body, url: slot.url || '.', tag: `reminder-${key}` })) {
+      n++;
+      reached.push(`${name} (${lastDevices.join(', ') || 'dry run'})`);
+    } else unreached.push(name);
   }
+  if (reached.length) console.log(`  sent to: ${reached.join('; ')}`);
+  if (skipped.length) console.log(`  skipped, already logged Fajr: ${skipped.length}: ${skipped.join(', ')}`);
   if (unreached.length) console.log(`  not reached (notifications off on their phone): ${unreached.length}: ${unreached.join(', ')}`);
   reminded += n;
   console.log(`Reminder ${key}: sent to ${n} student(s)`);
