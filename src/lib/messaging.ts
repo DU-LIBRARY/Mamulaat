@@ -6,7 +6,7 @@
  * the reminders, nudges and sign-up/approval notices, signed with the private half of the key pair
  * whose public half is in push.config.json.
  */
-import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocFromServer, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
 import { USE_EMULATORS, db } from '../firebase';
 import { getSwRegistration, isIOS, isStandalone } from './pwa';
 import { fire } from './sync';
@@ -153,8 +153,23 @@ export async function refreshToken(uid: string): Promise<boolean> {
     const s = await pushSupport();
     if (!s.ok) return false;
     dropOldFcmToken(uid);
-    const sub = await currentSubscription(true);
-    return !!sub && (await saveSubscription(uid, sub, false));
+    let sub = await currentSubscription(true);
+    if (!sub) return false;
+    let force = false;
+    // Once a day: if the server removed this device's record, the push service told it this
+    // subscription is dead (404/410) or it went unseen too long. The browser can keep handing back
+    // the dead one, so re-saving it would only be removed again at the next reminder: make a new one.
+    const id = await subId(sub.endpoint);
+    if (localStorage.getItem(SUB_KEY) === id && localStorage.getItem(SUB_SEEN_KEY) !== new Date().toISOString().slice(0, 10)) {
+      const snap = await getDocFromServer(doc(db, 'users', uid, 'pushSubs', id)).catch(() => null); // offline: check next time
+      if (snap && !snap.exists()) {
+        await sub.unsubscribe().catch(() => undefined);
+        sub = await currentSubscription(true);
+        if (!sub) return false;
+        force = true;
+      }
+    }
+    return await saveSubscription(uid, sub, force);
   } catch (e) {
     console.warn('[push] could not refresh subscription', e);
     return false;
